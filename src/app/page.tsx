@@ -1,69 +1,68 @@
-import Image from "next/image";
+import Link from "next/link";
+import { MacroSummary } from "@/components/nutrition/MacroSummary";
+import { buttonClass } from "@/components/ui";
+
+// A plausible day so far (breakfast roti canai + lunch nasi lemak).
+const SAMPLE = {
+  totals: { kcal: 1885, proteinG: 79, carbsG: 214, fatG: 81, fiberG: 14, sugarG: 41, sodiumMg: 2650 },
+  targets: { targetKcal: 2600, targetProteinG: 150, targetCarbsG: 320, targetFatG: 75 },
+};
+
+const FEATURES = [
+  { term: "Meals", body: "Type what you ate or take a photo. AI lists each item with calories, protein, carbs, fat, fiber, sugar and sodium, and you adjust the grams before saving. It knows roti canai from roti john." },
+  { term: "Workouts", body: "Log sets in a couple of taps. You see what you lifted last time, a suggested next weight, and a rest timer that starts on its own. New records are flagged as you set them." },
+  { term: "Plans", body: "Tell it your goal, days per week, session length, equipment and any injuries. You get a plan built from a real exercise library, and you can edit every set." },
+  { term: "Progress", body: "Body-weight trend, calories and protein against target, sets per muscle and strength over time." },
+  { term: "Coach", body: "Ask about your training or eating. The coach reads your logs, and can propose new targets or a new plan that only change when you approve them." },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <main className="mx-auto min-h-dvh max-w-5xl px-5 pb-16">
+      <header className="flex items-center justify-between py-6">
+        <span className="score text-[30px]">GymPal</span>
+        <Link href="/sign-in" className={buttonClass("ghost", "sm")}>
+          Sign in
+        </Link>
+      </header>
+
+      <section className="grid items-end gap-10 pt-8 md:grid-cols-[1.1fr_1fr] md:pt-16">
+        <div>
+          <h1 className="display max-w-[14ch] text-[44px] sm:text-[60px]" style={{ lineHeight: 0.98 }}>
+            Log what you eat and what you lift.
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-5 max-w-[46ch] text-[17px] text-steel">
+            Describe a meal or snap a photo and AI works out the calories and macros. Your workouts, training plan and progress sit right
+            next to it.
           </p>
+          <div className="mt-8 flex flex-wrap gap-2">
+            <Link href="/sign-up" className={buttonClass("primary", "lg")}>
+              Create account
+            </Link>
+            <Link href="/sign-in" className={buttonClass("secondary", "lg")}>
+              Sign in
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        <figure className="rounded-[14px] bg-paper p-5">
+          <MacroSummary totals={SAMPLE.totals} targets={SAMPLE.targets} />
+          <figcaption className="mt-4 border-t border-line pt-3 text-[13px] text-steel">
+            A sample day. Each plate is the calories from protein, carbs or fat; the collar is your target.
+          </figcaption>
+        </figure>
+      </section>
+
+      <dl className="mt-20 divide-y divide-line border-y border-line">
+        {FEATURES.map((f) => (
+          <div key={f.term} className="grid gap-1 py-5 sm:grid-cols-[10rem_1fr] sm:gap-6">
+            <dt className="display text-[22px]">{f.term}</dt>
+            <dd className="max-w-[62ch] text-steel">{f.body}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <p className="mt-10 text-[13px] text-steel">Nutrition estimates are approximate and not medical advice.</p>
+    </main>
   );
 }

@@ -1,0 +1,416 @@
+// GymPal database schema. All quantities are stored in metric units
+// (kg, g, cm, kcal); conversion to imperial happens only for display.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Auth (Better Auth) ----------
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  profile         Profile?
+  bodyMetrics     BodyMetric[]
+  meals           Meal[]
+  savedFoods      SavedFood[]
+  customExercises Exercise[]
+  plans           TrainingPlan[]
+  workouts        WorkoutSession[]
+  records         PersonalRecord[]
+  chatThreads     ChatThread[]
+  aiUsage         AiUsage[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------- Profile & body ----------
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum Goal {
+  CUT
+  MAINTAIN
+  BULK
+}
+
+enum UnitSystem {
+  METRIC
+  IMPERIAL
+}
+
+enum Experience {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+model Profile {
+  id            String        @id @default(cuid())
+  userId        String        @unique
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sex           Sex
+  birthDate     DateTime      @db.Date
+  heightCm      Float
+  activityLevel ActivityLevel
+  goal          Goal
+  rateKgPerWeek Float         @default(0.5)
+  timezone      String        @default("UTC")
+  unitSystem    UnitSystem    @default(METRIC)
+  experience    Experience    @default(BEGINNER)
+  equipment     String[]
+
+  // Daily targets: computed from the profile + latest weight unless overridden.
+  targetKcal     Int
+  targetProteinG Int
+  targetCarbsG   Int
+  targetFatG     Int
+  targetsManual  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BodyMetric {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  localDate  String // YYYY-MM-DD in the user's timezone
+  weightKg   Float
+  bodyFatPct Float?
+  waistCm    Float?
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, localDate])
+}
+
+// ---------- Nutrition ----------
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
+enum MealSource {
+  AI_TEXT
+  AI_PHOTO
+  MANUAL
+}
+
+model Meal {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eatenAt     DateTime
+  localDate   String // YYYY-MM-DD in the user's timezone
+  mealType    MealType
+  description String
+  source      MealSource
+  notes       String?
+
+  // Cached totals, always recomputed server-side from items.
+  kcal     Float
+  proteinG Float
+  carbsG   Float
+  fatG     Float
+  fiberG   Float
+  sugarG   Float
+  sodiumMg Float
+
+  items     MealItem[]
+  createdAt DateTime   @default(now())
+
+  @@index([userId, localDate])
+}
+
+model MealItem {
+  id          String  @id @default(cuid())
+  mealId      String
+  meal        Meal    @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  name        String
+  quantity    Float
+  unit        String
+  grams       Float
+  kcal        Float
+  proteinG    Float
+  carbsG      Float
+  fatG        Float
+  fiberG      Float
+  sugarG      Float
+  sodiumMg    Float
+  confidence  Float?
+  assumptions String?
+}
+
+model SavedFood {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  quantity  Float
+  unit      String
+  grams     Float
+  kcal      Float
+  proteinG  Float
+  carbsG    Float
+  fatG      Float
+  fiberG    Float
+  sugarG    Float
+  sodiumMg  Float
+  useCount  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+}
+
+// ---------- Training ----------
+
+enum ExerciseCategory {
+  COMPOUND
+  ISOLATION
+  CARDIO
+}
+
+model Exercise {
+  id               String           @id @default(cuid())
+  slug             String
+  name             String
+  primaryMuscle    String
+  secondaryMuscles String[]
+  equipment        String
+  category         ExerciseCategory
+  isLowerBody      Boolean          @default(false)
+  instructions     String?
+  // null = global library exercise; set = user's custom exercise
+  userId           String?
+  user             User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  planExercises PlanExercise[]
+  sets          WorkoutSet[]
+  records       PersonalRecord[]
+
+  @@unique([userId, slug])
+  @@index([slug])
+}
+
+enum PlanSource {
+  AI
+  MANUAL
+}
+
+model TrainingPlan {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  goal        String
+  daysPerWeek Int
+  weeks       Int        @default(8)
+  isActive    Boolean    @default(false)
+  source      PlanSource
+  notes       String?
+  days        PlanDay[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([userId])
+}
+
+model PlanDay {
+  id        String           @id @default(cuid())
+  planId    String
+  plan      TrainingPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  dayIndex  Int
+  name      String
+  exercises PlanExercise[]
+  sessions  WorkoutSession[]
+
+  @@unique([planId, dayIndex])
+}
+
+model PlanExercise {
+  id         String   @id @default(cuid())
+  planDayId  String
+  planDay    PlanDay  @relation(fields: [planDayId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+  order      Int
+  sets       Int
+  repMin     Int
+  repMax     Int
+  targetRpe  Float?
+  restSec    Int      @default(120)
+  notes      String?
+}
+
+model WorkoutSession {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt DateTime     @default(now())
+  endedAt   DateTime?
+  localDate String
+  planDayId String?
+  planDay   PlanDay?     @relation(fields: [planDayId], references: [id], onDelete: SetNull)
+  notes     String?
+  sets      WorkoutSet[]
+
+  @@index([userId, localDate])
+}
+
+model WorkoutSet {
+  id          String           @id @default(cuid())
+  sessionId   String
+  session     WorkoutSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exerciseId  String
+  exercise    Exercise         @relation(fields: [exerciseId], references: [id])
+  setIndex    Int
+  weightKg    Float
+  reps        Int
+  rpe         Float?
+  isWarmup    Boolean          @default(false)
+  completedAt DateTime         @default(now())
+  records     PersonalRecord[]
+
+  @@index([sessionId])
+  @@index([exerciseId])
+}
+
+enum RecordType {
+  MAX_WEIGHT
+  EST_1RM
+  MAX_VOLUME_SET
+}
+
+model PersonalRecord {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  type       RecordType
+  value      Float
+  setId      String
+  set        WorkoutSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  achievedAt DateTime
+
+  @@index([userId, exerciseId, type])
+}
+
+// ---------- AI ----------
+
+model ChatThread {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  messages  ChatMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+model ChatMessage {
+  id        String     @id @default(cuid())
+  threadId  String
+  thread    ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role      String // "user" | "assistant"
+  content   String
+  // Proposal cards (plan/target changes) the assistant attached to this message.
+  proposals Json?
+  createdAt DateTime   @default(now())
+
+  @@index([threadId])
+}
+
+enum AiKind {
+  MEAL
+  PLAN
+  CHAT
+}
+
+model AiUsage {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      AiKind
+  localDate String
+  count     Int    @default(0)
+
+  @@unique([userId, kind, localDate])
+}

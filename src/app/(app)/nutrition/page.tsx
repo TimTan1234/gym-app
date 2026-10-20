@@ -1,0 +1,71 @@
+import { Suspense } from "react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
+import { requireProfile } from "@/lib/session";
+import { getDayNutrition } from "@/lib/queries";
+import { isLocalDate, todayLocal } from "@/lib/dates";
+import { MacroSummary } from "@/components/nutrition/MacroSummary";
+import { MealCard } from "@/components/nutrition/MealCard";
+import { DateNav } from "@/components/DateNav";
+import { MEAL_TYPE_LABELS } from "@/components/profile/options";
+import { PageSkeleton, buttonClass, cn } from "@/components/ui";
+
+export const metadata = { title: "Nutrition" };
+
+const ORDER = ["BREAKFAST", "LUNCH", "DINNER", "SNACK"] as const;
+
+async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrition">["searchParams"] }) {
+  const { user, profile } = await requireProfile();
+  const today = todayLocal(profile.timezone);
+  const raw = (await searchParams).date;
+  const date = typeof raw === "string" && isLocalDate(raw) && raw <= today ? raw : today;
+  const { meals, totals } = await getDayNutrition(user.id, date);
+
+  return (
+    <>
+      <header className="mb-6 flex items-center justify-between gap-2">
+        <h1 className="display text-[32px]">Nutrition</h1>
+        <DateNav date={date} today={today} basePath="/nutrition" />
+      </header>
+      <MacroSummary totals={totals} targets={profile} />
+      <div className="mb-20 mt-10 space-y-6">
+        {ORDER.map((type) => {
+          const group = meals.filter((m) => m.mealType === type);
+          const kcal = group.reduce((s, m) => s + m.kcal, 0);
+          return (
+            <section key={type}>
+              <div className="mb-1 flex items-baseline justify-between">
+                <h2 className={cn("display text-[20px]", group.length === 0 && "text-steel")}>
+                  {MEAL_TYPE_LABELS[type]}
+                  {group.length > 0 && <span className="num ml-2 font-sans text-sm font-normal text-steel">{Math.round(kcal)} kcal</span>}
+                </h2>
+                <Link href={`/nutrition/log?type=${type}&date=${date}`} className={buttonClass("ghost", "sm")} aria-label={`Add ${MEAL_TYPE_LABELS[type]}`}>
+                  <Plus className="size-4" /> Add
+                </Link>
+              </div>
+              <div className={group.length > 0 ? "border-b border-line" : undefined}>
+                {group.map((meal) => (
+                  <MealCard key={meal.id} meal={meal} canCopy={date !== today} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      <Link
+        href={`/nutrition/log?date=${date}`}
+        className={`${buttonClass("primary", "lg")} fixed bottom-24 right-4 z-30 shadow-[0_8px_24px_-10px_rgba(31,34,38,0.55)] md:bottom-8`}
+      >
+        <Plus className="size-5" /> Log meal
+      </Link>
+    </>
+  );
+}
+
+export default function NutritionPage(props: PageProps<"/nutrition">) {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <NutritionDay searchParams={props.searchParams} />
+    </Suspense>
+  );
+}

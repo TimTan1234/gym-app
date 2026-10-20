@@ -1,0 +1,33 @@
+{
+  "name": "Upper / Lower — 4 day",
+  "notes": "Mock plan (AI_MOCK=1). Upper/lower split with double progression: when you hit the top of the rep range on all sets, add weight.",
+  "weeks": 8,
+  "days": [
+    { "name": "Upper A", "exercises": [
+      { "exerciseSlug": "barbell-bench-press", "sets": 4, "repMin": 5, "repMax": 8, "targetRpe": 8, "restSec": 180, "notes": null },
+      { "exerciseSlug": "barbell-row", "sets": 4, "repMin": 6, "repMax": 10, "targetRpe": 8, "restSec": 150, "notes": null },
+      { "exerciseSlug": "seated-dumbbell-press", "sets": 3, "repMin": 8, "repMax": 12, "targetRpe": 8, "restSec": 120, "notes": null },
+      { "exerciseSlug": "lat-pulldown", "sets": 3, "repMin": 10, "repMax": 12, "targetRpe": 8, "restSec": 90, "notes": null },
+      { "exerciseSlug": "dumbbell-curl", "sets": 3, "repMin": 10, "repMax": 15, "targetRpe": 9, "restSec": 60, "notes": null }
+    ]},
+    { "name": "Lower A", "exercises": [
+      { "exerciseSlug": "back-squat", "sets": 4, "repMin": 5, "repMax": 8, "targetRpe": 8, "restSec": 180, "notes": null },
+      { "exerciseSlug": "romanian-deadlift", "sets": 3, "repMin": 8, "repMax": 10, "targetRpe": 8, "restSec": 150, "notes": null },
+      { "exerciseSlug": "leg-extension", "sets": 3, "repMin": 10, "repMax": 15, "targetRpe": 9, "restSec": 90, "notes": null },
+      { "exerciseSlug": "standing-calf-raise", "sets": 4, "repMin": 10, "repMax": 15, "targetRpe": 9, "restSec": 60, "notes": null }
+    ]},
+    { "name": "Upper B", "exercises": [
+      { "exerciseSlug": "overhead-press", "sets": 4, "repMin": 5, "repMax": 8, "targetRpe": 8, "restSec": 180, "notes": null },
+      { "exerciseSlug": "pull-up", "sets": 4, "repMin": 6, "repMax": 10, "targetRpe": 8, "restSec": 150, "notes": "Use assistance if needed" },
+      { "exerciseSlug": "incline-dumbbell-press", "sets": 3, "repMin": 8, "repMax": 12, "targetRpe": 8, "restSec": 120, "notes": null },
+      { "exerciseSlug": "dumbbell-lateral-raise", "sets": 3, "repMin": 12, "repMax": 20, "targetRpe": 9, "restSec": 60, "notes": null },
+      { "exerciseSlug": "triceps-pushdown", "sets": 3, "repMin": 10, "repMax": 15, "targetRpe": 9, "restSec": 60, "notes": null }
+    ]},
+    { "name": "Lower B", "exercises": [
+      { "exerciseSlug": "deadlift", "sets": 3, "repMin": 3, "repMax": 5, "targetRpe": 8, "restSec": 240, "notes": null },
+      { "exerciseSlug": "leg-press", "sets": 3, "repMin": 10, "repMax": 12, "targetRpe": 8, "restSec": 120, "notes": null },
+      { "exerciseSlug": "lying-leg-curl", "sets": 3, "repMin": 10, "repMax": 15, "targetRpe": 9, "restSec": 90, "notes": null },
+      { "exerciseSlug": "hanging-leg-raise", "sets": 3, "repMin": 10, "repMax": 15, "targetRpe": null, "restSec": 60, "notes": null }
+    ]}
+  ]
+}

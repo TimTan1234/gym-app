@@ -1,26 +1,126 @@
 @import "tailwindcss";
 
+/*
+ * Chalk & Plates.
+ * Chalk/paper/iron for the room; competition-plate colours are reserved for
+ * macros (blue = protein, yellow = carbs, red = fat) and used for nothing else.
+ * Iron is the action colour. Palette validated for CVD separation.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --chalk: #eef0ec;
+  --paper: #ffffff;
+  --iron: #1f2226;
+  --iron-fg: #ffffff;
+  --steel: #5b6672;
+  --line: #d9ddd6;
+  --wash: #e3e6e0;
+  --plate-blue: #2456c4;
+  --plate-yellow: #b88600;
+  --plate-red: #cc2f2b;
+  --good: #1e7a46;
+  --alert: #a3261f;
+  --focus: #2456c4;
+  /* The one emphasised panel per screen ("next thing to do"). */
+  --panel: #1f2226;
+  --panel-fg: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --chalk: #16181b;
+    --paper: #1f2226;
+    --iron: #eceeea;
+    --iron-fg: #16181b;
+    --steel: #848f9b;
+    --line: #30343a;
+    --wash: #272a2f;
+    --plate-blue: #5a8cf0;
+    --plate-yellow: #b48a0d;
+    --plate-red: #c9302c;
+    --good: #3daa6a;
+    --alert: #f2827a;
+    --focus: #5a8cf0;
+    /* Raised graphite rather than an inverted white slab in the dark. */
+    --panel: #2b2f35;
+    --panel-fg: #f3f4f1;
   }
 }
 
+@theme inline {
+  --color-chalk: var(--chalk);
+  --color-paper: var(--paper);
+  --color-iron: var(--iron);
+  --color-iron-fg: var(--iron-fg);
+  --color-steel: var(--steel);
+  --color-line: var(--line);
+  --color-wash: var(--wash);
+  --color-protein: var(--plate-blue);
+  --color-carbs: var(--plate-yellow);
+  --color-fat: var(--plate-red);
+  --color-good: var(--good);
+  --color-alert: var(--alert);
+  --color-panel: var(--panel);
+  --color-panel-fg: var(--panel-fg);
+  --font-sans: var(--font-archivo), system-ui, sans-serif;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--chalk);
+  color: var(--iron);
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  /* Archivo's wide t-crossbar reads loose at full width; a touch narrower is even. */
+  font-stretch: 93%;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Type roles */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+/* Scoreboard numerals: the numbers people act on. */
+.score {
+  font-stretch: 62%;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 0.9;
+}
+/* Semi-condensed headings. */
+.display {
+  font-stretch: 75%;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  line-height: 1.1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Over-target: hatched ink, never a macro colour. */
+.hatch {
+  background-image: repeating-linear-gradient(135deg, var(--iron) 0 2px, transparent 2px 6px);
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

@@ -33,3 +33,10 @@ Today is ${today} (user's local date). The user's name is ${name}.
 - When suggesting meals, fit them to the remaining macros for today and prefer foods common in the user's region if apparent.
 - You are not a doctor. For pain, injury, eating disorders, medical conditions, or medications, recommend a qualified professional. Never recommend intakes below 1200 kcal (women) / 1500 kcal (men) or extreme rapid weight loss.`;
 }
+
+/** Appended to every AI system prompt so user-facing text comes back in the interface language. */
+export function languageInstruction(locale: "en" | "zh"): string {
+  return locale === "zh"
+    ? "\n\nLanguage: write every user-facing text field (titles, item names, units, assumptions, notes, reasons, day names, replies) in Simplified Chinese (简体中文). Keep enum values, slugs and numbers exactly as specified."
+    : "";
+}

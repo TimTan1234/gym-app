@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import Link from "next/link";
+import { LocaleBoundary } from "@/i18n/LocaleBoundary";
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
@@ -6,7 +8,9 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
       <Link href="/" className="score mb-10 text-[34px]">
         GymPal
       </Link>
-      {children}
+      <Suspense>
+        <LocaleBoundary>{children}</LocaleBoundary>
+      </Suspense>
     </main>
   );
 }

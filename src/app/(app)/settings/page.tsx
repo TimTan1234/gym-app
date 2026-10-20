@@ -6,24 +6,30 @@ import { TargetsEditor } from "@/components/profile/TargetsEditor";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { InstallApp } from "@/components/InstallApp";
 import { Card, CardTitle, PageHeader, PageSkeleton } from "@/components/ui";
+import { DisplaySettings } from "@/components/profile/DisplaySettings";
+import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Settings" };
 
 async function Settings() {
   const { user, profile } = await requireProfile();
-  const latest = await getLatestWeight(user.id);
+  const [latest, t] = await Promise.all([getLatestWeight(user.id), getT()]);
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings" subtitle={user.email} action={<SignOutButton />} />
+      <PageHeader title={t("settings.title")} subtitle={user.email} action={<SignOutButton />} />
       <InstallApp />
+      <Card className="space-y-4">
+        <CardTitle>{t("settings.display")}</CardTitle>
+        <DisplaySettings />
+      </Card>
       <Card className="space-y-3">
-        <CardTitle>Daily targets</CardTitle>
+        <CardTitle>{t("settings.dailyTargets")}</CardTitle>
         <TargetsEditor initial={profile} />
       </Card>
       <Card className="space-y-3">
-        <CardTitle>Profile</CardTitle>
+        <CardTitle>{t("settings.profile")}</CardTitle>
         <ProfileForm
-          submitLabel="Save profile"
+          submitLabel={t("settings.saveProfile")}
           initial={{
             name: user.name,
             sex: profile.sex,

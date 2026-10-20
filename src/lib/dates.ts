@@ -64,8 +64,9 @@ export function ageOn(birthDate: Date, localDate: string): number {
   return age;
 }
 
-export function formatLocalDate(localDate: string, opts?: Intl.DateTimeFormatOptions): string {
-  return new Date(`${localDate}T12:00:00Z`).toLocaleDateString("en-US", {
+/** `intl` is an Intl locale such as "en-US" or "zh-CN" (see INTL_LOCALE). */
+export function formatLocalDate(localDate: string, opts?: Intl.DateTimeFormatOptions, intl = "en-US"): string {
+  return new Date(`${localDate}T12:00:00Z`).toLocaleDateString(intl, {
     timeZone: "UTC",
     weekday: "short",
     month: "short",

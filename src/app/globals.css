@@ -23,10 +23,15 @@
   /* The one emphasised panel per screen ("next thing to do"). */
   --panel: #1f2226;
   --panel-fg: #ffffff;
+  color-scheme: light;
 }
 
+/*
+ * Dark tokens apply when the user picked Dark, or picked System (no override)
+ * and the device is dark. The two blocks below must stay identical.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --chalk: #16181b;
     --paper: #1f2226;
     --iron: #eceeea;
@@ -43,7 +48,30 @@
     /* Raised graphite rather than an inverted white slab in the dark. */
     --panel: #2b2f35;
     --panel-fg: #f3f4f1;
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --chalk: #16181b;
+  --paper: #1f2226;
+  --iron: #eceeea;
+  --iron-fg: #16181b;
+  --steel: #848f9b;
+  --line: #30343a;
+  --wash: #272a2f;
+  --plate-blue: #5a8cf0;
+  --plate-yellow: #b48a0d;
+  --plate-red: #c9302c;
+  --good: #3daa6a;
+  --alert: #f2827a;
+  --focus: #5a8cf0;
+  /* Raised graphite rather than an inverted white slab in the dark. */
+  --panel: #2b2f35;
+  --panel-fg: #f3f4f1;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 @theme inline {
@@ -61,13 +89,13 @@
   --color-alert: var(--alert);
   --color-panel: var(--panel);
   --color-panel-fg: var(--panel-fg);
-  --font-sans: var(--font-archivo), system-ui, sans-serif;
+  --font-sans: var(--font-archivo), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
 }
 
 body {
   background: var(--chalk);
   color: var(--iron);
-  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-family: var(--font-archivo), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.5;
   /* Archivo's wide t-crossbar reads loose at full width; a touch narrower is even. */

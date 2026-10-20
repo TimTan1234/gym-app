@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
-import { Toaster } from "sonner";
 import { ServiceWorker } from "@/components/ServiceWorker";
+import { ThemedToaster } from "@/components/ThemedToaster";
+import { THEME_SCRIPT } from "@/lib/theme-script";
 import "./globals.css";
 
 // One family; the width axis does the expressive work (condensed numerals,
@@ -27,10 +28,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${archivo.variable} h-full antialiased`}>
+    // The head script sets data-theme before hydration, so React must not flag the difference.
+    <html lang="en" className={`${archivo.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-full">
         {children}
-        <Toaster position="top-center" richColors closeButton />
+        <ThemedToaster />
         <ServiceWorker />
       </body>
     </html>

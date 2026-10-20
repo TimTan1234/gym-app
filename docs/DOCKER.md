@@ -51,6 +51,10 @@ OPENAI_PLAN_MODEL="deepseek-flash"
 OPENAI_REASONING_EFFORT="low"
 AI_MOCK="0"
 
+# Other addresses you open the app from, comma-separated (127.0.0.1 is allowed by default).
+# For a phone on your Wi-Fi, add your PC's IP:
+# BETTER_AUTH_TRUSTED_ORIGINS="http://127.0.0.1:3000,http://192.168.1.20:3000"
+
 # Optional: host port (default 3000)
 # APP_PORT="3001"
 ```
@@ -170,7 +174,7 @@ On platforms with a "release command" or "pre-deploy job", use the `migrate` tar
 | Symptom | Fix |
 |---|---|
 | `Set POSTGRES_PASSWORD in .env` / `Set BETTER_AUTH_SECRET in .env` | Add the value to `.env` (step 2). |
-| Sign-in fails with "Invalid origin" | `BETTER_AUTH_URL` must match the address in the browser exactly, including `https` and port. Restart with `docker compose up -d`. |
+| Sign-up or sign-in fails with "Invalid origin" | The browser address must match `BETTER_AUTH_URL` exactly (scheme, host and port) or be listed in `BETTER_AUTH_TRUSTED_ORIGINS`. `docker compose logs app` shows the rejected address in an `Invalid origin: …` line. Add it to `.env`, then `docker compose up -d`. A phone on your Wi-Fi uses your PC's IP (e.g. `http://192.168.1.20:3000`), which must be added too. |
 | `migrate` exits with an error, `app` never starts | `docker compose logs migrate`. Usually a wrong password after changing `POSTGRES_PASSWORD`: the volume keeps the original password. Change it back, or reset with `down -v` (deletes data). |
 | `app` is "unhealthy" | `curl localhost:3000/api/health`. A 503 means the database is unreachable; check `docker compose ps db`. |
 | Barcode camera says it isn't available | The page isn't on HTTPS (or `localhost`). Use step 5, or type the number. |

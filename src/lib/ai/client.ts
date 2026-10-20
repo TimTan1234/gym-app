@@ -44,7 +44,10 @@ export function dailyLimit(kind: AiKind): number {
 }
 
 export class AiLimitError extends Error {
-  constructor(kind: AiKind, limit: number) {
+  constructor(
+    readonly kind: AiKind,
+    readonly limit: number,
+  ) {
     super(`Daily AI limit reached (${limit} ${kind.toLowerCase()} requests). Try again tomorrow.`);
   }
 }

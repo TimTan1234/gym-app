@@ -22,6 +22,8 @@ export const en = {
   table: "Table",
   somethingWrong: "Something went wrong. Please try again.",
   notFound: "Not found",
+  aiLimit: "Daily AI limit reached ({limit} a day). Try again tomorrow.",
+  unauthorized: "Sign in to continue.",
 };
 
 export const zh: typeof en = {
@@ -36,7 +38,7 @@ export const zh: typeof en = {
   today: "今天",
   yesterday: "昨天",
   kcal: "千卡",
-  grams: "克",
+  grams: "g",
   protein: "蛋白质",
   carbs: "碳水",
   fat: "脂肪",
@@ -47,4 +49,6 @@ export const zh: typeof en = {
   table: "表格",
   somethingWrong: "出了点问题，请重试。",
   notFound: "未找到",
+  aiLimit: "今日 AI 使用次数已达上限（每天 {limit} 次），请明天再试。",
+  unauthorized: "请先登录。",
 };

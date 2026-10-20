@@ -1,0 +1,6 @@
+# Keep LF everywhere so Dockerfile, shell and config files work in Linux containers
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.wasm binary

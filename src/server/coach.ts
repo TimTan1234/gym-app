@@ -6,6 +6,7 @@ import { requireProfile } from "@/lib/session";
 import type { Proposal } from "@/lib/ai/coach";
 import { createPlan } from "./plans";
 import { setTargets, type ActionResult } from "./profile";
+import { getT } from "@/i18n/server";
 
 /**
  * Apply a coach proposal. The proposal is read from the stored message, not
@@ -16,8 +17,8 @@ export async function applyProposal(messageId: string, index: number): Promise<A
   const message = await db.chatMessage.findFirst({ where: { id: messageId, thread: { userId: user.id } } });
   const proposals = (message?.proposals ?? []) as Proposal[];
   const proposal = proposals[index];
-  if (!message || !proposal) return { ok: false, error: "Proposal not found" };
-  if (proposal.applied) return { ok: false, error: "Already applied" };
+  if (!message || !proposal) return { ok: false, error: (await getT())("coach.errors.proposalNotFound") };
+  if (proposal.applied) return { ok: false, error: (await getT())("coach.errors.alreadyApplied") };
 
   let result: ActionResult;
   if (proposal.kind === "targets") {

@@ -7,19 +7,33 @@ import { requireProfile, requireUser } from "@/lib/session";
 import { getCheckin } from "@/lib/queries";
 import { KCAL_FLOOR, computeTargets } from "@/lib/nutrition/targets";
 import { ageOn, isLocalDate, isValidTimezone, todayLocal } from "@/lib/dates";
+import { getT } from "@/i18n/server";
+import type { MessageKey } from "@/i18n/translate";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+
+/** A validation failure in the user's language: a named message, "Check the <field>.", or a generic fallback. */
+async function invalidInput(error: z.ZodError): Promise<ActionResult> {
+  const t = await getT();
+  const issue = error.issues[0];
+  if (issue?.message === "invalidDate" || issue?.message === "unknownTimezone") {
+    return { ok: false, error: t(`settings.errors.${issue.message}`) };
+  }
+  const key = `settings.fields.${String(issue?.path[0])}`;
+  const field = t(key as MessageKey);
+  return { ok: false, error: field === key ? t("settings.errors.invalid") : t("settings.errors.invalidField", { field }) };
+}
 
 const ProfileSchema = z.object({
   name: z.string().trim().min(1).max(60),
   sex: z.enum(["MALE", "FEMALE"]),
-  birthDate: z.string().refine(isLocalDate, "Invalid date"),
+  birthDate: z.string().refine(isLocalDate, "invalidDate"),
   heightCm: z.number().min(100).max(250),
   weightKg: z.number().min(30).max(350),
   activityLevel: z.enum(["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "VERY_ACTIVE"]),
   goal: z.enum(["CUT", "MAINTAIN", "BULK"]),
   rateKgPerWeek: z.number().min(0).max(1),
-  timezone: z.string().refine(isValidTimezone, "Unknown timezone"),
+  timezone: z.string().refine(isValidTimezone, "unknownTimezone"),
   unitSystem: z.enum(["METRIC", "IMPERIAL"]),
   experience: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]),
   equipment: z.array(z.string().max(40)).max(20),
@@ -35,7 +49,7 @@ function targetsFor(p: Omit<ProfileInput, "name" | "timezone" | "unitSystem" | "
 export async function saveProfile(input: ProfileInput): Promise<ActionResult> {
   const user = await requireUser();
   const parsed = ProfileSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  if (!parsed.success) return invalidInput(parsed.error);
   const p = parsed.data;
   const today = todayLocal(p.timezone);
 
@@ -113,7 +127,7 @@ async function recomputeTargets(userId: string) {
 }
 
 const MetricSchema = z.object({
-  localDate: z.string().refine(isLocalDate, "Invalid date"),
+  localDate: z.string().refine(isLocalDate, "invalidDate"),
   weightKg: z.number().min(30).max(350),
   bodyFatPct: z.number().min(2).max(70).nullable(),
   waistCm: z.number().min(40).max(250).nullable(),
@@ -122,7 +136,7 @@ const MetricSchema = z.object({
 export async function logBodyMetric(input: z.infer<typeof MetricSchema>): Promise<ActionResult> {
   const user = await requireUser();
   const parsed = MetricSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  if (!parsed.success) return invalidInput(parsed.error);
   const { localDate, ...values } = parsed.data;
   await db.bodyMetric.upsert({
     where: { userId_localDate: { userId: user.id, localDate } },
@@ -153,15 +167,15 @@ const TargetsSchema = z.object({
 export async function setTargets(input: z.infer<typeof TargetsSchema>): Promise<ActionResult> {
   const user = await requireUser();
   const parsed = TargetsSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  if (!parsed.success) return invalidInput(parsed.error);
   const { manual, ...targets } = parsed.data;
   const profile = await db.profile.findUnique({ where: { userId: user.id }, select: { sex: true, timezone: true } });
-  if (!profile) return { ok: false, error: "Set up your profile first" };
+  if (!profile) return { ok: false, error: (await getT())("settings.errors.noProfile") };
   // Lets the weekly check-in wait for a week of data on the new targets.
   const targetsSetOn = todayLocal(profile.timezone);
   if (manual) {
     const floor = KCAL_FLOOR[profile.sex];
-    if (targets.targetKcal < floor) return { ok: false, error: `Calories can't be set below ${floor} kcal a day` };
+    if (targets.targetKcal < floor) return { ok: false, error: (await getT())("settings.errors.kcalFloor", { floor }) };
     await db.profile.update({ where: { userId: user.id }, data: { ...targets, targetsManual: true, targetsSetOn } });
   } else {
     await db.profile.update({ where: { userId: user.id }, data: { targetsManual: false, targetsSetOn } });
@@ -178,7 +192,7 @@ export async function setTargets(input: z.infer<typeof TargetsSchema>): Promise<
 export async function applyCheckin(): Promise<ActionResult> {
   const { user, profile } = await requireProfile();
   const checkin = await getCheckin(user.id, profile);
-  if (checkin.status !== "adjust" || !checkin.suggested) return { ok: false, error: "No change is suggested right now" };
+  if (checkin.status !== "adjust" || !checkin.suggested) return { ok: false, error: (await getT())("settings.errors.noChange") };
   const s = checkin.suggested;
   return setTargets({ manual: true, targetKcal: s.kcal, targetProteinG: s.proteinG, targetCarbsG: s.carbsG, targetFatG: s.fatG });
 }

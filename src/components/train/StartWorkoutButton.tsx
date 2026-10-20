@@ -6,10 +6,11 @@ import { toast } from "sonner";
 import { Play } from "lucide-react";
 import { startWorkout } from "@/server/training";
 import { Button } from "@/components/ui";
+import { useT } from "@/i18n/client";
 
 export function StartWorkoutButton({
   planDayId,
-  label = "Start workout",
+  label,
   variant = "primary",
 }: {
   planDayId?: string;
@@ -17,6 +18,7 @@ export function StartWorkoutButton({
   variant?: "primary" | "secondary" | "inverse" | "inverse-ghost";
 }) {
   const router = useRouter();
+  const t = useT();
   const [pending, startTransition] = useTransition();
   return (
     <Button
@@ -30,7 +32,7 @@ export function StartWorkoutButton({
         })
       }
     >
-      <Play className="size-4" /> {pending ? "Starting…" : label}
+      <Play className="size-4" /> {pending ? t("train.starting") : (label ?? t("train.startWorkout"))}
     </Button>
   );
 }

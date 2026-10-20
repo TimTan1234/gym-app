@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Minus, Plus, X, Timer } from "lucide-react";
 import { useHydrated } from "@/lib/use-client";
+import { useT } from "@/i18n/client";
 
 const STORAGE_KEY = "gympal:rest-timer";
 
@@ -29,6 +30,8 @@ export function useRestTimer() {
   const [endsAt, setEndsAt] = useState<number | null>(() => (typeof window === "undefined" ? null : load()));
   const [now, setNow] = useState(() => Date.now());
   const firedFor = useRef<number | null>(null);
+  const t = useT();
+  const restOver = t("train.restOver");
 
   useEffect(() => {
     if (!endsAt) return;
@@ -41,12 +44,12 @@ export function useRestTimer() {
       firedFor.current = endsAt;
       navigator.vibrate?.([200, 100, 200]);
       if (typeof Notification !== "undefined" && Notification.permission === "granted" && document.hidden) {
-        new Notification("Rest is over. Time for your next set.", { tag: "gympal-rest" });
+        new Notification(restOver, { tag: "gympal-rest" });
       }
       setEndsAt(null);
       persist(null);
     }
-  }, [now, endsAt]);
+  }, [now, endsAt, restOver]);
 
   const start = useCallback((seconds: number) => {
     const t = Date.now() + seconds * 1000;
@@ -79,6 +82,7 @@ export function useRestTimer() {
 export function RestTimerBar({ timer }: { timer: ReturnType<typeof useRestTimer> }) {
   // The timer may be restored from storage; only render after hydration.
   const hydrated = useHydrated();
+  const t = useT();
   if (!hydrated || !timer.running) return null;
   const m = Math.floor(timer.remaining / 60);
   const s = String(timer.remaining % 60).padStart(2, "0");
@@ -89,17 +93,17 @@ export function RestTimerBar({ timer }: { timer: ReturnType<typeof useRestTimer>
       className="fixed inset-x-3 bottom-20 z-40 mx-auto flex max-w-md items-center gap-3 rounded-[14px] bg-panel px-4 py-3 text-panel-fg md:bottom-6"
     >
       <Timer className="size-5" />
-      <span className="sr-only">Rest</span>
+      <span className="sr-only">{t("train.rest")}</span>
       <span className="score flex-1 text-[40px]">
         {m}:{s}
       </span>
-      <button type="button" aria-label="Subtract 15 seconds" onClick={() => timer.adjust(-15)} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
+      <button type="button" aria-label={t("train.subtract15")} onClick={() => timer.adjust(-15)} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
         <Minus className="size-4" />
       </button>
-      <button type="button" aria-label="Add 15 seconds" onClick={() => timer.adjust(15)} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
+      <button type="button" aria-label={t("train.add15")} onClick={() => timer.adjust(15)} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
         <Plus className="size-4" />
       </button>
-      <button type="button" aria-label="Skip rest" onClick={timer.stop} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
+      <button type="button" aria-label={t("train.skipRest")} onClick={timer.stop} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
         <X className="size-4" />
       </button>
     </div>

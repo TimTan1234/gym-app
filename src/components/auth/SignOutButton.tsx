@@ -3,8 +3,10 @@
 import { LogOut } from "lucide-react";
 import { signOut } from "@/lib/auth-client";
 import { Button } from "@/components/ui";
+import { useT } from "@/i18n/client";
 
 export function SignOutButton() {
+  const t = useT();
   return (
     <Button
       variant="ghost"
@@ -16,7 +18,7 @@ export function SignOutButton() {
         window.location.assign("/sign-in");
       }}
     >
-      <LogOut className="size-4" /> Sign out
+      <LogOut className="size-4" /> {t("settings.signOut")}
     </Button>
   );
 }

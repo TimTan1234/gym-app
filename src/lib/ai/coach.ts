@@ -6,11 +6,14 @@ import { db } from "@/lib/db";
 import { addDays, todayLocal } from "@/lib/dates";
 import { KCAL_FLOOR } from "@/lib/nutrition/targets";
 import type { CheckinResult } from "@/lib/nutrition/checkin";
+import { describeMissing } from "@/lib/nutrition/checkin-text";
+import { createT } from "@/i18n/translate";
 import { getCheckin } from "@/lib/queries";
 import { sumNutrients } from "@/lib/nutrition/totals";
 import { best1RM } from "@/lib/training/summary";
 import { isAiMock, models, openai, reasoningOptions } from "./client";
-import { coachSystemPrompt } from "./prompts";
+import { coachSystemPrompt, languageInstruction } from "./prompts";
+import type { Locale } from "@/i18n/config";
 import { planDraftSchema } from "./schemas";
 import { resolvePlanDraft, type ResolvedPlanDraft } from "./plan";
 
@@ -33,6 +36,8 @@ export interface CoachContext {
   userName: string;
   timezone: string;
   sex: "MALE" | "FEMALE";
+  /** Interface language; the coach replies in it. */
+  locale: Locale;
 }
 
 // ---------- Tool schemas ----------
@@ -244,7 +249,7 @@ export async function runCoach(ctx: CoachContext, history: ChatTurn[], cb: Coach
 
   let input: ResponseInputItem[] = history.map((m) => ({ role: m.role, content: m.content }));
   let text = "";
-  const instructions = coachSystemPrompt(todayLocal(ctx.timezone), ctx.userName);
+  const instructions = coachSystemPrompt(todayLocal(ctx.timezone), ctx.userName) + languageInstruction(ctx.locale);
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const stream = openai().responses.stream({ model: models.smart(), ...reasoningOptions(), instructions, input, tools });
@@ -295,7 +300,8 @@ async function runMockCoach(
   };
   const t = info.targets ?? { kcal: 2000, proteinG: 150, carbsG: 200, fatG: 65 };
   let text = `(Mock coach. Set OPENAI_API_KEY for real answers.)\n\nHi ${ctx.userName.split(" ")[0]}! Your daily targets are **${t.kcal} kcal**, ${t.proteinG} g protein, ${t.carbsG} g carbs and ${t.fatG} g fat.`;
-  if (question.includes("check-in")) {
+  // The mock recognises the check-in prompt in either language.
+  if (question.includes("check-in") || question.includes("复盘")) {
     const c = (await execute("get_weekly_checkin", "{}", proposals)) as CheckinResult;
     if (c.status === "adjust" && c.suggested) {
       const before = proposals.length;
@@ -313,7 +319,7 @@ async function runMockCoach(
           ? "you're on track, keep your targets."
           : c.status === "waiting"
             ? `your targets changed recently. Next check-in on ${c.nextOn}.`
-            : `not enough data yet. Still needed: ${c.missing.join(", ")}.`;
+            : `not enough data yet. Still needed: ${c.missing.map((m) => describeMissing(createT("en"), m)).join(", ")}.`;
       text += `\n\nWeekly check-in: ${verdict}`;
     }
   } else if (question.includes("target") || question.includes("calorie")) {

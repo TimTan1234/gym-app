@@ -5,10 +5,11 @@ import { db } from "@/lib/db";
 import { lastSessionSets } from "@/lib/queries";
 import { WorkoutLogger, type Block } from "@/components/train/WorkoutLogger";
 import { PageSkeleton } from "@/components/ui";
+import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Workout" };
 
-const exerciseSelect = { id: true, name: true, primaryMuscle: true, equipment: true, isLowerBody: true } as const;
+const exerciseSelect = { id: true, slug: true, name: true, primaryMuscle: true, equipment: true, isLowerBody: true } as const;
 
 async function Workout({ params }: { params: PageProps<"/train/workout/[id]">["params"] }) {
   const { id } = await params;
@@ -50,7 +51,7 @@ async function Workout({ params }: { params: PageProps<"/train/workout/[id]">["p
   const last = await lastSessionSets(user.id, [...ordered.keys()], session.id);
   const blocks: Block[] = [...ordered.values()].map((b) => ({ ...b, last: last.get(b.exercise.id) ?? null }));
 
-  const title = session.planDay ? session.planDay.name : "Workout";
+  const title = session.planDay ? session.planDay.name : (await getT())("train.workout");
 
   return (
     <WorkoutLogger

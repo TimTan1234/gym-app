@@ -15,6 +15,7 @@ AI-powered gym companion: snap or describe a meal and get calories, protein, car
 | **Training plans** | AI generator (goal, days, session length, level, equipment, focus, injuries) constrained to the exercise library; manual builder/editor; active plan drives "up next". |
 | **Progress** | Body-weight trend with 7-day average, calories/protein vs target, adherence + logging streak, sets per muscle, weekly volume, best e1RMs, per-exercise history. Every chart has a table view. |
 | **AI coach** | Streaming chat with read-only tools over your data; can *propose* target or plan changes that only apply when you tap **Apply**. |
+| **Language & appearance** | Settings → Display: English or Simplified Chinese (简体中文), saved per device; AI meal analysis, plans and coach replies follow the language. Light, dark or system appearance, applied before the page paints. |
 | **PWA** | Installable, offline fallback page; the service worker never caches personal data. |
 
 ## Setup

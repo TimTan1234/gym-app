@@ -21,7 +21,8 @@ export default defineConfig({
     command: "next build && next start --port 3100",
     url: "http://localhost:3100",
     reuseExistingServer: false,
-    env: { AI_MOCK: "1", BETTER_AUTH_URL: "http://localhost:3100" },
+    // The suite signs up a fresh account per test, faster than the sign-up rate limit allows.
+    env: { AI_MOCK: "1", BETTER_AUTH_URL: "http://localhost:3100", AUTH_RATE_LIMIT: "off" },
     timeout: 300_000,
   },
 });

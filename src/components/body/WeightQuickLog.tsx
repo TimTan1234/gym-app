@@ -6,10 +6,12 @@ import { Scale } from "lucide-react";
 import { logBodyMetric } from "@/server/profile";
 import { displayWeight, inputWeightToKg, weightUnit, type UnitSystem } from "@/lib/units";
 import { Button, Input } from "@/components/ui";
+import { useT } from "@/i18n/client";
 
 export function WeightQuickLog({ date, units, current }: { date: string; units: UnitSystem; current: number | null }) {
   const [value, setValue] = useState(current ? String(displayWeight(current, units)) : "");
   const [pending, startTransition] = useTransition();
+  const t = useT();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -17,7 +19,7 @@ export function WeightQuickLog({ date, units, current }: { date: string; units: 
     if (!n) return;
     startTransition(async () => {
       const res = await logBodyMetric({ localDate: date, weightKg: inputWeightToKg(n, units), bodyFatPct: null, waistCm: null });
-      if (res.ok) toast.success("Weight logged. Targets updated.");
+      if (res.ok) toast.success(t("today.weightLogged"));
       else toast.error(res.error);
     });
   }
@@ -31,12 +33,12 @@ export function WeightQuickLog({ date, units, current }: { date: string; units: 
         step="0.1"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder={`Today's weight (${weightUnit(units)})`}
-        aria-label={`Today's weight in ${weightUnit(units)}`}
+        placeholder={t("today.weightPlaceholder", { unit: weightUnit(units) })}
+        aria-label={t("today.weightAria", { unit: weightUnit(units) })}
         className="num"
       />
       <Button type="submit" variant="secondary" disabled={pending || !value}>
-        Log
+        {t("today.logWeight")}
       </Button>
     </form>
   );

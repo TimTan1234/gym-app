@@ -4,16 +4,20 @@ import { refresh } from "next/cache";
 import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
 import { PlanInputSchema, type PlanInput } from "@/lib/plan-input";
+import { getT } from "@/i18n/server";
 import type { ActionResult } from "./profile";
 
-
-
 async function validate(userId: string, input: PlanInput) {
+  const t = await getT();
   const parsed = PlanInputSchema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid plan" } as const;
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const emptyDay = issue?.code === "too_small" && issue.path.at(-1) === "exercises";
+    return { error: t(emptyDay ? "plans.errors.dayNeedsExercise" : "plans.errors.invalid") } as const;
+  }
   const ids = [...new Set(parsed.data.days.flatMap((d) => d.exercises.map((e) => e.exerciseId)))];
   const owned = await db.exercise.count({ where: { id: { in: ids }, OR: [{ userId: null }, { userId }] } });
-  if (owned !== ids.length) return { error: "Plan contains unknown exercises" } as const;
+  if (owned !== ids.length) return { error: t("plans.errors.unknownExercises") } as const;
   // Normalise inverted rep ranges.
   for (const d of parsed.data.days)
     for (const e of d.exercises) if (e.repMin > e.repMax) [e.repMin, e.repMax] = [e.repMax, e.repMin];
@@ -62,7 +66,7 @@ export async function createPlan(input: PlanInput, activate: boolean): Promise<A
 export async function updatePlan(planId: string, input: PlanInput): Promise<ActionResult> {
   const { user } = await requireProfile();
   const existing = await db.trainingPlan.findFirst({ where: { id: planId, userId: user.id }, include: { days: true } });
-  if (!existing) return { ok: false, error: "Plan not found" };
+  if (!existing) return { ok: false, error: (await getT())("plans.errors.notFound") };
   const v = await validate(user.id, input);
   if ("error" in v) return { ok: false, error: v.error! };
   const p = v.plan;
@@ -90,7 +94,7 @@ export async function updatePlan(planId: string, input: PlanInput): Promise<Acti
 export async function setActivePlan(planId: string): Promise<ActionResult> {
   const { user } = await requireProfile();
   const plan = await db.trainingPlan.findFirst({ where: { id: planId, userId: user.id } });
-  if (!plan) return { ok: false, error: "Plan not found" };
+  if (!plan) return { ok: false, error: (await getT())("plans.errors.notFound") };
   await db.$transaction([
     db.trainingPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } }),
     db.trainingPlan.update({ where: { id: planId }, data: { isActive: true } }),

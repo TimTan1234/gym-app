@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { PLATE_SETUPS, plateMath } from "@/lib/training/plates";
 import { weightUnit, type UnitSystem } from "@/lib/units";
+import { useT } from "@/i18n/client";
 
 // The chosen bar is a per-device preference shared by every barbell block.
 const BAR_KEY = "gympal.bar";
@@ -41,6 +42,7 @@ function useBar(units: UnitSystem): number {
 
 /** Plates per side for the weight in the entry row, drawn as a loaded sleeve. */
 export function PlateLoad({ weight, units }: { weight: number; units: UnitSystem }) {
+  const t = useT();
   const setup = PLATE_SETUPS[units];
   const bar = useBar(units);
   const load = plateMath(weight, { bar, plates: setup.plates });
@@ -69,29 +71,23 @@ export function PlateLoad({ weight, units }: { weight: number; units: UnitSystem
             <span className="h-[3px] w-2 bg-steel/60" />
           </div>
           <p className="min-w-0">
-            <span className="font-medium text-iron">Each side: </span>
+            <span className="font-medium text-iron">{t("train.eachSide")}</span>
             <span className="num text-iron">{load.perSide.join(" + ")}</span>
             {load.short > 0 && (
-              <span className="num">
-                {" "}
-                ({load.loaded} {unit}, {load.short} short)
-              </span>
+              <span className="num"> {t("train.plateShort", { loaded: load.loaded, unit, short: load.short })}</span>
             )}
           </p>
         </>
       ) : (
-        <p>{load ? `Too light for plates. The empty bar is ${bar} ${unit}.` : `The empty bar is ${bar} ${unit}.`}</p>
+        <p>{load ? t("train.tooLight", { bar, unit }) : t("train.emptyBar", { bar, unit })}</p>
       )}
       <button
         type="button"
         onClick={cycleBar}
-        title="Change bar weight"
+        title={t("train.changeBar")}
         className="ml-auto shrink-0 rounded-[8px] px-2 py-1 font-medium hover:bg-wash hover:text-iron"
       >
-        <span className="num">
-          {bar} {unit}
-        </span>{" "}
-        bar
+        <span className="num">{t("train.barButton", { bar, unit })}</span>
       </button>
     </div>
   );

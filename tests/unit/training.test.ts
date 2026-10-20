@@ -24,11 +24,12 @@ describe("suggestNext", () => {
         { weightKg: 60, reps: 10, isWarmup: false },
       ],
     });
-    expect(s).toMatchObject({ weightKg: 62.5, reps: 6 });
+    expect(s).toMatchObject({ weightKg: 62.5, reps: 6, reason: { kind: "addWeight", repMax: 10, incKg: 2.5 } });
   });
   it("uses a bigger jump for lower body", () => {
     const s = suggestNext({ ...range, isLowerBody: true, lastSets: [{ weightKg: 100, reps: 10, isWarmup: false }] });
     expect(s?.weightKg).toBe(105);
+    expect(s?.reason).toEqual({ kind: "addWeight", repMax: 10, incKg: 5 });
   });
   it("keeps the weight and adds a rep otherwise", () => {
     const s = suggestNext({
@@ -39,7 +40,7 @@ describe("suggestNext", () => {
         { weightKg: 60, reps: 7, isWarmup: false },
       ],
     });
-    expect(s).toMatchObject({ weightKg: 60, reps: 8 });
+    expect(s).toMatchObject({ weightKg: 60, reps: 8, reason: { kind: "addReps", target: 8 } });
   });
   it("returns null without working sets", () => {
     expect(suggestNext({ ...range, isLowerBody: false, lastSets: [] })).toBeNull();

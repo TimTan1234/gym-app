@@ -1,5 +1,9 @@
+"use client";
+
+// A client component only so it can read the language from context; it has no state.
 import type { Nutrients } from "@/lib/nutrition/totals";
 import { Plate, cn } from "@/components/ui";
+import { useT } from "@/i18n/client";
 
 interface Targets {
   targetKcal: number;
@@ -9,9 +13,9 @@ interface Targets {
 }
 
 const MACROS = [
-  { key: "proteinG", target: "targetProteinG", label: "Protein", color: "var(--plate-blue)", kcalPerG: 4 },
-  { key: "carbsG", target: "targetCarbsG", label: "Carbs", color: "var(--plate-yellow)", kcalPerG: 4 },
-  { key: "fatG", target: "targetFatG", label: "Fat", color: "var(--plate-red)", kcalPerG: 9 },
+  { key: "proteinG", target: "targetProteinG", label: "common.protein", color: "var(--plate-blue)", kcalPerG: 4 },
+  { key: "carbsG", target: "targetCarbsG", label: "common.carbs", color: "var(--plate-yellow)", kcalPerG: 4 },
+  { key: "fatG", target: "targetFatG", label: "common.fat", color: "var(--plate-red)", kcalPerG: 9 },
 ] as const;
 
 const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
@@ -22,6 +26,7 @@ const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
  * past the collar is hatched.
  */
 function Barbell({ totals, target, compact }: { totals: Nutrients; target: number; compact: boolean }) {
+  const t = useT();
   const eaten = totals.kcal;
   const scale = Math.max(target * 1.12, eaten, 1);
   const collarPct = (target / scale) * 100;
@@ -32,7 +37,11 @@ function Barbell({ totals, target, compact }: { totals: Nutrients; target: numbe
   const overPct = eaten > target ? ((eaten - target) / scale) * 100 : 0;
   const h = compact ? 34 : 46;
 
-  const label = `${fmt(eaten)} of ${fmt(target)} kcal eaten: ${MACROS.map((m, i) => `${m.label.toLowerCase()} ${fmt(macroKcal[i])} kcal`).join(", ")}`;
+  const label = t("nutrition.barLabel", {
+    eaten: fmt(eaten),
+    target: fmt(target),
+    macros: MACROS.map((m, i) => t("nutrition.macroKcal", { macro: t(m.label).toLowerCase(), kcal: fmt(macroKcal[i]) })).join(t.locale === "zh" ? "，" : ", "),
+  });
 
   return (
     <div role="img" aria-label={label} className="relative w-full" style={{ height: h + 10 }}>
@@ -44,7 +53,7 @@ function Barbell({ totals, target, compact }: { totals: Nutrients; target: numbe
           widths[i] > 0 ? (
             <div
               key={m.key}
-              title={`${m.label}: ${fmt(macroKcal[i])} kcal`}
+              title={t("nutrition.macroKcal", { macro: t(m.label), kcal: fmt(macroKcal[i]) })}
               className="h-full rounded-[4px]"
               style={{ flexGrow: widths[i], flexBasis: 0, minWidth: 3, background: m.color }}
             />
@@ -61,27 +70,35 @@ function Barbell({ totals, target, compact }: { totals: Nutrients; target: numbe
       <div
         className="absolute top-0 h-full w-[5px] -translate-x-1/2 rounded-[2px] bg-iron"
         style={{ left: `${collarPct}%` }}
-        title={`Target ${fmt(target)} kcal`}
+        title={t("nutrition.targetKcal", { kcal: fmt(target) })}
       />
     </div>
   );
 }
 
 export function MacroSummary({ totals, targets, compact = false }: { totals: Nutrients; targets: Targets; compact?: boolean }) {
+  const t = useT();
   const remaining = Math.round(targets.targetKcal - totals.kcal);
   const over = remaining < 0;
+  // Keep the number styled inside translated sentences: split the template at its placeholder.
+  const [eatenBefore, eatenAfter] = t("nutrition.eaten").split("{kcal}");
+  const [targetBefore, targetAfter] = t("nutrition.ofTarget").split("{kcal}");
 
   return (
     <div className="space-y-4">
       <div className="flex items-end justify-between gap-4">
         <p>
           <span className={cn("score block", compact ? "text-[56px]" : "text-[76px]")}>{fmt(Math.abs(remaining))}</span>
-          <span className="mt-1 block text-sm text-steel">{over ? "kcal over your target" : "kcal left today"}</span>
+          <span className="mt-1 block text-sm text-steel">{over ? t("nutrition.kcalOver") : t("nutrition.kcalLeft")}</span>
         </p>
         <p className="pb-6 text-right text-sm text-steel">
-          <span className="num font-semibold text-iron">{fmt(totals.kcal)}</span> eaten
+          {eatenBefore}
+          <span className="num font-semibold text-iron">{fmt(totals.kcal)}</span>
+          {eatenAfter}
           <br />
-          of <span className="num">{fmt(targets.targetKcal)}</span> target
+          {targetBefore}
+          <span className="num">{fmt(targets.targetKcal)}</span>
+          {targetAfter}
         </p>
       </div>
 
@@ -95,13 +112,13 @@ export function MacroSummary({ totals, targets, compact = false }: { totals: Nut
           return (
             <div key={m.key}>
               <dt className="flex items-center gap-1.5 text-[13px] font-medium text-steel">
-                <Plate color={m.color} /> {m.label}
+                <Plate color={m.color} /> {t(m.label)}
               </dt>
               <dd className="mt-1">
                 <span className="score text-[28px]">{fmt(value)}</span>
                 <span className="num text-sm text-steel"> / {fmt(target)} g</span>
               </dd>
-              <dd className="num text-xs text-steel">{left >= 0 ? `${left} g left` : `${-left} g over`}</dd>
+              <dd className="num text-xs text-steel">{left >= 0 ? t("nutrition.gLeft", { g: left }) : t("nutrition.gOver", { g: -left })}</dd>
             </div>
           );
         })}
@@ -109,7 +126,7 @@ export function MacroSummary({ totals, targets, compact = false }: { totals: Nut
 
       {!compact && (
         <p className="num text-[13px] text-steel">
-          Fiber {fmt(totals.fiberG)} g, sugar {fmt(totals.sugarG)} g, sodium {fmt(totals.sodiumMg)} mg
+          {t("nutrition.micros", { fiber: fmt(totals.fiberG), sugar: fmt(totals.sugarG), sodium: fmt(totals.sodiumMg) })}
         </p>
       )}
     </div>

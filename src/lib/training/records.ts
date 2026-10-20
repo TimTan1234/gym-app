@@ -13,12 +13,6 @@ export interface NewRecord {
   previous: number | null;
 }
 
-export const RECORD_LABELS: Record<RecordType, string> = {
-  MAX_WEIGHT: "Heaviest weight",
-  EST_1RM: "Estimated 1RM",
-  MAX_VOLUME_SET: "Best set volume",
-};
-
 export function detectRecords(
   set: { weightKg: number; reps: number; isWarmup: boolean },
   bests: Bests,

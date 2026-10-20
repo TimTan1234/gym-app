@@ -1,14 +1,16 @@
-export const EQUIPMENT_OPTIONS = [
-  { value: "barbell", label: "Barbell & rack" },
-  { value: "dumbbell", label: "Dumbbells" },
-  { value: "machine", label: "Machines" },
-  { value: "cable", label: "Cable station" },
-  { value: "smith_machine", label: "Smith machine" },
-  { value: "kettlebell", label: "Kettlebells" },
-  { value: "cardio_machine", label: "Cardio machines" },
-] as const;
+// Stored values; their labels live in i18n messages under labels.* (look up with t(`labels.goal.${v}`) etc.).
+export const GOALS = ["CUT", "MAINTAIN", "BULK"] as const;
+export const EXPERIENCE_LEVELS = ["BEGINNER", "INTERMEDIATE", "ADVANCED"] as const;
+export const ACTIVITY_LEVELS = ["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "VERY_ACTIVE"] as const;
+export const MEAL_TYPES = ["BREAKFAST", "LUNCH", "DINNER", "SNACK"] as const;
 
-export const GOAL_LABELS = { CUT: "Lose fat", MAINTAIN: "Maintain", BULK: "Build muscle" } as const;
-/** Years of regular training; short enough for a half-width select. */
-export const EXPERIENCE_LABELS = { BEGINNER: "Under 1 year", INTERMEDIATE: "1–3 years", ADVANCED: "3+ years" } as const;
-export const MEAL_TYPE_LABELS = { BREAKFAST: "Breakfast", LUNCH: "Lunch", DINNER: "Dinner", SNACK: "Snack" } as const;
+/** Profile equipment checklist; labels under labels.equipmentOption.* */
+export const EQUIPMENT_OPTIONS = [
+  { value: "barbell" },
+  { value: "dumbbell" },
+  { value: "machine" },
+  { value: "cable" },
+  { value: "smith_machine" },
+  { value: "kettlebell" },
+  { value: "cardio_machine" },
+] as const;

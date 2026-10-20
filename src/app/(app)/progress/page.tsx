@@ -9,18 +9,19 @@ import { adherence, currentStreak, fillDays, movingAverage, setsPerMuscle } from
 import { totalVolume } from "@/lib/training/summary";
 import { CategoryBars, DailyBars, TrendChart } from "@/components/charts";
 import { BodyMetricsLog } from "@/components/body/BodyMetricsLog";
-import { label } from "@/lib/format";
 import { getCheckin } from "@/lib/queries";
 import { WeeklyCheckin } from "@/components/progress/WeeklyCheckin";
 import { EmptyState, PageHeader, PageSkeleton, cn } from "@/components/ui";
+import { getT } from "@/i18n/server";
+import { exerciseName, labelOf } from "@/i18n/labels";
 
 export const metadata = { title: "Progress" };
 
 const RANGES = [
-  { days: 30, label: "30 days" },
-  { days: 90, label: "90 days" },
-  { days: 180, label: "6 months" },
-];
+  { days: 30, label: "progress.range30" },
+  { days: 90, label: "progress.range90" },
+  { days: 180, label: "progress.range180" },
+] as const;
 
 function Stat({ label: l, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -35,12 +36,12 @@ function Stat({ label: l, value, sub }: { label: string; value: string; sub?: st
 async function Progress({ searchParams }: { searchParams: PageProps<"/progress">["searchParams"] }) {
   const { user, profile } = await requireProfile();
   const sp = await searchParams;
-  const rangeDays = RANGES.find((r) => String(r.days) === sp.range)?.days ?? 30;
+  const rangeDays: number = RANGES.find((r) => String(r.days) === sp.range)?.days ?? 30;
   const today = todayLocal(profile.timezone);
   const start = addDays(today, -(rangeDays - 1));
   const units = profile.unitSystem;
 
-  const [metrics, mealDays, sessions, prs, streakDays, checkin] = await Promise.all([
+  const [metrics, mealDays, sessions, prs, streakDays, checkin, t] = await Promise.all([
     db.bodyMetric.findMany({ where: { userId: user.id, localDate: { gte: start } }, orderBy: { localDate: "asc" } }),
     db.meal.groupBy({
       by: ["localDate"],
@@ -67,10 +68,14 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
       select: { localDate: true },
     }),
     getCheckin(user.id, profile),
+    getT(),
   ]);
 
   const prNames = new Map(
-    (await db.exercise.findMany({ where: { id: { in: prs.map((p) => p.exerciseId) } }, select: { id: true, name: true } })).map((e) => [e.id, e.name]),
+    (await db.exercise.findMany({ where: { id: { in: prs.map((p) => p.exerciseId) } }, select: { id: true, name: true, slug: true } })).map((e) => [
+      e.id,
+      exerciseName(t, e),
+    ]),
   );
 
   // Body weight
@@ -92,7 +97,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
   const lastWeekSets = sessions
     .filter((s) => s.localDate >= weekStart)
     .flatMap((s) => s.sets.map((x) => ({ isWarmup: x.isWarmup, primaryMuscle: x.exercise.primaryMuscle })));
-  const muscleData = setsPerMuscle(lastWeekSets).map((m) => ({ label: label(m.muscle), value: m.value }));
+  const muscleData = setsPerMuscle(lastWeekSets).map((m) => ({ label: labelOf(t, "muscle", m.muscle), value: m.value }));
 
   const weeklyVolume = new Map<string, number>();
   const weeklyCount = new Map<string, number>();
@@ -108,9 +113,9 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
 
   return (
     <div className="space-y-10">
-      <PageHeader title="Progress" />
+      <PageHeader title={t("progress.title")} />
       <WeeklyCheckin checkin={checkin} targetKcal={profile.targetKcal} units={units} />
-      <nav aria-label="Range" className="flex gap-1.5">
+      <nav aria-label={t("progress.range")} className="flex gap-1.5">
         {RANGES.map((r) => (
           <Link
             key={r.days}
@@ -121,74 +126,96 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
               r.days === rangeDays ? "border-iron bg-iron font-semibold text-iron-fg" : "border-line text-steel hover:border-iron",
             )}
           >
-            {r.label}
+            {t(r.label)}
           </Link>
         ))}
       </nav>
 
       <section className="space-y-3">
-        <h2 className="display text-[22px]">Body</h2>
+        <h2 className="display text-[22px]">{t("progress.body")}</h2>
         <div className="grid grid-cols-2 gap-x-4 border-y border-line [&>*:nth-child(2n)]:border-l [&>*:nth-child(2n)]:border-line [&>*:nth-child(2n)]:pl-4">
           <Stat
-            label="Current (7-day avg)"
+            label={t("progress.currentAvg")}
             value={weightTrend.length ? `${weightTrend.at(-1)!.avg} ${weightUnit(units)}` : "–"}
           />
           <Stat
-            label={`Change (${RANGES.find((r) => r.days === rangeDays)!.label})`}
+            label={t("progress.change", { range: t(RANGES.find((r) => r.days === rangeDays)!.label) })}
             value={weightChange === null ? "–" : `${weightChange > 0 ? "+" : weightChange < 0 ? "−" : ""}${Math.abs(weightChange).toFixed(1)} ${weightUnit(units)}`}
-            sub={profile.goal === "CUT" ? "Goal: lose" : profile.goal === "BULK" ? "Goal: gain" : "Goal: maintain"}
+            sub={t(profile.goal === "CUT" ? "progress.goalLose" : profile.goal === "BULK" ? "progress.goalGain" : "progress.goalMaintain")}
           />
         </div>
         <div className="space-y-6 pt-2">
           {weightTrend.length >= 2 ? (
-            <TrendChart title="Body weight" data={weightTrend} unit={weightUnit(units)} />
+            <TrendChart title={t("progress.bodyWeight")} data={weightTrend} unit={weightUnit(units)} />
           ) : (
-            <p className="text-sm text-steel">Log your weight on at least two days to see a trend. Weigh in at the same time each morning for the most reliable trend.</p>
+            <p className="text-sm text-steel">{t("progress.needTwoWeighIns")}</p>
           )}
           <BodyMetricsLog today={today} units={units} entries={[...metrics].reverse()} />
         </div>
       </section>
 
       <section className="space-y-3">
-        <h2 className="display text-[22px]">Nutrition</h2>
+        <h2 className="display text-[22px]">{t("progress.nutrition")}</h2>
         <div className="grid grid-cols-2 gap-x-4 border-y border-line sm:grid-cols-4 [&>*:nth-child(2n)]:border-l [&>*:nth-child(2n)]:border-line [&>*:nth-child(2n)]:pl-4">
-          <Stat label="Avg calories" value={stats.daysLogged ? stats.avgKcal.toLocaleString("en-US") : "–"} sub={`Target ${profile.targetKcal.toLocaleString("en-US")}`} />
-          <Stat label="Avg protein" value={stats.daysLogged ? `${stats.avgProtein} g` : "–"} sub={`Target ${profile.targetProteinG} g`} />
-          <Stat label="Calories on target" value={stats.daysLogged ? `${stats.kcalOnTargetPct}%` : "–"} sub={`${stats.daysLogged} days logged`} />
-          <Stat label="Logging streak" value={String(logStreak)} sub={logStreak === 1 ? "day" : "days"} />
+          <Stat
+            label={t("progress.avgCalories")}
+            value={stats.daysLogged ? stats.avgKcal.toLocaleString("en-US") : "–"}
+            sub={t("progress.target", { value: profile.targetKcal.toLocaleString("en-US") })}
+          />
+          <Stat
+            label={t("progress.avgProtein")}
+            value={stats.daysLogged ? `${stats.avgProtein} g` : "–"}
+            sub={t("progress.target", { value: `${profile.targetProteinG} g` })}
+          />
+          <Stat
+            label={t("progress.caloriesOnTarget")}
+            value={stats.daysLogged ? `${stats.kcalOnTargetPct}%` : "–"}
+            sub={t.plural("progress.daysLogged", stats.daysLogged)}
+          />
+          <Stat label={t("progress.loggingStreak")} value={String(logStreak)} sub={t(logStreak === 1 ? "progress.dayOne" : "progress.dayOther")} />
         </div>
         {stats.daysLogged > 0 ? (
           <div className="space-y-8 pt-2">
-            <DailyBars title="Calories" data={fillDays(kcalByDay, barStart, today)} unit="kcal" target={profile.targetKcal} />
-            <DailyBars title="Protein" data={fillDays(proteinByDay, barStart, today)} unit="g" target={profile.targetProteinG} color="var(--plate-blue)" />
+            <DailyBars title={t("progress.calories")} data={fillDays(kcalByDay, barStart, today)} unit={t("common.kcal")} target={profile.targetKcal} />
+            <DailyBars
+              title={t("progress.protein")}
+              data={fillDays(proteinByDay, barStart, today)}
+              unit="g"
+              target={profile.targetProteinG}
+              color="var(--plate-blue)"
+            />
           </div>
         ) : (
-          <EmptyState title="No meals logged in this range" />
+          <EmptyState title={t("progress.noMeals")} />
         )}
       </section>
 
       <section className="space-y-3">
-        <h2 className="display text-[22px]">Training</h2>
+        <h2 className="display text-[22px]">{t("progress.training")}</h2>
         <div className="grid grid-cols-2 gap-x-4 border-y border-line [&>*:nth-child(2n)]:border-l [&>*:nth-child(2n)]:border-line [&>*:nth-child(2n)]:pl-4">
-          <Stat label="Workouts" value={String(sessions.length)} sub={`${avgPerWeek.toFixed(1)} per week`} />
-          <Stat label="Sets last 7 days" value={String(lastWeekSets.filter((s) => !s.isWarmup).length)} sub="working sets" />
+          <Stat label={t("progress.workouts")} value={String(sessions.length)} sub={t("progress.perWeek", { n: avgPerWeek.toFixed(1) })} />
+          <Stat
+            label={t("progress.setsLast7")}
+            value={String(lastWeekSets.filter((s) => !s.isWarmup).length)}
+            sub={t("progress.workingSets")}
+          />
         </div>
         {sessions.length > 0 ? (
           <div className="space-y-8 pt-2">
-            {muscleData.length > 0 && <CategoryBars title="Working sets per muscle (last 7 days)" data={muscleData} unit="sets" />}
-            <DailyBars title={`Weekly volume (${weightUnit(units)})`} data={volumeData} unit={weightUnit(units)} />
+            {muscleData.length > 0 && <CategoryBars title={t("progress.setsPerMuscle")} data={muscleData} unit={t("progress.sets")} />}
+            <DailyBars title={t("progress.weeklyVolume", { unit: weightUnit(units) })} data={volumeData} unit={weightUnit(units)} />
           </div>
         ) : (
-          <EmptyState title="No workouts in this range" />
+          <EmptyState title={t("progress.noWorkouts")} />
         )}
       </section>
 
       {prs.length > 0 && (
         <section className="space-y-3">
           <h2 className="display flex items-center gap-2 text-[22px]">
-            <Trophy className="size-5" aria-hidden /> Strength records
+            <Trophy className="size-5" aria-hidden /> {t("progress.strengthRecords")}
           </h2>
-          <p className="-mt-2 text-[13px] text-steel">Best estimated 1-rep max per exercise</p>
+          <p className="-mt-2 text-[13px] text-steel">{t("progress.bestE1rm")}</p>
           <div className="border-y border-line">
             <ul className="divide-y divide-line">
               {prs.map((pr) => (
@@ -204,7 +231,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
         </section>
       )}
       <p className="flex items-center gap-1.5 text-xs text-steel">
-        <Flame className="size-3.5" /> Weight trends move slowly: judge progress by the 7-day average over 2–3 weeks, not daily swings.
+        <Flame className="size-3.5" /> {t("progress.trendTip")}
       </p>
     </div>
   );

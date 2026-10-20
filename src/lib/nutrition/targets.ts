@@ -14,14 +14,6 @@ export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
   VERY_ACTIVE: 1.9,
 };
 
-export const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
-  SEDENTARY: "Sedentary (desk job, little exercise)",
-  LIGHT: "Light (1–3 workouts/week)",
-  MODERATE: "Moderate (3–5 workouts/week)",
-  ACTIVE: "Active (6–7 workouts/week)",
-  VERY_ACTIVE: "Very active (physical job + training)",
-};
-
 /** Safety floors; targets are never set below these. */
 export const KCAL_FLOOR: Record<Sex, number> = { MALE: 1500, FEMALE: 1200 };
 

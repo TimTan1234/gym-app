@@ -1,7 +1,8 @@
 import "server-only";
 import { zodTextFormat } from "openai/helpers/zod";
 import { isAiMock, models, openai, reasoningOptions } from "./client";
-import { PLAN_SYSTEM_PROMPT } from "./prompts";
+import { PLAN_SYSTEM_PROMPT, languageInstruction } from "./prompts";
+import type { Locale } from "@/i18n/config";
 import { planDraftSchema, type PlanDraft, type PlanRequest } from "./schemas";
 import mockPlan from "./fixtures/plan.json";
 
@@ -20,6 +21,13 @@ export interface ResolvedPlanDraft extends Omit<PlanDraft, "days"> {
   }[];
 }
 
+/** The user's equipment matches too few library exercises to build a plan. */
+export class NotEnoughExercisesError extends Error {
+  constructor() {
+    super("Not enough exercises match your equipment. Add more equipment.");
+  }
+}
+
 /** Working sets that fit a session (~2.5 min per set including rest). */
 export function maxWorkingSets(sessionMinutes: number): number {
   return Math.max(6, Math.round(sessionMinutes / 2.5));
@@ -31,9 +39,9 @@ export function filterByEquipment<T extends { equipment: string }>(exercises: T[
   return exercises.filter((e) => allowed.has(e.equipment));
 }
 
-export async function generatePlan(req: PlanRequest, library: LibraryExercise[]): Promise<ResolvedPlanDraft> {
+export async function generatePlan(req: PlanRequest, library: LibraryExercise[], locale: Locale = "en"): Promise<ResolvedPlanDraft> {
   const available = filterByEquipment(library, req.equipment);
-  if (available.length < 5) throw new Error("Not enough exercises match your equipment. Add more equipment.");
+  if (available.length < 5) throw new NotEnoughExercisesError();
   const slugs = available.map((e) => e.slug) as [string, ...string[]];
   const schema = planDraftSchema(slugs);
 
@@ -60,7 +68,7 @@ export async function generatePlan(req: PlanRequest, library: LibraryExercise[])
     const response = await openai().responses.parse({
       model: models.plan(),
       ...reasoningOptions(),
-      instructions: PLAN_SYSTEM_PROMPT,
+      instructions: PLAN_SYSTEM_PROMPT + languageInstruction(locale),
       input: request,
       text: { format: zodTextFormat(schema, "training_plan") },
     });

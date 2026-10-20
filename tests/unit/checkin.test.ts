@@ -26,7 +26,10 @@ describe("weeklyCheckin", () => {
   it("needs enough logged days and weigh-ins", () => {
     const r = weeklyCheckin({ ...input(2000, -0.5), intake: [], weights: [] });
     expect(r.status).toBe("insufficient");
-    expect(r.missing).toEqual(["10 more fully logged days", "4 more weigh-ins"]);
+    expect(r.missing).toEqual([
+      { code: "loggedDays", n: 10 },
+      { code: "weighIns", n: 4 },
+    ]);
     expect(r.suggested).toBeNull();
   });
 

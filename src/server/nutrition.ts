@@ -7,11 +7,12 @@ import { addDays, isLocalDate, todayLocal, toLocalDate } from "@/lib/dates";
 import { sumNutrients, NUTRIENT_KEYS } from "@/lib/nutrition/totals";
 import { MealSaveSchema, type MealSave } from "@/lib/ai/schemas";
 import type { ActionResult } from "./profile";
+import { getT } from "@/i18n/server";
 
 export async function saveMeal(input: MealSave): Promise<ActionResult & { mealId?: string }> {
   const { user, profile } = await requireProfile();
   const parsed = MealSaveSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid meal" };
+  if (!parsed.success) return { ok: false, error: (await getT())("nutrition.invalidMeal") };
   const m = parsed.data;
 
   const eatenAt = new Date(m.eatenAt);
@@ -86,7 +87,7 @@ function cloneMeal(userId: string, meal: MealWithItems, localDate: string, eaten
 export async function copyMealToToday(mealId: string): Promise<ActionResult> {
   const { user, profile } = await requireProfile();
   const meal = await findMealWithItems(user.id, mealId);
-  if (!meal) return { ok: false, error: "Meal not found" };
+  if (!meal) return { ok: false, error: (await getT())("nutrition.mealNotFound") };
   const now = new Date();
   await cloneMeal(user.id, meal, todayLocal(profile.timezone, now), now);
   refresh();
@@ -100,14 +101,14 @@ export async function copyFromDayBefore(localDate: string, mealType: MealSave["m
   const { user, profile } = await requireProfile();
   const today = todayLocal(profile.timezone);
   if (!isLocalDate(localDate) || localDate > today || !MealTypeSchema.safeParse(mealType).success) {
-    return { ok: false, error: "Invalid day" };
+    return { ok: false, error: (await getT())("nutrition.invalidDay") };
   }
   const meals = await db.meal.findMany({
     where: { userId: user.id, localDate: addDays(localDate, -1), mealType },
     include: { items: true },
     orderBy: { eatenAt: "asc" },
   });
-  if (meals.length === 0) return { ok: false, error: "Nothing to copy" };
+  if (meals.length === 0) return { ok: false, error: (await getT())("nutrition.nothingToCopy") };
   // Like saveMeal, past-day logs keep the real log time and an explicit local date.
   const eatenAt = new Date();
   await db.$transaction(meals.map((m) => cloneMeal(user.id, m, localDate, eatenAt)));
@@ -119,7 +120,7 @@ export async function copyFromDayBefore(localDate: string, mealType: MealSave["m
 export async function saveFoodFromItem(itemId: string): Promise<ActionResult> {
   const { user } = await requireProfile();
   const item = await db.mealItem.findFirst({ where: { id: itemId, meal: { userId: user.id } } });
-  if (!item) return { ok: false, error: "Item not found" };
+  if (!item) return { ok: false, error: (await getT())("nutrition.itemNotFound") };
   const values = Object.fromEntries(NUTRIENT_KEYS.map((k) => [k, item[k]])) as Record<(typeof NUTRIENT_KEYS)[number], number>;
   const data = { quantity: item.quantity, unit: item.unit, grams: item.grams, ...values };
   await db.savedFood.upsert({

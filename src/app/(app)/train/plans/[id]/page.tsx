@@ -5,27 +5,29 @@ import { db } from "@/lib/db";
 import { PlanEditor, type EditorPlan } from "@/components/plans/PlanEditor";
 import { PlanActions } from "@/components/plans/PlanActions";
 import { PageHeader, PageSkeleton } from "@/components/ui";
+import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Edit plan" };
 
 async function EditPlan({ params }: { params: PageProps<"/train/plans/[id]">["params"] }) {
   const { id } = await params;
   const { user } = await requireProfile();
-  const [plan, library] = await Promise.all([
+  const [plan, library, t] = await Promise.all([
     db.trainingPlan.findFirst({
       where: { id, userId: user.id },
       include: {
         days: {
           orderBy: { dayIndex: "asc" },
-          include: { exercises: { orderBy: { order: "asc" }, include: { exercise: { select: { name: true } } } } },
+          include: { exercises: { orderBy: { order: "asc" }, include: { exercise: { select: { name: true, slug: true } } } } },
         },
       },
     }),
     db.exercise.findMany({
       where: { OR: [{ userId: null }, { userId: user.id }] },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, primaryMuscle: true, equipment: true, isLowerBody: true },
+      select: { id: true, slug: true, name: true, primaryMuscle: true, equipment: true, isLowerBody: true },
     }),
+    getT(),
   ]);
   if (!plan) notFound();
 
@@ -42,6 +44,7 @@ async function EditPlan({ params }: { params: PageProps<"/train/plans/[id]">["pa
         key: e.id,
         exerciseId: e.exerciseId,
         exerciseName: e.exercise.name,
+        exerciseSlug: e.exercise.slug,
         sets: e.sets,
         repMin: e.repMin,
         repMax: e.repMax,
@@ -54,7 +57,7 @@ async function EditPlan({ params }: { params: PageProps<"/train/plans/[id]">["pa
 
   return (
     <>
-      <PageHeader title={plan.name} subtitle={plan.isActive ? "Active plan" : "Inactive"} action={<PlanActions planId={plan.id} isActive={plan.isActive} />} />
+      <PageHeader title={plan.name} subtitle={plan.isActive ? t("plans.activePlan") : t("plans.inactive")} action={<PlanActions planId={plan.id} isActive={plan.isActive} />} />
       <PlanEditor key={plan.updatedAt.toISOString()} initial={initial} library={library} planId={plan.id} />
     </>
   );

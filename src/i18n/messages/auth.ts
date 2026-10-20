@@ -1,4 +1,53 @@
-// "auth" messages. English is the source; zh must have exactly the same keys.
-export const en = {};
+// "auth" messages (sign in / sign up). zh must have exactly the same keys.
+export const en = {
+  signInTitle: "Welcome back",
+  signUpTitle: "Create your account",
+  name: "Name",
+  email: "Email",
+  password: "Password",
+  pleaseWait: "Please wait…",
+  createAccount: "Create account",
+  signIn: "Sign in",
+  haveAccount: "Already have an account?",
+  newHere: "New here?",
+  createAnAccount: "Create an account",
+  genericError: "Something went wrong",
+  /** Better Auth error codes. */
+  errors: {
+    INVALID_EMAIL_OR_PASSWORD: "Invalid email or password",
+    INVALID_EMAIL: "Enter a valid email address",
+    INVALID_PASSWORD: "Invalid password",
+    PASSWORD_TOO_SHORT: "Password must be at least 8 characters",
+    PASSWORD_TOO_LONG: "Password is too long",
+    USER_ALREADY_EXISTS: "An account with this email already exists",
+    USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "An account with this email already exists. Use another email.",
+    FAILED_TO_CREATE_USER: "Couldn't create the account. Please try again.",
+    INVALID_ORIGIN: "Invalid origin",
+  },
+};
 
-export const zh: typeof en = {};
+export const zh: typeof en = {
+  signInTitle: "欢迎回来",
+  signUpTitle: "创建账户",
+  name: "姓名",
+  email: "邮箱",
+  password: "密码",
+  pleaseWait: "请稍候…",
+  createAccount: "创建账户",
+  signIn: "登录",
+  haveAccount: "已有账户？",
+  newHere: "第一次使用？",
+  createAnAccount: "创建账户",
+  genericError: "出了点问题",
+  errors: {
+    INVALID_EMAIL_OR_PASSWORD: "邮箱或密码错误",
+    INVALID_EMAIL: "请输入有效的邮箱地址",
+    INVALID_PASSWORD: "密码无效",
+    PASSWORD_TOO_SHORT: "密码至少需要 8 个字符",
+    PASSWORD_TOO_LONG: "密码太长",
+    USER_ALREADY_EXISTS: "该邮箱已注册",
+    USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "该邮箱已注册，请换一个邮箱。",
+    FAILED_TO_CREATE_USER: "无法创建账户，请重试。",
+    INVALID_ORIGIN: "访问来源无效",
+  },
+};

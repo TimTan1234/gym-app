@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { signIn, signUp } from "@/lib/auth-client";
 import { Button, Input, Label } from "@/components/ui";
+import { useT } from "@/i18n/client";
+import { messages } from "@/i18n/messages";
 
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const t = useT();
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -24,7 +27,13 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         : await signIn.email({ email, password });
     setPending(false);
     if (result.error) {
-      setError(result.error.message ?? "Something went wrong");
+      // Known Better Auth codes get a translated message; anything else shows the server's text.
+      const code = result.error.code;
+      setError(
+        code && code in messages.en.auth.errors
+          ? t(`auth.errors.${code as keyof typeof messages.en.auth.errors}`)
+          : (result.error.message ?? t("auth.genericError")),
+      );
       return;
     }
     router.push(mode === "sign-up" ? "/onboarding" : "/today");
@@ -33,19 +42,19 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <h1 className="text-2xl font-bold">{mode === "sign-up" ? "Create your account" : "Welcome back"}</h1>
+      <h1 className="text-2xl font-bold">{mode === "sign-up" ? t("auth.signUpTitle") : t("auth.signInTitle")}</h1>
       {mode === "sign-up" && (
         <Label>
-          Name
+          {t("auth.name")}
           <Input name="name" required autoComplete="name" maxLength={60} />
         </Label>
       )}
       <Label>
-        Email
+        {t("auth.email")}
         <Input name="email" type="email" required autoComplete="email" />
       </Label>
       <Label>
-        Password
+        {t("auth.password")}
         <Input
           name="password"
           type="password"
@@ -60,16 +69,22 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         </p>
       )}
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
-        {pending ? "Please wait…" : mode === "sign-up" ? "Create account" : "Sign in"}
+        {pending ? t("auth.pleaseWait") : mode === "sign-up" ? t("auth.createAccount") : t("auth.signIn")}
       </Button>
       <p className="text-center text-sm text-steel">
         {mode === "sign-up" ? (
           <>
-            Already have an account? <Link href="/sign-in" className="font-semibold text-iron underline">Sign in</Link>
+            {t("auth.haveAccount")}{" "}
+            <Link href="/sign-in" className="font-semibold text-iron underline">
+              {t("auth.signIn")}
+            </Link>
           </>
         ) : (
           <>
-            New here? <Link href="/sign-up" className="font-semibold text-iron underline">Create an account</Link>
+            {t("auth.newHere")}{" "}
+            <Link href="/sign-up" className="font-semibold text-iron underline">
+              {t("auth.createAnAccount")}
+            </Link>
           </>
         )}
       </p>

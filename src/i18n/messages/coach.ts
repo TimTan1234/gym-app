@@ -1,4 +1,76 @@
-// "coach" messages. English is the source; zh must have exactly the same keys.
-export const en = {};
+// AI coach chat.
+export const en = {
+  title: "Coach",
+  newChat: "New chat",
+  pastConversations: "Past conversations",
+  emptyTitle: "Ask your AI coach anything",
+  emptyBody: "It can see your meals, workouts, plan and body metrics.",
+  suggestions: {
+    protein: "How am I doing on protein this week?",
+    dinner: "What should I eat for dinner to hit my targets?",
+    workout: "Review my last workout and suggest improvements.",
+    targets: "Should I adjust my calorie targets?",
+  },
+  placeholder: "Ask your coach…",
+  messageLabel: "Message the coach",
+  send: "Send",
+  thinking: "Coach is thinking",
+  disclaimer: "AI coach can make mistakes. Not medical advice.",
+  proposal: {
+    newTargets: "New daily targets",
+    newPlan: "New plan: {name}",
+    apply: "Apply",
+    applying: "Applying…",
+    applied: "Applied",
+    targetsUpdated: "Targets updated",
+    planSaved: "Plan saved and activated",
+  },
+  noResponse: "(no response)",
+  errors: {
+    unavailable: "The coach is unavailable right now. Please try again.",
+    unavailableShort: "The coach is unavailable",
+    proposalNotFound: "Proposal not found",
+    alreadyApplied: "Already applied",
+    completeProfile: "Complete your profile first",
+    conversationNotFound: "Conversation not found",
+    invalidRequest: "Invalid request",
+  },
+};
 
-export const zh: typeof en = {};
+export const zh: typeof en = {
+  title: "教练",
+  newChat: "新对话",
+  pastConversations: "历史对话",
+  emptyTitle: "有什么问题都可以问 AI 教练",
+  emptyBody: "教练可以查看你的饮食、训练、计划和身体数据。",
+  suggestions: {
+    protein: "我这周的蛋白质摄入怎么样？",
+    dinner: "晚餐吃什么才能达到我的目标？",
+    workout: "帮我回顾上一次训练并给出改进建议。",
+    targets: "我需要调整热量目标吗？",
+  },
+  placeholder: "问问你的教练…",
+  messageLabel: "给教练发消息",
+  send: "发送",
+  thinking: "教练正在思考",
+  disclaimer: "AI 教练可能会出错，不构成医疗建议。",
+  proposal: {
+    newTargets: "新的每日目标",
+    newPlan: "新计划：{name}",
+    apply: "应用",
+    applying: "正在应用…",
+    applied: "已应用",
+    targetsUpdated: "目标已更新",
+    planSaved: "计划已保存并启用",
+  },
+  noResponse: "（没有回复）",
+  errors: {
+    unavailable: "教练暂时无法使用，请重试。",
+    unavailableShort: "教练暂时无法使用",
+    proposalNotFound: "未找到该建议",
+    alreadyApplied: "已经应用过了",
+    completeProfile: "请先完善个人资料",
+    conversationNotFound: "未找到该对话",
+    invalidRequest: "请求无效",
+  },
+};

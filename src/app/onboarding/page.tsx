@@ -4,25 +4,31 @@ import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { PageSkeleton } from "@/components/ui";
+import { getT } from "@/i18n/server";
+import { LocaleBoundary } from "@/i18n/LocaleBoundary";
 
 export const metadata = { title: "Set up your profile" };
 
 async function Onboarding() {
   const user = await requireUser();
-  const profile = await db.profile.findUnique({ where: { userId: user.id } });
+  const [profile, t] = await Promise.all([db.profile.findUnique({ where: { userId: user.id } }), getT()]);
   if (profile) redirect("/today");
-  return <ProfileForm initial={{ name: user.name }} submitLabel="Calculate my targets" redirectTo="/today" />;
+  return (
+    <>
+      <h1 className="display text-[32px]">{t("settings.onboarding.title")}</h1>
+      <p className="mb-6 mt-1 text-sm text-steel">{t("settings.onboarding.intro")}</p>
+      <ProfileForm initial={{ name: user.name }} submitLabel={t("settings.onboarding.submit")} redirectTo="/today" />
+    </>
+  );
 }
 
 export default function OnboardingPage() {
   return (
     <main className="mx-auto max-w-lg px-5 py-10">
-      <h1 className="display text-[32px]">Set up your profile</h1>
-      <p className="mb-6 mt-1 text-sm text-steel">
-        We use this to calculate your daily calorie and macro targets and to tailor training plans.
-      </p>
       <Suspense fallback={<PageSkeleton />}>
-        <Onboarding />
+        <LocaleBoundary>
+          <Onboarding />
+        </LocaleBoundary>
       </Suspense>
     </main>
   );

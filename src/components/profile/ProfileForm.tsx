@@ -4,11 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { saveProfile, type ProfileInput } from "@/server/profile";
-import { ACTIVITY_LABELS } from "@/lib/nutrition/targets";
 import { cmToIn, inToCm, displayWeight, inputWeightToKg, round, weightUnit } from "@/lib/units";
 import { Button, Input, Label, Select, cn } from "@/components/ui";
 import { useClientValue } from "@/lib/use-client";
-import { EQUIPMENT_OPTIONS, EXPERIENCE_LABELS, GOAL_LABELS } from "./options";
+import { useT } from "@/i18n/client";
+import { ACTIVITY_LEVELS, EQUIPMENT_OPTIONS, EXPERIENCE_LEVELS, GOALS } from "./options";
 
 const SERVER_TIMEZONES = ["UTC"];
 let cachedTimezones: string[] | null = null;
@@ -19,6 +19,7 @@ const browserTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone |
 export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Partial<ProfileInput>; submitLabel: string; redirectTo?: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const t = useT();
   const [units, setUnits] = useState<ProfileInput["unitSystem"]>(initial?.unitSystem ?? "METRIC");
   const [goal, setGoal] = useState<ProfileInput["goal"]>(initial?.goal ?? "MAINTAIN");
   const [equipment, setEquipment] = useState<string[]>(initial?.equipment ?? ["barbell", "dumbbell", "machine", "cable"]);
@@ -59,7 +60,7 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
         setError(res.error);
         return;
       }
-      toast.success("Profile saved");
+      toast.success(t("settings.form.saved"));
       if (redirectTo) router.push(redirectTo);
     });
   }
@@ -70,57 +71,57 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="grid grid-cols-2 gap-3">
         <Label className="col-span-2">
-          Name
+          {t("settings.form.name")}
           <Input name="name" required defaultValue={initial?.name ?? ""} maxLength={60} />
         </Label>
         <Label>
-          Units
+          {t("settings.form.units")}
           <Select value={units} onChange={(e) => setUnits(e.target.value as ProfileInput["unitSystem"])}>
-            <option value="METRIC">Metric (kg)</option>
-            <option value="IMPERIAL">Imperial (lb)</option>
+            <option value="METRIC">{t("labels.units.METRIC")}</option>
+            <option value="IMPERIAL">{t("labels.units.IMPERIAL")}</option>
           </Select>
         </Label>
         <Label>
-          Sex
-          <Select name="sex" defaultValue={initial?.sex ?? "MALE"} >
-            <option value="MALE">Male</option>
-            <option value="FEMALE">Female</option>
+          {t("settings.form.sex")}
+          <Select name="sex" defaultValue={initial?.sex ?? "MALE"}>
+            <option value="MALE">{t("labels.sex.MALE")}</option>
+            <option value="FEMALE">{t("labels.sex.FEMALE")}</option>
           </Select>
         </Label>
         <Label>
-          Date of birth
+          {t("settings.form.birthDate")}
           <Input name="birthDate" type="date" required defaultValue={initial?.birthDate ?? ""} />
         </Label>
         <Label>
-          Height ({imperial ? "in" : "cm"})
+          {t("settings.form.height", { unit: imperial ? "in" : "cm" })}
           <Input key={`h-${units}`} name="height" type="number" step="0.1" required defaultValue={heightInit} inputMode="decimal" />
         </Label>
         <Label>
-          Weight ({weightUnit(units)})
+          {t("settings.form.weight", { unit: weightUnit(units) })}
           <Input key={`w-${units}`} name="weight" type="number" step="0.1" required defaultValue={weightInit} inputMode="decimal" />
         </Label>
         <Label>
-          Training experience
+          {t("settings.form.experience")}
           <Select name="experience" defaultValue={initial?.experience ?? "BEGINNER"}>
-            {Object.entries(EXPERIENCE_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
+            {EXPERIENCE_LEVELS.map((v) => (
+              <option key={v} value={v}>{t(`labels.experience.${v}`)}</option>
             ))}
           </Select>
         </Label>
         <Label className="col-span-2">
-          Activity level
+          {t("settings.form.activity")}
           <Select name="activityLevel" defaultValue={initial?.activityLevel ?? "MODERATE"}>
-            {Object.entries(ACTIVITY_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
+            {ACTIVITY_LEVELS.map((v) => (
+              <option key={v} value={v}>{t(`labels.activity.${v}`)}</option>
             ))}
           </Select>
         </Label>
       </div>
 
       <fieldset>
-        <legend className="mb-1.5 text-sm font-medium">Goal</legend>
+        <legend className="mb-1.5 text-sm font-medium">{t("settings.form.goal")}</legend>
         <div className="grid grid-cols-3 gap-2">
-          {(Object.keys(GOAL_LABELS) as ProfileInput["goal"][]).map((g) => (
+          {GOALS.map((g) => (
             <button
               type="button"
               key={g}
@@ -131,22 +132,22 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
                 goal === g ? "border-iron bg-iron text-iron-fg" : "border-line bg-paper text-steel hover:border-iron",
               )}
             >
-              {GOAL_LABELS[g]}
+              {t(`labels.goal.${g}`)}
             </button>
           ))}
         </div>
         {goal !== "MAINTAIN" && (
-          <Label className="mt-3" hint="0.25–0.5 kg (0.5–1 lb) per week is sustainable for most people.">
-            Target rate ({weightUnit(units)} per week)
+          <Label className="mt-3" hint={t("settings.form.rateHint")}>
+            {t("settings.form.rate", { unit: weightUnit(units) })}
             <Input key={`r-${units}`} name="rate" type="number" step="0.05" min="0.1" max={imperial ? 2 : 1} required defaultValue={rateInit} />
           </Label>
         )}
       </fieldset>
 
       <fieldset>
-        <legend className="mb-1.5 text-sm font-medium">Equipment you have access to</legend>
+        <legend className="mb-1.5 text-sm font-medium">{t("settings.form.equipment")}</legend>
         <div className="flex flex-wrap gap-2">
-          {EQUIPMENT_OPTIONS.map(({ value, label }) => {
+          {EQUIPMENT_OPTIONS.map(({ value }) => {
             const on = equipment.includes(value);
             return (
               <button
@@ -159,16 +160,16 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
                   on ? "border-iron bg-iron font-semibold text-iron-fg" : "border-line text-steel hover:border-iron",
                 )}
               >
-                {label}
+                {t(`labels.equipmentOption.${value}`)}
               </button>
             );
           })}
         </div>
-        <p className="mt-1.5 text-xs text-steel">Bodyweight exercises are always included.</p>
+        <p className="mt-1.5 text-xs text-steel">{t("settings.form.bodyweightNote")}</p>
       </fieldset>
 
       <Label>
-        Timezone
+        {t("settings.form.timezone")}
         <Select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
           {timezones.map((tz) => (
             <option key={tz} value={tz}>{tz}</option>
@@ -178,7 +179,7 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
 
       {error && <p role="alert" className="text-sm text-alert">{error}</p>}
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
-        {pending ? "Saving…" : submitLabel}
+        {pending ? t("common.saving") : submitLabel}
       </Button>
     </form>
   );

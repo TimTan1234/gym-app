@@ -7,6 +7,8 @@ import type { Proposal } from "@/lib/ai/coach";
 import type { ChatEvent } from "@/app/api/ai/chat/route";
 import { applyProposal } from "@/server/coach";
 import { Button, Textarea, cn, Plate } from "@/components/ui";
+import { useT } from "@/i18n/client";
+import { exerciseName } from "@/i18n/labels";
 
 export interface UiMessage {
   id: string | null;
@@ -15,12 +17,7 @@ export interface UiMessage {
   proposals: Proposal[];
 }
 
-const SUGGESTIONS = [
-  "How am I doing on protein this week?",
-  "What should I eat for dinner to hit my targets?",
-  "Review my last workout and suggest improvements.",
-  "Should I adjust my calorie targets?",
-];
+const SUGGESTIONS = ["protein", "dinner", "workout", "targets"] as const;
 
 /** Minimal, safe markdown: paragraphs, "- " bullets and **bold**. No HTML injection. */
 function Markdown({ text }: { text: string }) {
@@ -56,19 +53,20 @@ function Markdown({ text }: { text: string }) {
 }
 
 function ProposalCard({ proposal, messageId, index }: { proposal: Proposal; messageId: string | null; index: number }) {
+  const t = useT();
   const [applied, setApplied] = useState(Boolean(proposal.applied));
   const [pending, startTransition] = useTransition();
   return (
     <div className="mt-3 space-y-3 border-t border-line pt-3 text-sm" data-testid="proposal">
-      <p className="display text-[17px]">{proposal.kind === "targets" ? "New daily targets" : `New plan: ${proposal.plan.name}`}</p>
+      <p className="display text-[17px]">{proposal.kind === "targets" ? t("coach.proposal.newTargets") : t("coach.proposal.newPlan", { name: proposal.plan.name })}</p>
       {proposal.kind === "targets" ? (
         <dl className="grid grid-cols-4 gap-2">
           {(
             [
-              ["kcal", proposal.targetKcal.toLocaleString("en-US"), null],
-              ["Protein", `${proposal.targetProteinG} g`, "var(--plate-blue)"],
-              ["Carbs", `${proposal.targetCarbsG} g`, "var(--plate-yellow)"],
-              ["Fat", `${proposal.targetFatG} g`, "var(--plate-red)"],
+              [t("common.kcal"), proposal.targetKcal.toLocaleString("en-US"), null],
+              [t("common.protein"), `${proposal.targetProteinG} g`, "var(--plate-blue)"],
+              [t("common.carbs"), `${proposal.targetCarbsG} g`, "var(--plate-yellow)"],
+              [t("common.fat"), `${proposal.targetFatG} g`, "var(--plate-red)"],
             ] as const
           ).map(([k, v, color]) => (
             <div key={k} className="flex flex-col-reverse">
@@ -84,7 +82,7 @@ function ProposalCard({ proposal, messageId, index }: { proposal: Proposal; mess
           {proposal.plan.days.map((d, i) => (
             <li key={i}>
               <span className="font-semibold">{d.name}:</span>{" "}
-              <span className="text-steel">{d.exercises.map((e) => `${e.exerciseName} ${e.sets}×${e.repMin}–${e.repMax}`).join(", ")}</span>
+              <span className="text-steel">{d.exercises.map((e) => `${exerciseName(t, { slug: e.exerciseSlug, name: e.exerciseName })} ${e.sets}×${e.repMin}–${e.repMax}`).join(t.locale === "zh" ? "、" : ", ")}</span>
             </li>
           ))}
         </ul>
@@ -99,17 +97,18 @@ function ProposalCard({ proposal, messageId, index }: { proposal: Proposal; mess
             const res = await applyProposal(messageId, index);
             if (!res.ok) return void toast.error(res.error);
             setApplied(true);
-            toast.success(proposal.kind === "targets" ? "Targets updated" : "Plan saved and activated");
+            toast.success(proposal.kind === "targets" ? t("coach.proposal.targetsUpdated") : t("coach.proposal.planSaved"));
           })
         }
       >
-        {applied ? <><Check className="size-4" /> Applied</> : pending ? "Applying…" : "Apply"}
+        {applied ? <><Check className="size-4" /> {t("coach.proposal.applied")}</> : pending ? t("coach.proposal.applying") : t("coach.proposal.apply")}
       </Button>
     </div>
   );
 }
 
 export function CoachChat({ threadId: initialThreadId, initialMessages, prefill }: { threadId: string | null; initialMessages: UiMessage[]; prefill?: string }) {
+  const t = useT();
   const [threadId, setThreadId] = useState(initialThreadId);
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState(prefill ?? "");
@@ -142,7 +141,7 @@ export function CoachChat({ threadId: initialThreadId, initialMessages, prefill 
       });
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "The coach is unavailable");
+        throw new Error(data.error ?? t("coach.errors.unavailableShort"));
       }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -168,7 +167,7 @@ export function CoachChat({ threadId: initialThreadId, initialMessages, prefill 
       // No router.refresh() here: it would re-key and remount this component,
       // wiping anything the user has started typing. The URL is already updated.
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Something went wrong");
+      toast.error(e instanceof Error ? e.message : t("common.somethingWrong"));
       setMessages((cur) => (cur.at(-1)?.content ? cur : cur.slice(0, -1)));
     } finally {
       setBusy(false);
@@ -181,14 +180,17 @@ export function CoachChat({ threadId: initialThreadId, initialMessages, prefill 
         {messages.length === 0 && (
           <div className="space-y-3 py-6 text-center">
             <Sparkles className="mx-auto size-8 text-iron" />
-            <p className="font-semibold">Ask your AI coach anything</p>
-            <p className="text-sm text-steel">It can see your meals, workouts, plan and body metrics.</p>
+            <p className="font-semibold">{t("coach.emptyTitle")}</p>
+            <p className="text-sm text-steel">{t("coach.emptyBody")}</p>
             <div className="flex flex-wrap justify-center gap-2 pt-2">
-              {SUGGESTIONS.map((s) => (
-                <button key={s} type="button" onClick={() => send(s)} className="rounded-full border border-line bg-paper px-3 py-1.5 text-sm hover:border-iron">
-                  {s}
-                </button>
-              ))}
+              {SUGGESTIONS.map((key) => {
+                const s = t(`coach.suggestions.${key}`);
+                return (
+                  <button key={key} type="button" onClick={() => send(s)} className="rounded-full border border-line bg-paper px-3 py-1.5 text-sm hover:border-iron">
+                    {s}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -201,7 +203,7 @@ export function CoachChat({ threadId: initialThreadId, initialMessages, prefill 
               )}
             >
               {m.role === "assistant" && !m.content && busy && i === messages.length - 1 ? (
-                <Loader2 className="size-4 animate-spin text-steel" aria-label="Coach is thinking" />
+                <Loader2 className="size-4 animate-spin text-steel" aria-label={t("coach.thinking")} />
               ) : m.role === "assistant" ? (
                 <Markdown text={m.content} />
               ) : (
@@ -231,17 +233,17 @@ export function CoachChat({ threadId: initialThreadId, initialMessages, prefill 
               void send(input);
             }
           }}
-          placeholder="Ask your coach…"
-          aria-label="Message the coach"
+          placeholder={t("coach.placeholder")}
+          aria-label={t("coach.messageLabel")}
           maxLength={2000}
           rows={1}
           className="min-h-10 resize-none border-0 bg-transparent"
         />
-        <Button type="submit" disabled={busy || !input.trim()} aria-label="Send">
+        <Button type="submit" disabled={busy || !input.trim()} aria-label={t("coach.send")}>
           <Send className="size-4" />
         </Button>
       </form>
-      <p className="mt-2 text-center text-[11px] text-steel">AI coach can make mistakes. Not medical advice.</p>
+      <p className="mt-2 text-center text-[11px] text-steel">{t("coach.disclaimer")}</p>
     </div>
   );
 }

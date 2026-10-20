@@ -4,6 +4,8 @@ import { getUserForApi } from "@/lib/session";
 import { AiLimitError, reserveAiCall } from "@/lib/ai/client";
 import { runCoach, type ChatTurn, type Proposal } from "@/lib/ai/coach";
 import { todayLocal } from "@/lib/dates";
+import { getLocale } from "@/i18n/server";
+import { createT } from "@/i18n/translate";
 
 const BodySchema = z.object({
   threadId: z.string().nullable(),
@@ -20,19 +22,21 @@ export type ChatEvent =
   | { type: "error"; error: string };
 
 export async function POST(request: Request) {
+  const locale = await getLocale();
+  const t = createT(locale);
   const user = await getUserForApi();
-  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user) return Response.json({ error: t("common.unauthorized") }, { status: 401 });
   const body = BodySchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) return Response.json({ error: body.error.issues[0]?.message ?? "Invalid request" }, { status: 400 });
+  if (!body.success) return Response.json({ error: t("coach.errors.invalidRequest") }, { status: 400 });
 
   const profile = await db.profile.findUnique({ where: { userId: user.id } });
-  if (!profile) return Response.json({ error: "Complete your profile first" }, { status: 400 });
+  if (!profile) return Response.json({ error: t("coach.errors.completeProfile") }, { status: 400 });
 
   let reservation;
   try {
     reservation = await reserveAiCall(user.id, "CHAT", todayLocal(profile.timezone));
   } catch (e) {
-    if (e instanceof AiLimitError) return Response.json({ error: e.message }, { status: 429 });
+    if (e instanceof AiLimitError) return Response.json({ error: t("common.aiLimit", { limit: e.limit }) }, { status: 429 });
     throw e;
   }
 
@@ -42,7 +46,7 @@ export async function POST(request: Request) {
     const thread = await db.chatThread.findFirst({ where: { id: threadId, userId: user.id } });
     if (!thread) {
       await reservation.refund();
-      return Response.json({ error: "Conversation not found" }, { status: 404 });
+      return Response.json({ error: t("coach.errors.conversationNotFound") }, { status: 404 });
     }
   } else {
     const thread = await db.chatThread.create({ data: { userId: user.id, title: body.data.message.slice(0, 60) } });
@@ -65,7 +69,7 @@ export async function POST(request: Request) {
       send({ type: "thread", threadId: threadId! });
       try {
         const result = await runCoach(
-          { userId: user.id, userName: user.name, timezone: profile.timezone, sex: profile.sex },
+          { userId: user.id, userName: user.name, timezone: profile.timezone, sex: profile.sex, locale },
           history,
           { onDelta: (text) => send({ type: "delta", text }), onProposal: (proposal) => send({ type: "proposal", proposal }) },
         );
@@ -73,7 +77,7 @@ export async function POST(request: Request) {
           data: {
             threadId: threadId!,
             role: "assistant",
-            content: result.text || "(no response)",
+            content: result.text || t("coach.noResponse"),
             proposals: result.proposals.length ? (result.proposals as object[]) : undefined,
           },
         });
@@ -82,7 +86,7 @@ export async function POST(request: Request) {
       } catch (e) {
         console.error("coach failed", e);
         await reservation.refund();
-        send({ type: "error", error: "The coach is unavailable right now. Please try again." });
+        send({ type: "error", error: t("coach.errors.unavailable") });
       } finally {
         controller.close();
       }

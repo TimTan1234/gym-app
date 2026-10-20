@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import { addDays, isLocalDate, todayLocal, formatLocalDate } from "@/lib/dates";
+import { getT } from "@/i18n/server";
+import { INTL_LOCALE } from "@/i18n/config";
 import { MealLogger } from "@/components/nutrition/MealLogger";
 import { PageHeader, PageSkeleton } from "@/components/ui";
 
@@ -30,7 +32,7 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
     sodiumMg: true,
   } as const;
 
-  const [savedFoods, recent] = await Promise.all([
+  const [savedFoods, recent, t] = await Promise.all([
     db.savedFood.findMany({
       where: { userId: user.id },
       orderBy: [{ useCount: "desc" }, { updatedAt: "desc" }],
@@ -43,6 +45,7 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
       take: 40,
       select: { id: true, description: true, mealType: true, kcal: true, items: { select: itemSelect } },
     }),
+    getT(),
   ]);
 
   // Most recent first, one entry per distinct meal name.
@@ -58,7 +61,10 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
 
   return (
     <>
-      <PageHeader title="Log a meal" subtitle={date === today ? "Today" : formatLocalDate(date)} />
+      <PageHeader
+        title={t("nutrition.logTitle")}
+        subtitle={date === today ? t("common.today") : formatLocalDate(date, undefined, INTL_LOCALE[t.locale])}
+      />
       <MealLogger date={date} isToday={date === today} initialType={type} savedFoods={savedFoods} recentMeals={recentMeals} />
     </>
   );

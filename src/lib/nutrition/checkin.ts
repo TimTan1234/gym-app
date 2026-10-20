@@ -33,13 +33,20 @@ export interface CheckinInput {
   targetsSetOn?: string | null;
 }
 
+/** Something the check-in still needs, as a code + values so it can be shown in any language. */
+export type CheckinMissing =
+  | { code: "loggedDays"; n: number }
+  | { code: "weighIns"; n: number }
+  | { code: "weighInSpread"; days: number }
+  | { code: "incompleteLogs" };
+
 export interface CheckinResult {
   start: string;
   end: string;
   daysLogged: number;
   weighIns: number;
   /** What's still needed before an estimate can be made; empty when ready. */
-  missing: string[];
+  missing: CheckinMissing[];
   avgIntakeKcal: number | null;
   /** Trend-weight change scaled to a week (kg, negative = losing). */
   weeklyChangeKg: number | null;
@@ -96,10 +103,10 @@ export function weeklyCheckin(input: CheckinInput): CheckinResult {
     nextOn: null,
   };
 
-  const missing: string[] = [];
-  if (daysLogged < MIN_LOGGED_DAYS) missing.push(`${MIN_LOGGED_DAYS - daysLogged} more fully logged days`);
-  if (weighIns < MIN_WEIGH_INS) missing.push(`${MIN_WEIGH_INS - weighIns} more weigh-ins`);
-  else if (span < MIN_WEIGHT_SPAN_DAYS) missing.push(`weigh-ins spread over at least ${MIN_WEIGHT_SPAN_DAYS} days`);
+  const missing: CheckinMissing[] = [];
+  if (daysLogged < MIN_LOGGED_DAYS) missing.push({ code: "loggedDays", n: MIN_LOGGED_DAYS - daysLogged });
+  if (weighIns < MIN_WEIGH_INS) missing.push({ code: "weighIns", n: MIN_WEIGH_INS - weighIns });
+  else if (span < MIN_WEIGHT_SPAN_DAYS) missing.push({ code: "weighInSpread", days: MIN_WEIGHT_SPAN_DAYS });
 
   if (missing.length > 0 || avgIntakeKcal === null) {
     return { ...base, missing, weeklyChangeKg: null, estimatedTdee: null, status: "insufficient", suggested: null };
@@ -113,7 +120,7 @@ export function weeklyCheckin(input: CheckinInput): CheckinResult {
   if (estimatedTdee < 1000 || estimatedTdee > 6000) {
     return {
       ...base,
-      missing: ["more complete food logs (the numbers don't add up yet)"],
+      missing: [{ code: "incompleteLogs" }],
       weeklyChangeKg,
       estimatedTdee: null,
       status: "insufficient",

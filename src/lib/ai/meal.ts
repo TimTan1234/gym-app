@@ -2,7 +2,8 @@ import "server-only";
 import { zodTextFormat } from "openai/helpers/zod";
 import type { ResponseInputContent } from "openai/resources/responses/responses";
 import { isAiMock, models, openai } from "./client";
-import { MEAL_SYSTEM_PROMPT } from "./prompts";
+import { MEAL_SYSTEM_PROMPT, languageInstruction } from "./prompts";
+import type { Locale } from "@/i18n/config";
 import { MealAnalysisSchema, type MealAnalysis } from "./schemas";
 import mockMeal from "./fixtures/meal.json";
 
@@ -10,6 +11,8 @@ export interface MealInput {
   text?: string;
   /** data:image/jpeg;base64,... (already resized client-side) */
   imageDataUrl?: string;
+  /** Language for item names, assumptions, notes and title. */
+  locale?: Locale;
 }
 
 export async function analyzeMeal(input: MealInput): Promise<MealAnalysis> {
@@ -26,7 +29,7 @@ export async function analyzeMeal(input: MealInput): Promise<MealAnalysis> {
 
   const response = await openai().responses.parse({
     model: models.fast(),
-    instructions: MEAL_SYSTEM_PROMPT,
+    instructions: MEAL_SYSTEM_PROMPT + languageInstruction(input.locale ?? "en"),
     input: [{ role: "user", content }],
     text: { format: zodTextFormat(MealAnalysisSchema, "meal_analysis") },
   });

@@ -7,6 +7,7 @@ import { requireProfile } from "@/lib/session";
 import { todayLocal } from "@/lib/dates";
 import { lastSessionSets } from "@/lib/queries";
 import { detectRecords, type Bests, type NewRecord, type RecordType } from "@/lib/training/records";
+import { getT } from "@/i18n/server";
 import type { ActionResult } from "./profile";
 
 export async function startWorkout(planDayId?: string): Promise<ActionResult & { sessionId?: string }> {
@@ -17,7 +18,7 @@ export async function startWorkout(planDayId?: string): Promise<ActionResult & {
 
   if (planDayId) {
     const day = await db.planDay.findFirst({ where: { id: planDayId, plan: { userId: user.id } } });
-    if (!day) return { ok: false, error: "Plan day not found" };
+    if (!day) return { ok: false, error: (await getT())("train.errors.planDayNotFound") };
   }
   const now = new Date();
   const session = await db.workoutSession.create({
@@ -61,15 +62,16 @@ export async function logSet(
 ): Promise<{ ok: true; set: LoggedSet; records: NewRecord[] } | { ok: false; error: string }> {
   const { user } = await requireProfile();
   const parsed = SetSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid set" };
+  const t = await getT();
+  if (!parsed.success) return { ok: false, error: t("train.errors.invalidSet") };
   const s = parsed.data;
 
   const [session, exercise] = await Promise.all([
     db.workoutSession.findFirst({ where: { id: s.sessionId, userId: user.id }, select: { id: true } }),
     db.exercise.findFirst({ where: { id: s.exerciseId, OR: [{ userId: null }, { userId: user.id }] }, select: { id: true } }),
   ]);
-  if (!session) return { ok: false, error: "Workout not found" };
-  if (!exercise) return { ok: false, error: "Exercise not found" };
+  if (!session) return { ok: false, error: t("train.errors.workoutNotFound") };
+  if (!exercise) return { ok: false, error: t("train.errors.exerciseNotFound") };
 
   const bests = await currentBests(user.id, s.exerciseId);
   const records = detectRecords(s, bests);
@@ -106,7 +108,7 @@ export async function logSet(
 export async function deleteSet(setId: string): Promise<ActionResult> {
   const { user } = await requireProfile();
   const set = await db.workoutSet.findFirst({ where: { id: setId, session: { userId: user.id } } });
-  if (!set) return { ok: false, error: "Set not found" };
+  if (!set) return { ok: false, error: (await getT())("train.errors.setNotFound") };
   await db.$transaction([
     db.workoutSet.delete({ where: { id: setId } }),
     // Re-number remaining sets for this exercise in this session.
@@ -124,7 +126,7 @@ export async function finishWorkout(sessionId: string, notes: string): Promise<A
     where: { id: sessionId, userId: user.id },
     include: { _count: { select: { sets: true } } },
   });
-  if (!session) return { ok: false, error: "Workout not found" };
+  if (!session) return { ok: false, error: (await getT())("train.errors.workoutNotFound") };
   if (session._count.sets === 0) {
     await db.workoutSession.delete({ where: { id: sessionId } });
     refresh();
@@ -158,10 +160,11 @@ export async function createCustomExercise(
 ): Promise<ActionResult & { exerciseId?: string }> {
   const { user } = await requireProfile();
   const parsed = CustomExerciseSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid exercise" };
+  const t = await getT();
+  if (!parsed.success) return { ok: false, error: t("train.errors.invalidExercise") };
   const slug = `custom-${parsed.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
   const exists = await db.exercise.findFirst({ where: { userId: user.id, slug } });
-  if (exists) return { ok: false, error: "You already have an exercise with that name" };
+  if (exists) return { ok: false, error: t("train.errors.duplicateExercise") };
   const ex = await db.exercise.create({
     data: { ...parsed.data, slug, secondaryMuscles: [], userId: user.id },
   });
@@ -173,7 +176,7 @@ export async function deleteCustomExercise(id: string): Promise<ActionResult> {
   const { user } = await requireProfile();
   const used = await db.workoutSet.count({ where: { exerciseId: id } });
   const inPlans = await db.planExercise.count({ where: { exerciseId: id } });
-  if (used || inPlans) return { ok: false, error: "This exercise is used in workouts or plans and can't be deleted" };
+  if (used || inPlans) return { ok: false, error: (await getT())("train.errors.exerciseInUse") };
   await db.exercise.deleteMany({ where: { id, userId: user.id } });
   refresh();
   return { ok: true };

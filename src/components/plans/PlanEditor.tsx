@@ -8,11 +8,15 @@ import { createPlan, updatePlan } from "@/server/plans";
 import type { PlanInput } from "@/lib/plan-input";
 import { ExercisePicker, type PickerExercise } from "@/components/train/ExercisePicker";
 import { Button, Input, Label, Textarea, cn } from "@/components/ui";
+import { useT } from "@/i18n/client";
+import { exerciseName } from "@/i18n/labels";
 
 export interface EditorExercise {
   key: string;
   exerciseId: string;
   exerciseName: string;
+  /** Library slug, used to show the exercise name in the interface language. */
+  exerciseSlug: string;
   sets: number;
   repMin: number;
   repMax: number;
@@ -42,10 +46,10 @@ function move<T>(arr: T[], i: number, dir: -1 | 1): T[] {
 }
 
 const FIELDS = [
-  ["Sets", "sets", 3],
-  ["Min reps", "repMin", 8],
-  ["Max reps", "repMax", 12],
-  ["Rest (s)", "restSec", 90],
+  ["plans.editor.sets", "sets", 3],
+  ["plans.editor.minReps", "repMin", 8],
+  ["plans.editor.maxReps", "repMax", 12],
+  ["plans.editor.rest", "restSec", 90],
 ] as const;
 // Sets | min | max | rest | RPE: shared by the header row and every exercise row.
 const FIELD_COLS = "grid grid-cols-5 gap-1.5";
@@ -63,6 +67,7 @@ export function PlanEditor({
   onSaved?: () => void;
 }) {
   const router = useRouter();
+  const t = useT();
   const [plan, setPlan] = useState(initial);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -79,7 +84,7 @@ export function PlanEditor({
       ...d,
       exercises: [
         ...d.exercises,
-        { key: editorKey(), exerciseId: ex.id, exerciseName: ex.name, sets: 3, repMin: 8, repMax: 12, targetRpe: 8, restSec: 90, notes: null },
+        { key: editorKey(), exerciseId: ex.id, exerciseName: ex.name, exerciseSlug: ex.slug ?? "", sets: 3, repMin: 8, repMax: 12, targetRpe: 8, restSec: 90, notes: null },
       ],
     }));
     setPickerFor(null);
@@ -94,13 +99,13 @@ export function PlanEditor({
       source: plan.source,
       days: plan.days.map((d) => ({
         name: d.name,
-        exercises: d.exercises.map(({ key: _k, exerciseName: _n, ...e }) => e),
+        exercises: d.exercises.map(({ key: _k, exerciseName: _n, exerciseSlug: _s, ...e }) => e),
       })),
     };
     startTransition(async () => {
       const res = planId ? await updatePlan(planId, input) : await createPlan(input, activate);
       if (!res.ok) return void toast.error(res.error);
-      toast.success(planId ? "Plan updated" : activate ? "Plan saved and activated" : "Plan saved");
+      toast.success(planId ? t("plans.editor.updated") : activate ? t("plans.editor.savedActivated") : t("plans.editor.saved"));
       onSaved?.();
       router.push("/train/plans");
     });
@@ -112,15 +117,15 @@ export function PlanEditor({
     <div className="space-y-8">
       <div className="grid grid-cols-[1fr_6rem] gap-3">
         <Label>
-          Plan name
+          {t("plans.editor.planName")}
           <Input value={plan.name} onChange={(e) => setPlan({ ...plan, name: e.target.value })} maxLength={80} />
         </Label>
         <Label>
-          Weeks
+          {t("plans.editor.weeks")}
           <Input type="number" min={1} max={52} value={plan.weeks} onChange={(e) => setPlan({ ...plan, weeks: num(e.target.value, 8) })} />
         </Label>
         <Label className="col-span-2">
-          Notes
+          {t("plans.editor.notes")}
           <Textarea value={plan.notes ?? ""} onChange={(e) => setPlan({ ...plan, notes: e.target.value || null })} maxLength={1000} />
         </Label>
       </div>
@@ -129,18 +134,18 @@ export function PlanEditor({
         // Each day reads like a page of the logbook: a heavy rule, one header row, then divided exercise rows.
         <section key={day.key} className="space-y-2 border-t-2 border-iron pt-3" data-testid="plan-day">
           <div className="flex items-center gap-1">
-            <span className="shrink-0 text-[13px] font-semibold text-steel">Day {di + 1}</span>
+            <span className="shrink-0 text-[13px] font-semibold text-steel">{t("plans.editor.day", { n: di + 1 })}</span>
             <Input
               value={day.name}
               onChange={(e) => setDay(day.key, (d) => ({ ...d, name: e.target.value }))}
-              aria-label={`Day ${di + 1} name`}
+              aria-label={t("plans.editor.dayName", { n: di + 1 })}
               className="display h-10 border-transparent bg-transparent px-2 text-[22px] hover:border-line focus:border-iron"
               maxLength={60}
             />
-            <Button variant="ghost" size="sm" aria-label="Move day up" onClick={() => setPlan((p) => ({ ...p, days: move(p.days, di, -1) }))}>
+            <Button variant="ghost" size="sm" aria-label={t("plans.editor.moveDayUp")} onClick={() => setPlan((p) => ({ ...p, days: move(p.days, di, -1) }))}>
               <ArrowUp className="size-4" />
             </Button>
-            <Button variant="ghost" size="sm" aria-label="Remove day" onClick={() => setPlan((p) => ({ ...p, days: p.days.filter((d) => d.key !== day.key) }))}>
+            <Button variant="ghost" size="sm" aria-label={t("plans.editor.removeDay")} onClick={() => setPlan((p) => ({ ...p, days: p.days.filter((d) => d.key !== day.key) }))}>
               <Trash2 className="size-4" />
             </Button>
           </div>
@@ -148,56 +153,59 @@ export function PlanEditor({
           {day.exercises.length > 0 && (
             <div aria-hidden className={cn(FIELD_COLS, "border-b border-line pb-1.5 text-center text-[12px] font-medium text-steel")}>
               {FIELDS.map(([lbl]) => (
-                <span key={lbl}>{lbl}</span>
+                <span key={lbl}>{t(lbl)}</span>
               ))}
-              <span>RPE</span>
+              <span>{t("plans.editor.rpe")}</span>
             </div>
           )}
           <ul className="divide-y divide-line">
-            {day.exercises.map((ex, ei) => (
-              <li key={ex.key} className="space-y-1.5 py-2.5">
-                <div className="flex items-center gap-0.5">
-                  <span className="flex-1 font-semibold">{ex.exerciseName}</span>
-                  <button type="button" aria-label="Move up" className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-iron" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, -1) }))}>
-                    <ArrowUp className="size-4" />
-                  </button>
-                  <button type="button" aria-label="Move down" className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-iron" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, 1) }))}>
-                    <ArrowDown className="size-4" />
-                  </button>
-                  <button type="button" aria-label={`Remove ${ex.exerciseName}`} className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-alert" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: d.exercises.filter((e) => e.key !== ex.key) }))}>
-                    <Trash2 className="size-4" />
-                  </button>
-                </div>
-                <div className={FIELD_COLS}>
-                  {FIELDS.map(([lbl, field, fb]) => (
+            {day.exercises.map((ex, ei) => {
+              const name = exerciseName(t, { slug: ex.exerciseSlug, name: ex.exerciseName });
+              return (
+                <li key={ex.key} className="space-y-1.5 py-2.5">
+                  <div className="flex items-center gap-0.5">
+                    <span className="flex-1 font-semibold">{name}</span>
+                    <button type="button" aria-label={t("plans.editor.moveUp")} className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-iron" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, -1) }))}>
+                      <ArrowUp className="size-4" />
+                    </button>
+                    <button type="button" aria-label={t("plans.editor.moveDown")} className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-iron" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, 1) }))}>
+                      <ArrowDown className="size-4" />
+                    </button>
+                    <button type="button" aria-label={t("plans.editor.remove", { name })} className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-alert" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: d.exercises.filter((e) => e.key !== ex.key) }))}>
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                  <div className={FIELD_COLS}>
+                    {FIELDS.map(([lbl, field, fb]) => (
+                      <Input
+                        key={field}
+                        aria-label={t("plans.editor.fieldLabel", { exercise: name, field: t(lbl).toLowerCase() })}
+                        type="number"
+                        min={1}
+                        value={ex[field]}
+                        onChange={(e) => setEx(day.key, ex.key, { [field]: num(e.target.value, fb) })}
+                        className="num h-10 px-1 text-center"
+                      />
+                    ))}
                     <Input
-                      key={field}
-                      aria-label={`${ex.exerciseName} ${lbl.toLowerCase()}`}
+                      aria-label={t("plans.editor.targetRpe", { exercise: name })}
                       type="number"
-                      min={1}
-                      value={ex[field]}
-                      onChange={(e) => setEx(day.key, ex.key, { [field]: num(e.target.value, fb) })}
+                      min={5}
+                      max={10}
+                      step={0.5}
+                      placeholder="–"
+                      value={ex.targetRpe ?? ""}
+                      onChange={(e) => setEx(day.key, ex.key, { targetRpe: e.target.value ? Number(e.target.value) : null })}
                       className="num h-10 px-1 text-center"
                     />
-                  ))}
-                  <Input
-                    aria-label={`${ex.exerciseName} target RPE`}
-                    type="number"
-                    min={5}
-                    max={10}
-                    step={0.5}
-                    placeholder="–"
-                    value={ex.targetRpe ?? ""}
-                    onChange={(e) => setEx(day.key, ex.key, { targetRpe: e.target.value ? Number(e.target.value) : null })}
-                    className="num h-10 px-1 text-center"
-                  />
-                </div>
-                {ex.notes && <p className="text-[13px] italic text-steel">{ex.notes}</p>}
-              </li>
-            ))}
+                  </div>
+                  {ex.notes && <p className="text-[13px] italic text-steel">{ex.notes}</p>}
+                </li>
+              );
+            })}
           </ul>
           <Button variant="ghost" size="sm" onClick={() => setPickerFor(day.key)}>
-            <Plus className="size-4" /> Add exercise
+            <Plus className="size-4" /> {t("plans.editor.addExercise")}
           </Button>
         </section>
       ))}
@@ -206,24 +214,24 @@ export function PlanEditor({
         <Button
           variant="secondary"
           className="w-full"
-          onClick={() => setPlan((p) => ({ ...p, days: [...p.days, { key: editorKey(), name: `Day ${p.days.length + 1}`, exercises: [] }] }))}
+          onClick={() => setPlan((p) => ({ ...p, days: [...p.days, { key: editorKey(), name: t("plans.editor.day", { n: p.days.length + 1 }), exercises: [] }] }))}
         >
-          <Plus className="size-4" /> Add training day
+          <Plus className="size-4" /> {t("plans.editor.addDay")}
         </Button>
       )}
 
       <div className="flex gap-2">
         {planId ? (
           <Button size="lg" className="flex-1" onClick={() => save(false)} disabled={pending}>
-            {pending ? "Saving…" : "Save changes"}
+            {pending ? t("common.saving") : t("plans.editor.saveChanges")}
           </Button>
         ) : (
           <>
             <Button size="lg" variant="secondary" className="flex-1" onClick={() => save(false)} disabled={pending}>
-              Save
+              {t("plans.editor.save")}
             </Button>
             <Button size="lg" className="flex-1" onClick={() => save(true)} disabled={pending}>
-              {pending ? "Saving…" : "Save & activate"}
+              {pending ? t("common.saving") : t("plans.editor.saveActivate")}
             </Button>
           </>
         )}

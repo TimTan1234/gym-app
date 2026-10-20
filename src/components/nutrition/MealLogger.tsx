@@ -8,15 +8,17 @@ import dynamic from "next/dynamic";
 import { deleteSavedFood, saveMeal, markSavedFoodsUsed } from "@/server/nutrition";
 import { scaleItem, sumNutrients } from "@/lib/nutrition/totals";
 import type { MealAnalysis } from "@/lib/ai/schemas";
-import { MEAL_TYPE_LABELS } from "@/components/profile/options";
-import { Button, Card, Input, MacroLine, Textarea, cn } from "@/components/ui";
+import { Button, Card, Input, Textarea, cn } from "@/components/ui";
+import { MacroLine } from "@/components/MacroLine";
 import { useClientValue } from "@/lib/use-client";
 import type { BarcodeItem } from "@/lib/nutrition/barcode";
+import { useT } from "@/i18n/client";
 
 // The scanner pulls in a WebAssembly decoder on browsers without one, so load it on demand.
 const BarcodeScanner = dynamic(() => import("./BarcodeScanner").then((m) => m.BarcodeScanner), { ssr: false });
 
-type MealType = keyof typeof MEAL_TYPE_LABELS;
+const MEAL_TYPES = ["BREAKFAST", "LUNCH", "DINNER", "SNACK"] as const;
+type MealType = (typeof MEAL_TYPES)[number];
 type Source = "AI_TEXT" | "AI_PHOTO" | "MANUAL";
 
 export interface DraftItem {
@@ -114,6 +116,7 @@ export function MealLogger({
   savedFoods: SavedFoodOption[];
   recentMeals: RecentMealOption[];
 }) {
+  const t = useT();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const guessedType = useClientValue(guessMealType, "LUNCH");
@@ -138,13 +141,13 @@ export function MealLogger({
     try {
       setImage(await resizeImage(file));
     } catch {
-      toast.error("Couldn't read that image");
+      toast.error(t("nutrition.imageReadError"));
     }
   }
 
   async function analyze() {
     if (!text.trim() && !image) {
-      toast.error("Describe your meal or add a photo first");
+      toast.error(t("nutrition.describeFirst"));
       return;
     }
     setAnalyzing(true);
@@ -155,14 +158,14 @@ export function MealLogger({
         body: JSON.stringify({ text: text.trim() || undefined, image: image ?? undefined }),
       });
       const data = (await res.json()) as { analysis?: MealAnalysis; error?: string };
-      if (!res.ok || !data.analysis) throw new Error(data.error ?? "Analysis failed");
+      if (!res.ok || !data.analysis) throw new Error(data.error ?? t("nutrition.analysisFailed"));
       const a = data.analysis;
       setItems((cur) => [...cur, ...a.items.map((i) => ({ ...i, key: newKey() }))]);
-      setTitle((t) => t || a.title);
+      setTitle((cur) => cur || a.title);
       setNotes(a.notes);
       setSource(image ? "AI_PHOTO" : "AI_TEXT");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Analysis failed");
+      toast.error(e instanceof Error ? e.message : t("nutrition.analysisFailed"));
     } finally {
       setAnalyzing(false);
     }
@@ -196,15 +199,15 @@ export function MealLogger({
 
   function addScanned({ hasNutrition, ...item }: BarcodeItem) {
     setScanning(false);
-    setItems((cur) => [...cur, { ...item, key: newKey(), confidence: null, assumptions: hasNutrition ? null : "No nutrition data for this product. Enter it from the label." }]);
-    if (hasNutrition) toast.success(`Added ${item.name}`);
-    else toast("Found the product, but it has no nutrition data. Enter it from the label.");
+    setItems((cur) => [...cur, { ...item, key: newKey(), confidence: null, assumptions: hasNutrition ? null : t("nutrition.noNutritionAssumption") }]);
+    if (hasNutrition) toast.success(t("nutrition.addedItem", { name: item.name }));
+    else toast(t("nutrition.noNutritionToast"));
   }
 
   /** Load an earlier meal into the draft so it can be adjusted before saving. */
   function addRecent(meal: RecentMealOption) {
     setItems((cur) => [...cur, ...meal.items.map((i) => ({ ...i, key: newKey(), confidence: null, assumptions: null }))]);
-    setTitle((t) => t || meal.description);
+    setTitle((cur) => cur || meal.description);
   }
 
   function removeSaved(food: SavedFoodOption) {
@@ -217,7 +220,7 @@ export function MealLogger({
   function save() {
     const clean = items.filter((i) => i.name.trim());
     if (clean.length === 0) {
-      toast.error("Add at least one food item");
+      toast.error(t("nutrition.addAtLeastOne"));
       return;
     }
     const description = title.trim() || text.trim().slice(0, 120) || clean.map((i) => i.name).join(", ").slice(0, 120);
@@ -237,7 +240,7 @@ export function MealLogger({
       }
       const usedSaved = clean.flatMap((i) => (i.savedFoodId ? [i.savedFoodId] : []));
       if (usedSaved.length) await markSavedFoodsUsed(usedSaved);
-      toast.success("Meal logged");
+      toast.success(t("nutrition.mealLogged"));
       // Routes stay mounted (hidden) after navigation, so clear the draft.
       setItems([]);
       setText("");
@@ -253,42 +256,42 @@ export function MealLogger({
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Meal type">
-        {(Object.keys(MEAL_TYPE_LABELS) as MealType[]).map((t) => (
+      <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label={t("nutrition.mealType")}>
+        {MEAL_TYPES.map((type) => (
           <button
-            key={t}
+            key={type}
             type="button"
             role="radio"
-            aria-checked={mealType === t}
-            onClick={() => setMealType(t)}
+            aria-checked={mealType === type}
+            onClick={() => setMealType(type)}
             className={cn(
               "rounded-[10px] border py-2 text-xs font-semibold sm:text-sm",
-              mealType === t ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
+              mealType === type ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
             )}
           >
-            {MEAL_TYPE_LABELS[t]}
+            {t(`labels.mealType.${type}`)}
           </button>
         ))}
       </div>
 
       <Card className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold">
-          <Sparkles className="size-4 text-iron" /> Describe or snap your meal
+          <Sparkles className="size-4 text-iron" /> {t("nutrition.describeTitle")}
         </div>
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="e.g. 2 roti canai with dhal curry and a teh tarik"
+          placeholder={t("nutrition.describePlaceholder")}
           maxLength={1000}
-          aria-label="Meal description"
+          aria-label={t("nutrition.mealDescription")}
         />
         {image && (
           <div className="relative w-fit">
             {/* eslint-disable-next-line @next/next/no-img-element -- local data URL preview */}
-            <img src={image} alt="Meal photo preview" className="max-h-48 rounded-[10px]" />
+            <img src={image} alt={t("nutrition.photoPreview")} className="max-h-48 rounded-[10px]" />
             <button
               type="button"
-              aria-label="Remove photo"
+              aria-label={t("nutrition.removePhoto")}
               onClick={() => setImage(null)}
               className="absolute right-1.5 top-1.5 rounded-full bg-black/60 p-1 text-white"
             >
@@ -299,24 +302,24 @@ export function MealLogger({
         <div className="flex gap-2">
           <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPickImage} />
           <Button type="button" variant="secondary" onClick={() => fileRef.current?.click()}>
-            <Camera className="size-4" /> {image ? "Change photo" : "Photo"}
+            <Camera className="size-4" /> {image ? t("nutrition.changePhoto") : t("nutrition.photo")}
           </Button>
           <Button type="button" className="flex-1" onClick={analyze} disabled={analyzing}>
             {analyzing ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-            {analyzing ? "Analysing…" : "Analyse with AI"}
+            {analyzing ? t("nutrition.analysing") : t("nutrition.analyse")}
           </Button>
         </div>
       </Card>
 
       <Button type="button" variant="secondary" className="w-full" onClick={() => setScanning(true)}>
-        <ScanBarcode className="size-4" /> Scan a barcode
+        <ScanBarcode className="size-4" /> {t("nutrition.scanBarcode")}
       </Button>
       {scanning && <BarcodeScanner onFound={addScanned} onClose={() => setScanning(false)} />}
 
       {recentMeals.length > 0 && (
         <section>
           <h2 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-steel">
-            <History className="size-4" /> Recent meals
+            <History className="size-4" /> {t("nutrition.recentMeals")}
           </h2>
           <ul className="divide-y divide-line border-y border-line">
             {[...recentMeals]
@@ -327,12 +330,14 @@ export function MealLogger({
                   <button
                     type="button"
                     onClick={() => addRecent(m)}
-                    aria-label={`Add ${m.description}`}
+                    aria-label={t("nutrition.addNamed", { name: m.description })}
                     className="flex w-full items-center gap-3 py-2.5 text-left text-sm hover:bg-wash"
                   >
                     <Plus className="size-4 shrink-0 text-steel" aria-hidden />
                     <span className="min-w-0 flex-1 truncate font-medium">{m.description}</span>
-                    <span className="num text-steel">{Math.round(m.kcal).toLocaleString("en-US")} kcal</span>
+                    <span className="num text-steel">
+                      {Math.round(m.kcal).toLocaleString("en-US")} {t("common.kcal")}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -344,7 +349,7 @@ export function MealLogger({
         <section>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold text-steel">
-              <Star className="size-4" /> Saved foods
+              <Star className="size-4" /> {t("nutrition.savedFoods")}
             </h2>
             <button
               type="button"
@@ -352,7 +357,7 @@ export function MealLogger({
               aria-pressed={editingSaved}
               className="rounded-[8px] px-2 py-1 text-[13px] font-medium text-steel hover:bg-wash hover:text-iron"
             >
-              {editingSaved ? "Done" : "Edit"}
+              {editingSaved ? t("common.done") : t("common.edit")}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -363,7 +368,7 @@ export function MealLogger({
                   type="button"
                   disabled={removing}
                   onClick={() => removeSaved(f)}
-                  aria-label={`Remove ${f.name} from saved foods`}
+                  aria-label={t("nutrition.removeSavedFood", { name: f.name })}
                   className="inline-flex items-center gap-1.5 rounded-full border border-alert/40 bg-paper px-3 py-1.5 text-sm text-alert hover:bg-alert/10 disabled:opacity-50"
                 >
                   <X className="size-3.5" aria-hidden /> {f.name}
@@ -375,22 +380,25 @@ export function MealLogger({
                   onClick={() => addSaved(f)}
                   className="rounded-full border border-line bg-paper px-3 py-1.5 text-sm hover:border-iron"
                 >
-                  {f.name} <span className="num text-steel">{Math.round(f.kcal)} kcal</span>
+                  {f.name}{" "}
+                  <span className="num text-steel">
+                    {Math.round(f.kcal)} {t("common.kcal")}
+                  </span>
                 </button>
               ),
             )}
           </div>
-          {editingSaved && <p className="mt-2 text-xs text-steel">Tap a food to remove it. Star items on the Nutrition page to save more.</p>}
+          {editingSaved && <p className="mt-2 text-xs text-steel">{t("nutrition.savedFoodsHint")}</p>}
         </section>
       )}
 
       {items.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="display text-[22px]">Review &amp; adjust</h2>
-            {source !== "MANUAL" && <span className="text-[13px] text-steel">AI estimate. Adjust grams to correct it.</span>}
+            <h2 className="display text-[22px]">{t("nutrition.review")}</h2>
+            {source !== "MANUAL" && <span className="text-[13px] text-steel">{t("nutrition.aiEstimateHint")}</span>}
           </div>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Meal name" aria-label="Meal name" maxLength={120} />
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("nutrition.mealName")} aria-label={t("nutrition.mealName")} maxLength={120} />
           {items.map((item) => (
             <DraftRow key={item.key} item={item} onChange={update} onGrams={changeGrams} onRemove={(k) => setItems((cur) => cur.filter((i) => i.key !== k))} />
           ))}
@@ -399,7 +407,7 @@ export function MealLogger({
       )}
 
       <Button type="button" variant="ghost" onClick={() => setItems((cur) => [...cur, emptyItem()])}>
-        <Plus className="size-4" /> Add item manually
+        <Plus className="size-4" /> {t("nutrition.addManually")}
       </Button>
 
       {items.length > 0 && (
@@ -408,12 +416,12 @@ export function MealLogger({
             <div className="flex-1">
               <p>
                 <span className="score text-[30px]" data-testid="draft-total-kcal">{Math.round(totals.kcal)}</span>
-                <span className="ml-1 text-sm text-steel">kcal</span>
+                <span className="ml-1 text-sm text-steel">{t("common.kcal")}</span>
               </p>
               <MacroLine p={totals.proteinG} c={totals.carbsG} f={totals.fatG} />
             </div>
             <Button onClick={save} disabled={saving} size="lg">
-              {saving ? "Saving…" : "Save meal"}
+              {saving ? t("common.saving") : t("nutrition.saveMeal")}
             </Button>
           </Card>
         </div>
@@ -450,32 +458,33 @@ function DraftRow({
   onGrams: (key: string, grams: number) => void;
   onRemove: (key: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-2 border-t border-line py-4" data-testid="draft-item">
       <div className="flex items-center gap-2">
         <Input
           value={item.name}
           onChange={(e) => onChange(item.key, { name: e.target.value })}
-          placeholder="Food name"
-          aria-label="Food name"
+          placeholder={t("nutrition.foodName")}
+          aria-label={t("nutrition.foodName")}
           className="font-medium"
         />
-        <button type="button" aria-label={`Remove ${item.name || "item"}`} onClick={() => onRemove(item.key)} className="rounded-[8px] p-2 text-steel hover:text-alert">
+        <button type="button" aria-label={t("nutrition.removeNamed", { name: item.name || t("nutrition.item") })} onClick={() => onRemove(item.key)} className="rounded-[8px] p-2 text-steel hover:text-alert">
           <Trash2 className="size-4" />
         </button>
       </div>
       <div className="grid grid-cols-5 gap-1.5">
-        <NumField label="Grams" value={item.grams} onChange={(v) => onGrams(item.key, v)} className="[&_input]:border-iron/60" />
-        <NumField label="kcal" value={item.kcal} onChange={(v) => onChange(item.key, { kcal: v })} />
-        <NumField label="Protein" value={item.proteinG} onChange={(v) => onChange(item.key, { proteinG: v })} />
-        <NumField label="Carbs" value={item.carbsG} onChange={(v) => onChange(item.key, { carbsG: v })} />
-        <NumField label="Fat" value={item.fatG} onChange={(v) => onChange(item.key, { fatG: v })} />
+        <NumField label={t("nutrition.gramsField")} value={item.grams} onChange={(v) => onGrams(item.key, v)} className="[&_input]:border-iron/60" />
+        <NumField label={t("common.kcal")} value={item.kcal} onChange={(v) => onChange(item.key, { kcal: v })} />
+        <NumField label={t("common.protein")} value={item.proteinG} onChange={(v) => onChange(item.key, { proteinG: v })} />
+        <NumField label={t("common.carbs")} value={item.carbsG} onChange={(v) => onChange(item.key, { carbsG: v })} />
+        <NumField label={t("common.fat")} value={item.fatG} onChange={(v) => onChange(item.key, { fatG: v })} />
       </div>
       {(item.assumptions || item.confidence !== null) && (
         <p className="text-xs text-steel">
           {item.confidence !== null && (
             <span className={cn("mr-1.5", item.confidence < 0.6 ? "font-semibold text-iron" : "")}>
-              {item.confidence < 0.6 ? "Rough estimate." : `${Math.round(item.confidence * 100)}% confident.`}
+              {item.confidence < 0.6 ? t("nutrition.roughEstimate") : t("nutrition.confident", { pct: Math.round(item.confidence * 100) })}
             </span>
           )}
           {item.assumptions}

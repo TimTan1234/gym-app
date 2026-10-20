@@ -6,9 +6,12 @@ import { toast } from "sonner";
 import { Check, Plus, Trash2, TrendingUp, Trophy, History } from "lucide-react";
 import { deleteSet, discardWorkout, finishWorkout, getLastSets, logSet, type LoggedSet } from "@/server/training";
 import { suggestNext } from "@/lib/training/progression";
-import { RECORD_LABELS } from "@/lib/training/records";
+import type { RecordType } from "@/lib/training/records";
 import { displayWeight, formatWeight, inputWeightToKg, weightUnit, type UnitSystem } from "@/lib/units";
 import { formatLocalDate } from "@/lib/dates";
+import { useT } from "@/i18n/client";
+import { INTL_LOCALE } from "@/i18n/config";
+import { exerciseName } from "@/i18n/labels";
 import { Button, Card, Input, Textarea, cn } from "@/components/ui";
 import { ExercisePicker, type PickerExercise } from "./ExercisePicker";
 import { RestTimerBar, useRestTimer } from "./RestTimer";
@@ -66,6 +69,7 @@ export function WorkoutLogger({
   units: UnitSystem;
 }) {
   const router = useRouter();
+  const t = useT();
   const timer = useRestTimer();
   const elapsed = useElapsed(startedAt);
   const [blocks, setBlocks] = useState(initialBlocks);
@@ -83,11 +87,11 @@ export function WorkoutLogger({
     if (last) setBlocks((cur) => cur.map((b) => (b.exercise.id === ex.id ? { ...b, last } : b)));
   }
 
-  function onLogged(set: LoggedSet, records: { type: keyof typeof RECORD_LABELS; value: number }[], restSec: number) {
+  function onLogged(set: LoggedSet, records: { type: RecordType; value: number }[], restSec: number) {
     setSets((cur) => [...cur, set]);
     for (const r of records) {
       const value = r.type === "MAX_VOLUME_SET" ? `${Math.round(displayWeight(r.value, units, 0))} ${weightUnit(units)}` : formatWeight(r.value, units);
-      toast.success(`New PR! ${RECORD_LABELS[r.type]}: ${value}`, { icon: <Trophy className="size-4" /> });
+      toast.success(t("train.newPr", { type: t(`labels.record.${r.type}`), value }), { icon: <Trophy className="size-4" /> });
     }
     timer.start(set.isWarmup ? 60 : restSec);
   }
@@ -98,17 +102,17 @@ export function WorkoutLogger({
       if (!res.ok) return void toast.error(res.error);
       timer.stop();
       if (res.discarded) {
-        toast("Empty workout discarded");
+        toast(t("train.emptyDiscarded"));
         router.push("/train");
       } else {
-        toast.success("Workout saved");
+        toast.success(t("train.saved"));
         router.push(`/train/history/${sessionId}`);
       }
     });
   }
 
   function discard() {
-    if (!confirm("Discard this workout and all its sets?")) return;
+    if (!confirm(t("train.discardConfirm"))) return;
     startTransition(async () => {
       await discardWorkout(sessionId);
       timer.stop();
@@ -125,11 +129,11 @@ export function WorkoutLogger({
         <div className="min-w-0">
           <h1 className="display truncate text-[22px]">{title}</h1>
           <p className="num text-[13px] text-steel">
-            {elapsed} elapsed, {workingSets} working {workingSets === 1 ? "set" : "sets"}
+            {t("train.elapsed", { time: elapsed, sets: t.plural("train.workingSets", workingSets) })}
           </p>
         </div>
         <Button onClick={() => setFinishing(true)} disabled={pending}>
-          <Check className="size-4" /> Finish
+          <Check className="size-4" /> {t("train.finish")}
         </Button>
       </header>
 
@@ -153,28 +157,32 @@ export function WorkoutLogger({
       </div>
 
       <Button variant="secondary" className="mt-4 w-full" size="lg" onClick={() => setPicking(true)}>
-        <Plus className="size-5" /> Add exercise
+        <Plus className="size-5" /> {t("train.addExercise")}
       </Button>
       <Button variant="ghost" className="mt-2 w-full text-alert" onClick={discard} disabled={pending}>
-        Discard workout
+        {t("train.discardWorkout")}
       </Button>
 
       {picking && <ExercisePicker exercises={library} onPick={addExercise} onClose={() => setPicking(false)} />}
 
       {finishing && (
-        <div role="dialog" aria-modal="true" aria-label="Finish workout" className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
+        <div role="dialog" aria-modal="true" aria-label={t("train.finishTitle").replace(/[?？]$/, "")} className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
           <Card className="w-full max-w-md space-y-3 rounded-b-none sm:rounded-[14px]">
-            <h2 className="display text-[22px]">Finish workout?</h2>
+            <h2 className="display text-[22px]">{t("train.finishTitle")}</h2>
             <p className="text-sm text-steel">
-              {workingSets} working {workingSets === 1 ? "set" : "sets"} across {exerciseCount} {exerciseCount === 1 ? "exercise" : "exercises"} in {elapsed}.
+              {t("train.finishSummary", {
+                sets: t.plural("train.workingSets", workingSets),
+                exercises: t.plural("train.exerciseCount", exerciseCount),
+                time: elapsed,
+              })}
             </p>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did it feel? (optional)" maxLength={1000} />
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("train.feelPlaceholder")} maxLength={1000} />
             <div className="flex gap-2">
               <Button variant="secondary" className="flex-1" onClick={() => setFinishing(false)}>
-                Keep going
+                {t("train.keepGoing")}
               </Button>
               <Button className="flex-1" onClick={finish} disabled={pending}>
-                {pending ? "Saving…" : "Save workout"}
+                {pending ? t("common.saving") : t("train.saveWorkout")}
               </Button>
             </div>
           </Card>
@@ -198,10 +206,12 @@ function ExerciseBlock({
   sessionId: string;
   sets: LoggedSet[];
   units: UnitSystem;
-  onLogged: (set: LoggedSet, records: { type: keyof typeof RECORD_LABELS; value: number }[], restSec: number) => void;
+  onLogged: (set: LoggedSet, records: { type: RecordType; value: number }[], restSec: number) => void;
   onDeleted: (id: string) => void;
 }) {
+  const t = useT();
   const { exercise, target, last } = block;
+  const name = exerciseName(t, { slug: exercise.slug ?? "", name: exercise.name });
   const range = target ?? DEFAULT_RANGE;
   const suggestion = last ? suggestNext({ lastSets: last.sets, repMin: range.repMin, repMax: range.repMax, isLowerBody: exercise.isLowerBody }) : null;
   const lastLogged = sets.at(-1);
@@ -224,7 +234,7 @@ function ExerciseBlock({
     const w = Number(weight || 0);
     const r = Number(reps);
     if (!Number.isFinite(w) || w < 0 || !Number.isInteger(r) || r <= 0) {
-      toast.error("Enter weight and reps");
+      toast.error(t("train.enterWeightReps"));
       return;
     }
     startTransition(async () => {
@@ -254,7 +264,7 @@ function ExerciseBlock({
   const workingDone = sets.filter((s) => !s.isWarmup).length;
   const unit = weightUnit(units);
   const lastWorking = last?.sets.filter((s) => !s.isWarmup) ?? [];
-  const nextIndex = warmup ? "W" : String(workingDone + 1);
+  const nextIndex = warmup ? t("train.warmupMark") : String(workingDone + 1);
   // Set | weight | reps | RPE | action: shared by the header, logged rows and the entry row.
   const cols = "grid grid-cols-[2.25rem_1fr_1fr_3.75rem_2.75rem] items-center gap-2";
 
@@ -262,18 +272,19 @@ function ExerciseBlock({
     <section className="space-y-3 py-6" data-testid="exercise-block">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="display text-[22px]">{exercise.name}</h2>
+          <h2 className="display text-[22px]">{name}</h2>
           {target && (
             <p className="num mt-0.5 text-[13px] text-steel">
-              {target.sets} sets of {target.repMin}–{target.repMax}
-              {target.targetRpe ? `, RPE ${target.targetRpe}` : ""}, rest {Math.round((target.restSec / 60) * 10) / 10} min
+              {t("train.targetLine", { sets: target.sets, min: target.repMin, max: target.repMax })}
+              {target.targetRpe ? t("train.targetRpe", { rpe: target.targetRpe }) : ""}
+              {t("train.targetRest", { min: Math.round((target.restSec / 60) * 10) / 10 })}
             </p>
           )}
           {target?.notes && <p className="mt-0.5 text-[13px] italic text-steel">{target.notes}</p>}
         </div>
         {target && (
           // Target sets as plates; one fills in per working set logged.
-          <div role="img" aria-label={`${workingDone} of ${target.sets} sets done`} className="flex shrink-0 gap-1 pt-1.5">
+          <div role="img" aria-label={t("train.setsDone", { done: workingDone, total: target.sets })} className="flex shrink-0 gap-1 pt-1.5">
             {Array.from({ length: target.sets }, (_, i) => (
               <span
                 key={i}
@@ -288,9 +299,9 @@ function ExerciseBlock({
         <div className="space-y-0.5 text-[13px]">
           <p className="flex items-center gap-1.5 text-steel">
             <History className="size-3.5 shrink-0" aria-hidden />
-            Last time, {formatLocalDate(last.date, { weekday: undefined })}:
+            {t("train.lastTime", { date: formatLocalDate(last.date, { weekday: undefined }, INTL_LOCALE[t.locale]) })}
             <span className="num text-iron">
-              {lastWorking.length ? lastWorking.map((s) => `${displayWeight(s.weightKg, units)}×${s.reps}`).join(", ") : "warm-ups only"}
+              {lastWorking.length ? lastWorking.map((s) => `${displayWeight(s.weightKg, units)}×${s.reps}`).join(", ") : t("train.warmupsOnly")}
             </span>
           </p>
           {suggestion && (
@@ -298,33 +309,37 @@ function ExerciseBlock({
               <TrendingUp className="mt-0.5 size-3.5 shrink-0" aria-hidden />
               <span>
                 <span className="font-semibold">
-                  Try {formatWeight(suggestion.weightKg, units)} × {suggestion.reps}.
+                  {t("train.tryNext", { weight: formatWeight(suggestion.weightKg, units), reps: suggestion.reps })}
                 </span>{" "}
-                <span className="text-steel">{suggestion.reason}</span>
+                <span className="text-steel">
+                  {suggestion.reason.kind === "addWeight"
+                    ? t("train.reasonAddWeight", { reps: suggestion.reason.repMax, inc: suggestion.reason.incKg })
+                    : t("train.reasonAddReps", { reps: suggestion.reason.target })}
+                </span>
               </span>
             </p>
           )}
         </div>
       )}
 
-      <div role="table" aria-label={`${exercise.name} sets`} className="text-center">
+      <div role="table" aria-label={t("train.setsTable", { exercise: name })} className="text-center">
         <div role="row" className={cn(cols, "border-b border-line pb-1.5 text-[12px] font-medium text-steel")}>
-          <span role="columnheader">Set</span>
+          <span role="columnheader">{t("train.set")}</span>
           <span role="columnheader">{unit}</span>
-          <span role="columnheader">Reps</span>
-          <span role="columnheader">RPE</span>
-          <span role="columnheader" className="sr-only">Actions</span>
+          <span role="columnheader">{t("train.reps")}</span>
+          <span role="columnheader">{t("train.rpe")}</span>
+          <span role="columnheader" className="sr-only">{t("train.actions")}</span>
         </div>
         {sets.map((s) => (
           <div role="row" key={s.id} className={cn(cols, "border-b border-line py-1.5")}>
-            <span role="cell" className={cn("text-sm font-semibold", s.isWarmup ? "text-steel" : "")}>{s.isWarmup ? "W" : s.setIndex}</span>
+            <span role="cell" className={cn("text-sm font-semibold", s.isWarmup ? "text-steel" : "")}>{s.isWarmup ? t("train.warmupMark") : s.setIndex}</span>
             <span role="cell" className="score text-[24px]">{displayWeight(s.weightKg, units)}</span>
             <span role="cell" className="score text-[24px]">{s.reps}</span>
             <span role="cell" className="num text-sm text-steel">{s.rpe ?? "–"}</span>
             <span role="cell">
               <button
                 type="button"
-                aria-label={`Delete set ${s.isWarmup ? "warm-up" : s.setIndex}`}
+                aria-label={t("train.deleteSet", { set: s.isWarmup ? t("train.warmupWord") : s.setIndex })}
                 onClick={() => remove(s.id)}
                 disabled={pending}
                 className="rounded-[8px] p-2 text-steel hover:bg-wash hover:text-alert"
@@ -341,13 +356,13 @@ function ExerciseBlock({
             <Input aria-label={unit} type="number" inputMode="decimal" step="any" min={0} value={weight} onChange={(e) => setWeight(e.target.value)} className="score h-12 px-1 text-center text-[24px]" />
           </span>
           <span role="cell">
-            <Input aria-label="Reps" type="number" inputMode="numeric" min={1} value={reps} onChange={(e) => setReps(e.target.value)} className="score h-12 px-1 text-center text-[24px]" />
+            <Input aria-label={t("train.reps")} type="number" inputMode="numeric" min={1} value={reps} onChange={(e) => setReps(e.target.value)} className="score h-12 px-1 text-center text-[24px]" />
           </span>
           <span role="cell">
-            <Input aria-label="RPE" type="number" inputMode="decimal" min={1} max={10} step={0.5} value={rpe} onChange={(e) => setRpe(e.target.value)} placeholder="–" className="num h-12 px-1 text-center" />
+            <Input aria-label={t("train.rpe")} type="number" inputMode="decimal" min={1} max={10} step={0.5} value={rpe} onChange={(e) => setRpe(e.target.value)} placeholder="–" className="num h-12 px-1 text-center" />
           </span>
           <span role="cell">
-            <Button onClick={log} disabled={pending} className="h-12 w-full px-0" aria-label={`Log set for ${exercise.name}`}>
+            <Button onClick={log} disabled={pending} className="h-12 w-full px-0" aria-label={t("train.logSetFor", { exercise: name })}>
               <Check className="size-5" />
             </Button>
           </span>
@@ -356,7 +371,7 @@ function ExerciseBlock({
       {exercise.equipment === "barbell" && Number(weight) > 0 && <PlateLoad weight={Number(weight)} units={units} />}
       <label className="flex w-fit items-center gap-2 text-[13px] text-steel">
         <input type="checkbox" checked={warmup} onChange={(e) => setWarmup(e.target.checked)} className="size-4 accent-[var(--iron)]" />
-        This is a warm-up set
+        {t("train.warmupCheckbox")}
       </label>
     </section>
   );

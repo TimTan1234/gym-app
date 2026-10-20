@@ -14,10 +14,13 @@ export interface ProgressionInput {
   isLowerBody: boolean;
 }
 
+/** Why the suggestion was made; the UI turns it into a sentence in the user's language. */
+export type SuggestionReason = { kind: "addWeight"; repMax: number; incKg: number } | { kind: "addReps"; target: number };
+
 export interface Suggestion {
   weightKg: number;
   reps: number;
-  reason: string;
+  reason: SuggestionReason;
 }
 
 export const UPPER_INCREMENT_KG = 2.5;
@@ -36,7 +39,7 @@ export function suggestNext(input: ProgressionInput): Suggestion | null {
     return {
       weightKg: topWeight + inc,
       reps: input.repMin,
-      reason: `Every set hit ${input.repMax} reps last time, so add ${inc} kg.`,
+      reason: { kind: "addWeight", repMax: input.repMax, incKg: inc },
     };
   }
 
@@ -45,6 +48,6 @@ export function suggestNext(input: ProgressionInput): Suggestion | null {
   return {
     weightKg: topWeight,
     reps: target,
-    reason: `Keep the weight and aim for ${target} reps on every set.`,
+    reason: { kind: "addReps", target },
   };
 }

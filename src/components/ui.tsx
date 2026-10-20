@@ -154,26 +154,3 @@ export function PageSkeleton() {
     </div>
   );
 }
-
-/** Protein / carbs / fat as plate swatches + grams. */
-export function MacroLine({ p, c, f, className }: { p: number; c: number; f: number; className?: string }) {
-  const r = (n: number) => Math.round(n);
-  return (
-    <span className={cn("num inline-flex items-center gap-2.5 text-[13px] text-steel", className)}>
-      <span className="sr-only">
-        Protein {r(p)} g, carbs {r(c)} g, fat {r(f)} g
-      </span>
-      {[
-        [p, "var(--plate-blue)"],
-        [c, "var(--plate-yellow)"],
-        [f, "var(--plate-red)"],
-      ].map(([v, color], i) => (
-        <span key={i} aria-hidden className="inline-flex items-center gap-1">
-          <Plate color={color as string} className="h-3 w-[5px]" />
-          {r(v as number)}
-        </span>
-      ))}
-      <span aria-hidden>g</span>
-    </span>
-  );
-}

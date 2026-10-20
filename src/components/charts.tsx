@@ -16,9 +16,22 @@ import {
 } from "recharts";
 import { Table2 } from "lucide-react";
 import { formatLocalDate } from "@/lib/dates";
+import { useT } from "@/i18n/client";
+import { INTL_LOCALE } from "@/i18n/config";
+import type { T } from "@/i18n/translate";
 
 const AXIS = { fontSize: 11, fill: "var(--steel)" };
-const shortDate = (d: string) => formatLocalDate(d, { weekday: undefined });
+
+/** Translator plus locale-aware date formatters for chart axes, tooltips and tables. */
+function useChartText() {
+  const t = useT();
+  const intl = INTL_LOCALE[t.locale];
+  return {
+    t,
+    shortDate: (d: string) => formatLocalDate(d, { weekday: undefined }, intl),
+    longDate: (d: string) => formatLocalDate(d, undefined, intl),
+  };
+}
 
 function fmt(v: number | null | undefined, decimals: number) {
   return v === null || v === undefined || Number.isNaN(v) ? "–" : v.toLocaleString(undefined, { maximumFractionDigits: decimals });
@@ -40,10 +53,10 @@ function TooltipBox({ title, rows }: { title: string; rows: TooltipRow[] }) {
   );
 }
 
-function TableToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+function TableToggle({ t, open, onToggle }: { t: T; open: boolean; onToggle: () => void }) {
   return (
     <button type="button" onClick={onToggle} aria-pressed={open} className="flex items-center gap-1 text-xs text-steel hover:text-iron">
-      <Table2 className="size-3.5" /> {open ? "Chart" : "Table"}
+      <Table2 className="size-3.5" /> {open ? t("progress.chart.chart") : t("progress.chart.table")}
     </button>
   );
 }
@@ -93,6 +106,7 @@ export function TrendChart({
   height?: number;
 }) {
   const [table, setTable] = useState(false);
+  const { t, shortDate, longDate } = useChartText();
   const hasAvg = data.some((d) => d.avg !== undefined && d.avg !== null);
   // A flat series (e.g. weight within 1 kg) needs a decimal on the axis or every tick reads the same.
   const values = data.flatMap((d) => [d.value, d.avg ?? d.value]).filter((v): v is number => v !== null);
@@ -103,19 +117,27 @@ export function TrendChart({
       <figcaption className="flex items-center justify-between">
         <span className="text-sm font-semibold">{title}</span>
         <span className="flex items-center gap-3">
-          {target !== undefined && <TargetKey value={target} unit={unit} />}
+          {target !== undefined && <TargetKey t={t} value={target} unit={unit} />}
           {hasAvg && (
             <span className="flex items-center gap-3 text-xs text-steel">
-              <span className="flex items-center gap-1"><span className="inline-block size-2 rounded-full bg-steel opacity-40" /> Daily</span>
-              <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 bg-steel" /> 7-day avg</span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block size-2 rounded-full bg-steel opacity-40" /> {t("progress.chart.daily")}
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-0.5 w-3 bg-steel" /> {t("progress.chart.avg7")}
+              </span>
             </span>
           )}
-          <TableToggle open={table} onToggle={() => setTable((t) => !t)} />
+          <TableToggle t={t} open={table} onToggle={() => setTable((v) => !v)} />
         </span>
       </figcaption>
       {table ? (
         <DataTable
-          head={hasAvg ? ["Date", `Value (${unit})`, `7-day avg (${unit})`] : ["Date", `Value (${unit})`]}
+          head={
+            hasAvg
+              ? [t("progress.chart.date"), t("progress.chart.value", { unit }), t("progress.chart.avgColumn", { unit })]
+              : [t("progress.chart.date"), t("progress.chart.value", { unit })]
+          }
           rows={[...data].reverse().map((d) => (hasAvg ? [shortDate(d.date), fmt(d.value, decimals), fmt(d.avg, decimals)] : [shortDate(d.date), fmt(d.value, decimals)]))}
         />
       ) : (
@@ -133,9 +155,11 @@ export function TrendChart({
                 content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;
                   const p = payload[0].payload as TrendPoint;
-                  const rows: TooltipRow[] = [{ label: hasAvg ? "Daily" : title, value: `${fmt(p.value, decimals)} ${unit}`, color: "var(--steel)" }];
-                  if (hasAvg) rows.push({ label: "7-day avg", value: `${fmt(p.avg, decimals)} ${unit}`, color: "var(--steel)" });
-                  return <TooltipBox title={formatLocalDate(String(label))} rows={rows} />;
+                  const rows: TooltipRow[] = [
+                    { label: hasAvg ? t("progress.chart.daily") : title, value: `${fmt(p.value, decimals)} ${unit}`, color: "var(--steel)" },
+                  ];
+                  if (hasAvg) rows.push({ label: t("progress.chart.avg7"), value: `${fmt(p.avg, decimals)} ${unit}`, color: "var(--steel)" });
+                  return <TooltipBox title={longDate(String(label))} rows={rows} />;
                 }}
               />
               {hasAvg ? (
@@ -163,11 +187,11 @@ export function TrendChart({
 }
 
 /** Legend entry for the dashed target line; the line itself stays unlabelled so bars never cover the label. */
-function TargetKey({ value, unit }: { value: number; unit: string }) {
+function TargetKey({ t, value, unit }: { t: T; value: number; unit: string }) {
   return (
     <span className="flex items-center gap-1.5 text-xs text-steel">
       <span aria-hidden className="inline-block w-3 border-t border-dashed border-steel" />
-      Target {fmt(value, 0)} {unit}
+      {t("progress.chart.targetValue", { value: fmt(value, 0), unit })}
     </span>
   );
 }
@@ -189,18 +213,19 @@ export function DailyBars({
   height?: number;
 }) {
   const [table, setTable] = useState(false);
+  const { t, shortDate, longDate } = useChartText();
   return (
     <figure className="space-y-2">
       <figcaption className="flex items-center justify-between">
         <span className="text-sm font-semibold">{title}</span>
         <span className="flex items-center gap-3">
-          {target !== undefined && <TargetKey value={target} unit={unit} />}
-          <TableToggle open={table} onToggle={() => setTable((t) => !t)} />
+          {target !== undefined && <TargetKey t={t} value={target} unit={unit} />}
+          <TableToggle t={t} open={table} onToggle={() => setTable((v) => !v)} />
         </span>
       </figcaption>
       {table ? (
         <DataTable
-          head={["Date", `${title} (${unit})`, ...(target ? ["Target"] : [])]}
+          head={[t("progress.chart.date"), `${title} (${unit})`, ...(target ? [t("progress.chart.target")] : [])]}
           rows={[...data].reverse().map((d) => [shortDate(d.date), fmt(d.value, 0), ...(target ? [fmt(target, 0)] : [])])}
         />
       ) : (
@@ -219,8 +244,8 @@ export function DailyBars({
                   if (!active || !payload?.length) return null;
                   const v = Number(payload[0].value);
                   const rows: TooltipRow[] = [{ label: title, value: `${fmt(v, 0)} ${unit}`, color }];
-                  if (target) rows.push({ label: "Target", value: `${fmt(target, 0)} ${unit}` });
-                  return <TooltipBox title={formatLocalDate(String(label))} rows={rows} />;
+                  if (target) rows.push({ label: t("progress.chart.target"), value: `${fmt(target, 0)} ${unit}` });
+                  return <TooltipBox title={longDate(String(label))} rows={rows} />;
                 }}
               />
               <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} maxBarSize={28} isAnimationActive={false} />
@@ -245,15 +270,16 @@ export function CategoryBars({
   height?: number;
 }) {
   const [table, setTable] = useState(false);
+  const { t } = useChartText();
   const h = height ?? Math.max(120, data.length * 30 + 20);
   return (
     <figure className="space-y-2">
       <figcaption className="flex items-center justify-between">
         <span className="text-sm font-semibold">{title}</span>
-        <TableToggle open={table} onToggle={() => setTable((t) => !t)} />
+        <TableToggle t={t} open={table} onToggle={() => setTable((v) => !v)} />
       </figcaption>
       {table ? (
-        <DataTable head={["Category", unit]} rows={data.map((d) => [d.label, fmt(d.value, 0)])} />
+        <DataTable head={[t("progress.chart.category"), unit]} rows={data.map((d) => [d.label, fmt(d.value, 0)])} />
       ) : (
         <div style={{ height: h }}>
           <ResponsiveContainer width="100%" height="100%">

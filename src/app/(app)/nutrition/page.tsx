@@ -8,8 +8,8 @@ import { MacroSummary } from "@/components/nutrition/MacroSummary";
 import { MealCard } from "@/components/nutrition/MealCard";
 import { CopyDayBefore } from "@/components/nutrition/CopyDayBefore";
 import { DateNav } from "@/components/DateNav";
-import { MEAL_TYPE_LABELS } from "@/components/profile/options";
 import { PageSkeleton, buttonClass, cn } from "@/components/ui";
+import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Nutrition" };
 
@@ -20,12 +20,12 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
   const today = todayLocal(profile.timezone);
   const raw = (await searchParams).date;
   const date = typeof raw === "string" && isLocalDate(raw) && raw <= today ? raw : today;
-  const [{ meals, totals }, dayBefore] = await Promise.all([getDayNutrition(user.id, date), getDayNutrition(user.id, addDays(date, -1))]);
+  const [{ meals, totals }, dayBefore, t] = await Promise.all([getDayNutrition(user.id, date), getDayNutrition(user.id, addDays(date, -1)), getT()]);
 
   return (
     <>
       <header className="mb-6 flex items-center justify-between gap-2">
-        <h1 className="display text-[32px]">Nutrition</h1>
+        <h1 className="display text-[32px]">{t("nutrition.title")}</h1>
         <DateNav date={date} today={today} basePath="/nutrition" />
       </header>
       <MacroSummary totals={totals} targets={profile} />
@@ -38,11 +38,15 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
             <section key={type}>
               <div className="mb-1 flex items-baseline justify-between">
                 <h2 className={cn("display text-[20px]", group.length === 0 && "text-steel")}>
-                  {MEAL_TYPE_LABELS[type]}
-                  {group.length > 0 && <span className="num ml-2 font-sans text-sm font-normal text-steel">{Math.round(kcal)} kcal</span>}
+                  {t(`labels.mealType.${type}`)}
+                  {group.length > 0 && (
+                    <span className="num ml-2 font-sans text-sm font-normal text-steel">
+                      {Math.round(kcal)} {t("common.kcal")}
+                    </span>
+                  )}
                 </h2>
-                <Link href={`/nutrition/log?type=${type}&date=${date}`} className={buttonClass("ghost", "sm")} aria-label={`Add ${MEAL_TYPE_LABELS[type]}`}>
-                  <Plus className="size-4" /> Add
+                <Link href={`/nutrition/log?type=${type}&date=${date}`} className={buttonClass("ghost", "sm")} aria-label={t("nutrition.addMealType", { type: t(`labels.mealType.${type}`) })}>
+                  <Plus className="size-4" /> {t("common.add")}
                 </Link>
               </div>
               <div className={group.length > 0 ? "border-b border-line" : undefined}>
@@ -55,7 +59,9 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
                   date={date}
                   mealType={type}
                   kcal={before.reduce((s, m) => s + m.kcal, 0)}
-                  label={`Same as ${date === today ? "yesterday" : "the day before"}: ${before.map((m) => m.description).join(", ")}`}
+                  label={t(date === today ? "nutrition.sameAsYesterday" : "nutrition.sameAsDayBefore", {
+                    meals: before.map((m) => m.description).join(t.locale === "zh" ? "、" : ", "),
+                  })}
                 />
               )}
             </section>
@@ -66,7 +72,7 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
         href={`/nutrition/log?date=${date}`}
         className={`${buttonClass("primary", "lg")} fixed bottom-24 right-4 z-30 shadow-[0_8px_24px_-10px_rgba(31,34,38,0.55)] md:bottom-8`}
       >
-        <Plus className="size-5" /> Log meal
+        <Plus className="size-5" /> {t("nutrition.logMeal")}
       </Link>
     </>
   );

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { setTargets } from "@/server/profile";
 import { Button, Input, Label, cn } from "@/components/ui";
+import { useT } from "@/i18n/client";
 
 interface Targets {
   targetKcal: number;
@@ -16,6 +17,7 @@ interface Targets {
 export function TargetsEditor({ initial }: { initial: Targets }) {
   const [manual, setManual] = useState(initial.targetsManual);
   const [pending, startTransition] = useTransition();
+  const t = useT();
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,7 +31,7 @@ export function TargetsEditor({ initial }: { initial: Targets }) {
         targetCarbsG: manual ? n("carbs") : initial.targetCarbsG,
         targetFatG: manual ? n("fat") : initial.targetFatG,
       });
-      if (res.ok) toast.success("Targets updated");
+      if (res.ok) toast.success(t("settings.targets.updated"));
       else toast.error(res.error);
     });
   }
@@ -45,20 +47,20 @@ export function TargetsEditor({ initial }: { initial: Targets }) {
             onClick={() => setManual(m)}
             className={cn("rounded-[10px] border px-3 py-2 text-sm font-semibold", manual === m ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}
           >
-            {m ? "Custom" : "Automatic"}
+            {m ? t("settings.targets.custom") : t("settings.targets.automatic")}
           </button>
         ))}
       </div>
       <p className="text-xs text-steel">
-        {manual ? "Set your own daily targets." : "Calculated from your profile and latest weight; updates when you log weight."}
+        {manual ? t("settings.targets.customHint") : t("settings.targets.autoHint")}
       </p>
       <div className="grid grid-cols-4 gap-2">
-        <Label>kcal<Input name="kcal" type="number" defaultValue={initial.targetKcal} disabled={!manual} className="num" /></Label>
-        <Label>Protein (g)<Input name="protein" type="number" defaultValue={initial.targetProteinG} disabled={!manual} className="num" /></Label>
-        <Label>Carbs (g)<Input name="carbs" type="number" defaultValue={initial.targetCarbsG} disabled={!manual} className="num" /></Label>
-        <Label>Fat (g)<Input name="fat" type="number" defaultValue={initial.targetFatG} disabled={!manual} className="num" /></Label>
+        <Label>{t("settings.targets.kcal")}<Input name="kcal" type="number" defaultValue={initial.targetKcal} disabled={!manual} className="num" /></Label>
+        <Label>{t("settings.targets.protein")}<Input name="protein" type="number" defaultValue={initial.targetProteinG} disabled={!manual} className="num" /></Label>
+        <Label>{t("settings.targets.carbs")}<Input name="carbs" type="number" defaultValue={initial.targetCarbsG} disabled={!manual} className="num" /></Label>
+        <Label>{t("settings.targets.fat")}<Input name="fat" type="number" defaultValue={initial.targetFatG} disabled={!manual} className="num" /></Label>
       </div>
-      <Button type="submit" variant="secondary" disabled={pending}>Save targets</Button>
+      <Button type="submit" variant="secondary" disabled={pending}>{t("settings.targets.save")}</Button>
     </form>
   );
 }

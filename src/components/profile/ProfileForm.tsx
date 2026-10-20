@@ -76,8 +76,8 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
         <Label>
           Units
           <Select value={units} onChange={(e) => setUnits(e.target.value as ProfileInput["unitSystem"])}>
-            <option value="METRIC">Metric (kg, cm)</option>
-            <option value="IMPERIAL">Imperial (lb, in)</option>
+            <option value="METRIC">Metric (kg)</option>
+            <option value="IMPERIAL">Imperial (lb)</option>
           </Select>
         </Label>
         <Label>
@@ -100,7 +100,7 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
           <Input key={`w-${units}`} name="weight" type="number" step="0.1" required defaultValue={weightInit} inputMode="decimal" />
         </Label>
         <Label>
-          Experience
+          Training experience
           <Select name="experience" defaultValue={initial?.experience ?? "BEGINNER"}>
             {Object.entries(EXPERIENCE_LABELS).map(([v, l]) => (
               <option key={v} value={v}>{l}</option>

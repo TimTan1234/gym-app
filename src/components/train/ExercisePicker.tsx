@@ -32,10 +32,10 @@ export function ExercisePicker({
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Add exercise" className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
-      <div className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl bg-paper p-4 sm:rounded-3xl">
+      <div className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-[14px] bg-paper p-4 sm:rounded-[14px]">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="display text-[22px]">Add exercise</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="rounded-lg p-2 text-steel hover:bg-wash">
+          <button type="button" aria-label="Close" onClick={onClose} className="rounded-[8px] p-2 text-steel hover:bg-wash">
             <X className="size-5" />
           </button>
         </div>
@@ -54,7 +54,7 @@ export function ExercisePicker({
         <ul className="-mx-2 flex-1 overflow-y-auto">
           {filtered.map((e) => (
             <li key={e.id}>
-              <button type="button" onClick={() => onPick(e)} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left hover:bg-wash">
+              <button type="button" onClick={() => onPick(e)} className="flex w-full items-center justify-between rounded-[10px] px-3 py-2.5 text-left hover:bg-wash">
                 <span className="font-medium">{e.name}</span>
                 <span className="text-xs text-steel">
                   {label(e.primaryMuscle)}, {label(e.equipment).toLowerCase()}

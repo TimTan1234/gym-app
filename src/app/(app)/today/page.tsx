@@ -33,11 +33,15 @@ async function Today() {
     db.personalRecord.findMany({
       where: { userId: user.id, type: "EST_1RM" },
       orderBy: { achievedAt: "desc" },
-      take: 3,
+      take: 20,
       include: { exercise: { select: { name: true } } },
     }),
     getCheckin(user.id, profile),
   ]);
+
+  // Each set that beats the last best is its own record row; show only the latest per exercise.
+  const seenExercises = new Set<string>();
+  const latestPRs = recentPRs.filter((pr) => !seenExercises.has(pr.exerciseId) && seenExercises.add(pr.exerciseId)).slice(0, 3);
 
   const proteinLeft = Math.max(0, Math.round(profile.targetProteinG - totals.proteinG));
 
@@ -130,10 +134,10 @@ async function Today() {
         <WeightQuickLog date={today} units={profile.unitSystem} current={latestWeight?.localDate === today ? latestWeight.weightKg : null} />
       </Section>
 
-      {recentPRs.length > 0 && (
+      {latestPRs.length > 0 && (
         <Section title="Recent records" action={<span className="text-[13px] text-steel">Estimated 1-rep max</span>}>
           <ul className="divide-y divide-line border-y border-line">
-            {recentPRs.map((pr) => (
+            {latestPRs.map((pr) => (
               <li key={pr.id} className="flex items-baseline justify-between py-2.5">
                 <span className="flex items-center gap-2">
                   <Trophy className="size-4 text-steel" aria-hidden /> {pr.exercise.name}

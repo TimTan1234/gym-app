@@ -135,7 +135,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
           />
           <Stat
             label={`Change (${RANGES.find((r) => r.days === rangeDays)!.label})`}
-            value={weightChange === null ? "–" : `${weightChange > 0 ? "+" : ""}${weightChange.toFixed(1)} ${weightUnit(units)}`}
+            value={weightChange === null ? "–" : `${weightChange > 0 ? "+" : weightChange < 0 ? "−" : ""}${Math.abs(weightChange).toFixed(1)} ${weightUnit(units)}`}
             sub={profile.goal === "CUT" ? "Goal: lose" : profile.goal === "BULK" ? "Goal: gain" : "Goal: maintain"}
           />
         </div>
@@ -152,8 +152,8 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
       <section className="space-y-3">
         <h2 className="display text-[22px]">Nutrition</h2>
         <div className="grid grid-cols-2 gap-x-4 border-y border-line sm:grid-cols-4 [&>*:nth-child(2n)]:border-l [&>*:nth-child(2n)]:border-line [&>*:nth-child(2n)]:pl-4">
-          <Stat label="Avg calories" value={stats.daysLogged ? `${stats.avgKcal}` : "–"} sub={`target ${profile.targetKcal}`} />
-          <Stat label="Avg protein" value={stats.daysLogged ? `${stats.avgProtein} g` : "–"} sub={`target ${profile.targetProteinG} g`} />
+          <Stat label="Avg calories" value={stats.daysLogged ? stats.avgKcal.toLocaleString("en-US") : "–"} sub={`Target ${profile.targetKcal.toLocaleString("en-US")}`} />
+          <Stat label="Avg protein" value={stats.daysLogged ? `${stats.avgProtein} g` : "–"} sub={`Target ${profile.targetProteinG} g`} />
           <Stat label="Calories on target" value={stats.daysLogged ? `${stats.kcalOnTargetPct}%` : "–"} sub={`${stats.daysLogged} days logged`} />
           <Stat label="Logging streak" value={String(logStreak)} sub={logStreak === 1 ? "day" : "days"} />
         </div>

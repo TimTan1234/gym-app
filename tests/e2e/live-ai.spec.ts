@@ -96,7 +96,7 @@ test("live AI: text meal, photo meal, plan, coach tools + proposal", async ({ pa
 
   // 4) Coach must use tools to answer with real numbers
   await page.goto("/settings");
-  const proteinTarget = await page.getByLabel("Protein g").inputValue();
+  const proteinTarget = await page.getByLabel("Protein (g)").inputValue();
   const kcalTarget = Number(await page.getByLabel("kcal").inputValue());
   await page.goto("/coach");
   await page.getByLabel("Message the coach").fill("What is my daily protein target, and how much protein have I eaten today so far?");

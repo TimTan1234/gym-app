@@ -86,7 +86,7 @@ export function MealCard({ meal, canCopy }: { meal: MealCardData; canCopy: boole
                   aria-label={`Save ${item.name} to favourites`}
                   disabled={pending}
                   onClick={() => run(() => saveFoodFromItem(item.id), `Saved “${item.name}”`)}
-                  className="rounded-lg p-1.5 text-steel hover:bg-wash hover:text-iron"
+                  className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-iron"
                 >
                   <Star className="size-4" />
                 </button>

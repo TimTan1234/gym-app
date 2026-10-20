@@ -72,6 +72,8 @@ body {
   line-height: 1.5;
   /* Archivo's wide t-crossbar reads loose at full width; a touch narrower is even. */
   font-stretch: 93%;
+  /* Narrowing the width also narrows the space; give words their gap back. */
+  word-spacing: 0.06em;
   font-kerning: normal;
   text-rendering: optimizeLegibility;
   -webkit-tap-highlight-color: transparent;
@@ -87,6 +89,7 @@ body {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+  word-spacing: 0.12em;
   line-height: 0.9;
 }
 /* Semi-condensed headings. */
@@ -94,6 +97,7 @@ body {
   font-stretch: 75%;
   font-weight: 700;
   letter-spacing: -0.005em;
+  word-spacing: 0.1em;
   line-height: 1.1;
 }
 

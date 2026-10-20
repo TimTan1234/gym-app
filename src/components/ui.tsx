@@ -21,7 +21,7 @@ const buttonVariants: Record<ButtonVariant, string> = {
 
 export function buttonClass(variant: ButtonVariant = "primary", size: "sm" | "md" | "lg" = "md") {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40",
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40",
     size === "sm" && "h-9 px-3 text-sm",
     size === "md" && "h-11 px-4 text-[15px]",
     size === "lg" && "h-13 px-5 text-base",
@@ -105,10 +105,11 @@ export function Badge({ className, ...props }: ComponentProps<"span">) {
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: ReactNode; action?: ReactNode }) {
   return (
-    <header className="mb-5 flex items-end justify-between gap-3">
-      <div className="min-w-0">
+    // The action wraps under the title when both don't fit, instead of squeezing a long title.
+    <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0 flex-[1_1_14rem]">
         <h1 className="display text-[32px]">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-steel">{subtitle}</p>}
+        {subtitle && <p className="mt-1 text-sm text-steel [overflow-wrap:anywhere]">{subtitle}</p>}
       </div>
       {action}
     </header>

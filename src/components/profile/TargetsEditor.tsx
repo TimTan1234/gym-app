@@ -54,9 +54,9 @@ export function TargetsEditor({ initial }: { initial: Targets }) {
       </p>
       <div className="grid grid-cols-4 gap-2">
         <Label>kcal<Input name="kcal" type="number" defaultValue={initial.targetKcal} disabled={!manual} className="num" /></Label>
-        <Label>Protein g<Input name="protein" type="number" defaultValue={initial.targetProteinG} disabled={!manual} className="num" /></Label>
-        <Label>Carbs g<Input name="carbs" type="number" defaultValue={initial.targetCarbsG} disabled={!manual} className="num" /></Label>
-        <Label>Fat g<Input name="fat" type="number" defaultValue={initial.targetFatG} disabled={!manual} className="num" /></Label>
+        <Label>Protein (g)<Input name="protein" type="number" defaultValue={initial.targetProteinG} disabled={!manual} className="num" /></Label>
+        <Label>Carbs (g)<Input name="carbs" type="number" defaultValue={initial.targetCarbsG} disabled={!manual} className="num" /></Label>
+        <Label>Fat (g)<Input name="fat" type="number" defaultValue={initial.targetFatG} disabled={!manual} className="num" /></Label>
       </div>
       <Button type="submit" variant="secondary" disabled={pending}>Save targets</Button>
     </form>

@@ -6,7 +6,7 @@ import { Loader2, PencilRuler, Sparkles } from "lucide-react";
 import type { PlanRequest } from "@/lib/ai/schemas";
 import type { ResolvedPlanDraft } from "@/lib/ai/plan";
 import type { PickerExercise } from "@/components/train/ExercisePicker";
-import { EQUIPMENT_OPTIONS } from "@/components/profile/options";
+import { EQUIPMENT_OPTIONS, EXPERIENCE_LABELS } from "@/components/profile/options";
 import { Button, Card, Label, Select, Textarea, cn } from "@/components/ui";
 import { PlanEditor, editorKey, type EditorPlan } from "./PlanEditor";
 
@@ -82,7 +82,7 @@ export function NewPlan({
   if (draft) {
     return (
       <div className="space-y-3">
-        <p className="rounded-xl bg-wash px-3 py-2 text-sm">
+        <p className="rounded-[10px] bg-wash px-3 py-2 text-sm">
           <Sparkles className="mr-1.5 inline size-4" />
           Here&apos;s your AI draft. Adjust anything, then save.
         </p>
@@ -127,25 +127,25 @@ export function NewPlan({
               ))}
             </div>
           </fieldset>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Label>
-              Days / week
+              Days a week
               <Select value={days} onChange={(e) => setDays(Number(e.target.value))}>
                 {[2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}</option>)}
               </Select>
             </Label>
             <Label>
-              Minutes
+              Minutes per session
               <Select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
                 {[30, 45, 60, 75, 90].map((n) => <option key={n} value={n}>{n}</option>)}
               </Select>
             </Label>
-            <Label>
-              Level
+            <Label className="col-span-2">
+              Training experience
               <Select value={experience} onChange={(e) => setExperience(e.target.value as PlanRequest["experience"])}>
-                <option value="BEGINNER">Beginner</option>
-                <option value="INTERMEDIATE">Intermediate</option>
-                <option value="ADVANCED">Advanced</option>
+                {Object.entries(EXPERIENCE_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
               </Select>
             </Label>
           </div>

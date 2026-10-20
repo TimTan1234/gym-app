@@ -196,7 +196,7 @@ export function CoachChat({ threadId: initialThreadId, initialMessages, prefill 
           <div key={m.id ?? `pending-${i}`} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
             <div
               className={cn(
-                "max-w-[88%] rounded-2xl px-4 py-2.5 text-sm",
+                "max-w-[88%] rounded-[14px] px-4 py-2.5 text-sm",
                 m.role === "user" ? "rounded-br-md bg-iron text-iron-fg" : "rounded-bl-md border border-line bg-paper",
               )}
             >
@@ -220,7 +220,7 @@ export function CoachChat({ threadId: initialThreadId, initialMessages, prefill 
           e.preventDefault();
           void send(input);
         }}
-        className="sticky bottom-20 z-20 flex items-end gap-2 rounded-2xl border border-line bg-paper p-2 shadow-lg md:bottom-4"
+        className="sticky bottom-20 z-20 flex items-end gap-2 rounded-[14px] border border-line bg-paper p-2 shadow-[0_8px_24px_-12px_rgba(31,34,38,0.45)] md:bottom-4"
       >
         <Textarea
           value={input}

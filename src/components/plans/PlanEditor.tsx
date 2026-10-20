@@ -7,7 +7,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { createPlan, updatePlan } from "@/server/plans";
 import type { PlanInput } from "@/lib/plan-input";
 import { ExercisePicker, type PickerExercise } from "@/components/train/ExercisePicker";
-import { Button, Card, Input, Label, Textarea } from "@/components/ui";
+import { Button, Input, Label, Textarea, cn } from "@/components/ui";
 
 export interface EditorExercise {
   key: string;
@@ -40,6 +40,15 @@ function move<T>(arr: T[], i: number, dir: -1 | 1): T[] {
   [copy[i], copy[j]] = [copy[j], copy[i]];
   return copy;
 }
+
+const FIELDS = [
+  ["Sets", "sets", 3],
+  ["Min reps", "repMin", 8],
+  ["Max reps", "repMax", 12],
+  ["Rest (s)", "restSec", 90],
+] as const;
+// Sets | min | max | rest | RPE: shared by the header row and every exercise row.
+const FIELD_COLS = "grid grid-cols-5 gap-1.5";
 
 export function PlanEditor({
   initial,
@@ -100,8 +109,8 @@ export function PlanEditor({
   const num = (v: string, fallback: number) => (Number.isFinite(Number(v)) && v !== "" ? Number(v) : fallback);
 
   return (
-    <div className="space-y-4">
-      <Card className="grid grid-cols-[1fr_6rem] gap-3">
+    <div className="space-y-8">
+      <div className="grid grid-cols-[1fr_6rem] gap-3">
         <Label>
           Plan name
           <Input value={plan.name} onChange={(e) => setPlan({ ...plan, name: e.target.value })} maxLength={80} />
@@ -114,17 +123,18 @@ export function PlanEditor({
           Notes
           <Textarea value={plan.notes ?? ""} onChange={(e) => setPlan({ ...plan, notes: e.target.value || null })} maxLength={1000} />
         </Label>
-      </Card>
+      </div>
 
       {plan.days.map((day, di) => (
-        <Card key={day.key} className="space-y-3" data-testid="plan-day">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-steel">DAY {di + 1}</span>
+        // Each day reads like a page of the logbook: a heavy rule, one header row, then divided exercise rows.
+        <section key={day.key} className="space-y-2 border-t-2 border-iron pt-3" data-testid="plan-day">
+          <div className="flex items-center gap-1">
+            <span className="shrink-0 text-[13px] font-semibold text-steel">Day {di + 1}</span>
             <Input
               value={day.name}
               onChange={(e) => setDay(day.key, (d) => ({ ...d, name: e.target.value }))}
               aria-label={`Day ${di + 1} name`}
-              className="font-semibold"
+              className="display h-10 border-transparent bg-transparent px-2 text-[22px] hover:border-line focus:border-iron"
               maxLength={60}
             />
             <Button variant="ghost" size="sm" aria-label="Move day up" onClick={() => setPlan((p) => ({ ...p, days: move(p.days, di, -1) }))}>
@@ -135,56 +145,61 @@ export function PlanEditor({
             </Button>
           </div>
 
-          <ul className="space-y-2">
+          {day.exercises.length > 0 && (
+            <div aria-hidden className={cn(FIELD_COLS, "border-b border-line pb-1.5 text-center text-[12px] font-medium text-steel")}>
+              {FIELDS.map(([lbl]) => (
+                <span key={lbl}>{lbl}</span>
+              ))}
+              <span>RPE</span>
+            </div>
+          )}
+          <ul className="divide-y divide-line">
             {day.exercises.map((ex, ei) => (
-              <li key={ex.key} className="rounded-xl bg-wash p-2.5">
-                <div className="mb-2 flex items-center gap-1">
-                  <span className="flex-1 text-sm font-semibold">{ex.exerciseName}</span>
-                  <button type="button" aria-label="Move up" className="p-1 text-steel hover:text-iron" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, -1) }))}>
-                    <ArrowUp className="size-3.5" />
+              <li key={ex.key} className="space-y-1.5 py-2.5">
+                <div className="flex items-center gap-0.5">
+                  <span className="flex-1 font-semibold">{ex.exerciseName}</span>
+                  <button type="button" aria-label="Move up" className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-iron" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, -1) }))}>
+                    <ArrowUp className="size-4" />
                   </button>
-                  <button type="button" aria-label="Move down" className="p-1 text-steel hover:text-iron" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, 1) }))}>
-                    <ArrowDown className="size-3.5" />
+                  <button type="button" aria-label="Move down" className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-iron" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, 1) }))}>
+                    <ArrowDown className="size-4" />
                   </button>
-                  <button type="button" aria-label={`Remove ${ex.exerciseName}`} className="p-1 text-steel hover:text-alert" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: d.exercises.filter((e) => e.key !== ex.key) }))}>
-                    <Trash2 className="size-3.5" />
+                  <button type="button" aria-label={`Remove ${ex.exerciseName}`} className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-alert" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: d.exercises.filter((e) => e.key !== ex.key) }))}>
+                    <Trash2 className="size-4" />
                   </button>
                 </div>
-                <div className="grid grid-cols-5 gap-1.5 text-[11px] font-medium text-steel">
-                  {(
-                    [
-                      ["Sets", "sets", 3],
-                      ["Min reps", "repMin", 8],
-                      ["Max reps", "repMax", 12],
-                      ["Rest s", "restSec", 90],
-                    ] as const
-                  ).map(([lbl, field, fb]) => (
-                    <label key={field}>
-                      {lbl}
-                      <Input type="number" min={1} value={ex[field]} onChange={(e) => setEx(day.key, ex.key, { [field]: num(e.target.value, fb) })} className="num h-9 px-2 text-center" />
-                    </label>
-                  ))}
-                  <label>
-                    RPE
+                <div className={FIELD_COLS}>
+                  {FIELDS.map(([lbl, field, fb]) => (
                     <Input
+                      key={field}
+                      aria-label={`${ex.exerciseName} ${lbl.toLowerCase()}`}
                       type="number"
-                      min={5}
-                      max={10}
-                      step={0.5}
-                      value={ex.targetRpe ?? ""}
-                      onChange={(e) => setEx(day.key, ex.key, { targetRpe: e.target.value ? Number(e.target.value) : null })}
-                      className="num h-9 px-2 text-center"
+                      min={1}
+                      value={ex[field]}
+                      onChange={(e) => setEx(day.key, ex.key, { [field]: num(e.target.value, fb) })}
+                      className="num h-10 px-1 text-center"
                     />
-                  </label>
+                  ))}
+                  <Input
+                    aria-label={`${ex.exerciseName} target RPE`}
+                    type="number"
+                    min={5}
+                    max={10}
+                    step={0.5}
+                    placeholder="–"
+                    value={ex.targetRpe ?? ""}
+                    onChange={(e) => setEx(day.key, ex.key, { targetRpe: e.target.value ? Number(e.target.value) : null })}
+                    className="num h-10 px-1 text-center"
+                  />
                 </div>
-                {ex.notes && <p className="mt-1.5 text-xs italic text-steel">{ex.notes}</p>}
+                {ex.notes && <p className="text-[13px] italic text-steel">{ex.notes}</p>}
               </li>
             ))}
           </ul>
           <Button variant="ghost" size="sm" onClick={() => setPickerFor(day.key)}>
             <Plus className="size-4" /> Add exercise
           </Button>
-        </Card>
+        </section>
       ))}
 
       {plan.days.length < 7 && (

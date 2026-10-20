@@ -101,7 +101,7 @@ export function ExerciseLibrary({ exercises, muscles, equipment }: { exercises: 
       )}
 
       <p className="text-xs text-steel">{filtered.length} exercises</p>
-      <ul className="divide-y divide-line rounded-2xl border border-line bg-paper">
+      <ul className="divide-y divide-line rounded-[14px] border border-line bg-paper">
         {filtered.map((e) => (
           <li key={e.id}>
             <Link href={`/train/exercises/${e.id}`} className="flex items-center justify-between gap-2 px-4 py-3 hover:bg-wash">

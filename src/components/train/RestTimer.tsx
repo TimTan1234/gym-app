@@ -93,13 +93,13 @@ export function RestTimerBar({ timer }: { timer: ReturnType<typeof useRestTimer>
       <span className="score flex-1 text-[40px]">
         {m}:{s}
       </span>
-      <button type="button" aria-label="Subtract 15 seconds" onClick={() => timer.adjust(-15)} className="rounded-lg p-2 hover:bg-panel-fg/10">
+      <button type="button" aria-label="Subtract 15 seconds" onClick={() => timer.adjust(-15)} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
         <Minus className="size-4" />
       </button>
-      <button type="button" aria-label="Add 15 seconds" onClick={() => timer.adjust(15)} className="rounded-lg p-2 hover:bg-panel-fg/10">
+      <button type="button" aria-label="Add 15 seconds" onClick={() => timer.adjust(15)} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
         <Plus className="size-4" />
       </button>
-      <button type="button" aria-label="Skip rest" onClick={timer.stop} className="rounded-lg p-2 hover:bg-panel-fg/10">
+      <button type="button" aria-label="Skip rest" onClick={timer.stop} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
         <X className="size-4" />
       </button>
     </div>

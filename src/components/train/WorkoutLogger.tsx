@@ -117,6 +117,7 @@ export function WorkoutLogger({
   }
 
   const workingSets = sets.filter((s) => !s.isWarmup).length;
+  const exerciseCount = new Set(sets.map((s) => s.exerciseId)).size;
 
   return (
     <div className="pb-16">
@@ -162,10 +163,10 @@ export function WorkoutLogger({
 
       {finishing && (
         <div role="dialog" aria-modal="true" aria-label="Finish workout" className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
-          <Card className="w-full max-w-md space-y-3 rounded-b-none sm:rounded-2xl">
+          <Card className="w-full max-w-md space-y-3 rounded-b-none sm:rounded-[14px]">
             <h2 className="display text-[22px]">Finish workout?</h2>
             <p className="text-sm text-steel">
-              {workingSets} working {workingSets === 1 ? "set" : "sets"} across {new Set(sets.map((s) => s.exerciseId)).size} exercises in {elapsed}.
+              {workingSets} working {workingSets === 1 ? "set" : "sets"} across {exerciseCount} {exerciseCount === 1 ? "exercise" : "exercises"} in {elapsed}.
             </p>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did it feel? (optional)" maxLength={1000} />
             <div className="flex gap-2">

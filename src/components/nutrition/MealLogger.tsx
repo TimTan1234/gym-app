@@ -285,7 +285,7 @@ export function MealLogger({
         {image && (
           <div className="relative w-fit">
             {/* eslint-disable-next-line @next/next/no-img-element -- local data URL preview */}
-            <img src={image} alt="Meal photo preview" className="max-h-48 rounded-xl" />
+            <img src={image} alt="Meal photo preview" className="max-h-48 rounded-[10px]" />
             <button
               type="button"
               aria-label="Remove photo"
@@ -460,7 +460,7 @@ function DraftRow({
           aria-label="Food name"
           className="font-medium"
         />
-        <button type="button" aria-label={`Remove ${item.name || "item"}`} onClick={() => onRemove(item.key)} className="rounded-lg p-2 text-steel hover:text-alert">
+        <button type="button" aria-label={`Remove ${item.name || "item"}`} onClick={() => onRemove(item.key)} className="rounded-[8px] p-2 text-steel hover:text-alert">
           <Trash2 className="size-4" />
         </button>
       </div>

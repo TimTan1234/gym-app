@@ -103,6 +103,7 @@ export function TrendChart({
       <figcaption className="flex items-center justify-between">
         <span className="text-sm font-semibold">{title}</span>
         <span className="flex items-center gap-3">
+          {target !== undefined && <TargetKey value={target} unit={unit} />}
           {hasAvg && (
             <span className="flex items-center gap-3 text-xs text-steel">
               <span className="flex items-center gap-1"><span className="inline-block size-2 rounded-full bg-steel opacity-40" /> Daily</span>
@@ -125,7 +126,7 @@ export function TrendChart({
               <XAxis dataKey="date" tickFormatter={shortDate} tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
               <YAxis tick={AXIS} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={48} tickFormatter={(v: number) => fmt(v, axisDecimals)} />
               {target !== undefined && (
-                <ReferenceLine y={target} stroke="var(--steel)" strokeDasharray="4 4" label={{ value: "Target", position: "insideTopRight", fontSize: 11, fill: "var(--steel)" }} />
+                <ReferenceLine y={target} stroke="var(--steel)" strokeDasharray="4 4" />
               )}
               <Tooltip
                 cursor={{ stroke: "var(--steel)", strokeWidth: 1 }}
@@ -161,6 +162,16 @@ export function TrendChart({
   );
 }
 
+/** Legend entry for the dashed target line; the line itself stays unlabelled so bars never cover the label. */
+function TargetKey({ value, unit }: { value: number; unit: string }) {
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-steel">
+      <span aria-hidden className="inline-block w-3 border-t border-dashed border-steel" />
+      Target {fmt(value, 0)} {unit}
+    </span>
+  );
+}
+
 /** Daily values vs a target (e.g. kcal or protein per day). */
 export function DailyBars({
   title,
@@ -182,7 +193,10 @@ export function DailyBars({
     <figure className="space-y-2">
       <figcaption className="flex items-center justify-between">
         <span className="text-sm font-semibold">{title}</span>
-        <TableToggle open={table} onToggle={() => setTable((t) => !t)} />
+        <span className="flex items-center gap-3">
+          {target !== undefined && <TargetKey value={target} unit={unit} />}
+          <TableToggle open={table} onToggle={() => setTable((t) => !t)} />
+        </span>
       </figcaption>
       {table ? (
         <DataTable
@@ -197,7 +211,7 @@ export function DailyBars({
               <XAxis dataKey="date" tickFormatter={shortDate} tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
               <YAxis tick={AXIS} tickLine={false} axisLine={false} width={48} tickFormatter={(v: number) => fmt(v, 0)} />
               {target !== undefined && (
-                <ReferenceLine y={target} stroke="var(--steel)" strokeDasharray="4 4" label={{ value: "Target", position: "insideTopRight", fontSize: 11, fill: "var(--steel)" }} />
+                <ReferenceLine y={target} stroke="var(--steel)" strokeDasharray="4 4" />
               )}
               <Tooltip
                 cursor={{ fill: "var(--wash)" }}

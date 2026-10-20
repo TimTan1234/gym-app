@@ -53,7 +53,7 @@ async function Coach({ searchParams }: { searchParams: PageProps<"/coach">["sear
               <li key={t.id}>
                 <Link
                   href={`/coach?thread=${t.id}`}
-                  className={cn("block truncate rounded-lg px-2 py-1.5 hover:bg-wash", t.id === thread?.id && "bg-wash font-semibold")}
+                  className={cn("block truncate rounded-[8px] px-2 py-1.5 hover:bg-wash", t.id === thread?.id && "bg-wash font-semibold")}
                 >
                   {t.title}
                 </Link>

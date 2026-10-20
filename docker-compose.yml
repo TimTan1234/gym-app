@@ -1,0 +1,59 @@
+# GymPal + PostgreSQL. Values come from .env next to this file (see docs/DOCKER.md).
+#   docker compose up -d --build
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gympal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: gympal
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gympal -d gympal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Applies migrations and seeds exercises, then exits. Safe to re-run.
+  migrate:
+    build:
+      context: .
+      target: migrate
+    environment:
+      DATABASE_URL: postgres://gympal:${POSTGRES_PASSWORD}@db:5432/gympal
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgres://gympal:${POSTGRES_PASSWORD}@db:5432/gympal
+      DATABASE_POOL_MAX: "10"
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_SMART_MODEL: ${OPENAI_SMART_MODEL:-}
+      OPENAI_PLAN_MODEL: ${OPENAI_PLAN_MODEL:-}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-}
+      AI_MOCK: ${AI_MOCK:-0}
+      AI_LIMIT_MEAL_PER_DAY: ${AI_LIMIT_MEAL_PER_DAY:-30}
+      AI_LIMIT_PLAN_PER_DAY: ${AI_LIMIT_PLAN_PER_DAY:-5}
+      AI_LIMIT_CHAT_PER_DAY: ${AI_LIMIT_CHAT_PER_DAY:-50}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

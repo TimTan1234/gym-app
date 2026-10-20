@@ -49,6 +49,10 @@ npm run dev                      # http://localhost:3000
 
 To add a migration on the local `prisma dev` database, generate the SQL with `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` into a new `prisma/migrations/<timestamp>_<name>/migration.sql`, then run `npm run db:migrate`. `prisma migrate dev` fails there because its shadow database is copied from `template1`, which already has the tables.
 
+## Docker
+
+`docker compose up -d --build` runs the app with PostgreSQL, applies migrations and seeds exercises. See [docs/DOCKER.md](docs/DOCKER.md) for setup, backups and HTTPS deployment.
+
 ## Scripts
 
 | Command | |

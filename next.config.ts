@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  // The Docker image runs the minimal standalone server; local `next start` and e2e keep the normal output.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   partialPrefetching: true,
   // Keep the dev badge clear of the bottom tab bar.
   devIndicators: { position: "top-right" },

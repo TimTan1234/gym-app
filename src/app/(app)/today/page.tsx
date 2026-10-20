@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Plus, Settings, Sparkles, Trophy } from "lucide-react";
+import { CalendarCheck, ChevronRight, Plus, Settings, Sparkles, Trophy } from "lucide-react";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
-import { getActiveWorkout, getDayNutrition, getLatestWeight, getNextPlanDay } from "@/lib/queries";
+import { getActiveWorkout, getCheckin, getDayNutrition, getLatestWeight, getNextPlanDay } from "@/lib/queries";
 import { formatLocalDate, todayLocal } from "@/lib/dates";
 import { formatWeight } from "@/lib/units";
 import { MacroSummary } from "@/components/nutrition/MacroSummary";
@@ -25,7 +25,7 @@ async function Today() {
   const today = todayLocal(profile.timezone, now);
   const hour = Number(new Intl.DateTimeFormat("en-US", { timeZone: profile.timezone, hour: "numeric", hourCycle: "h23" }).format(now));
 
-  const [{ totals }, latestWeight, next, active, recentPRs] = await Promise.all([
+  const [{ totals }, latestWeight, next, active, recentPRs, checkin] = await Promise.all([
     getDayNutrition(user.id, today),
     getLatestWeight(user.id),
     getNextPlanDay(user.id),
@@ -36,6 +36,7 @@ async function Today() {
       take: 3,
       include: { exercise: { select: { name: true } } },
     }),
+    getCheckin(user.id, profile),
   ]);
 
   const proteinLeft = Math.max(0, Math.round(profile.targetProteinG - totals.proteinG));
@@ -66,6 +67,17 @@ async function Today() {
           <Sparkles className="size-5" /> Meal ideas
         </Link>
       </div>
+
+      {checkin.status === "adjust" && checkin.suggested && (
+        <Link href="/progress" className="flex items-center gap-3 border-y border-line py-3 text-sm hover:bg-wash">
+          <CalendarCheck className="size-5 shrink-0 text-steel" aria-hidden />
+          <span className="flex-1">
+            <span className="font-semibold">Weekly check-in is ready.</span>{" "}
+            <span className="text-steel">It suggests {checkin.suggested.kcal.toLocaleString("en-US")} kcal a day.</span>
+          </span>
+          <ChevronRight className="size-4 text-steel" aria-hidden />
+        </Link>
+      )}
 
       {/* The one inverted panel: the next thing to do in the gym. */}
       <section className="rounded-[14px] bg-panel p-5 text-panel-fg">

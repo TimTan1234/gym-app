@@ -3,9 +3,10 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { requireProfile } from "@/lib/session";
 import { getDayNutrition } from "@/lib/queries";
-import { isLocalDate, todayLocal } from "@/lib/dates";
+import { addDays, isLocalDate, todayLocal } from "@/lib/dates";
 import { MacroSummary } from "@/components/nutrition/MacroSummary";
 import { MealCard } from "@/components/nutrition/MealCard";
+import { CopyDayBefore } from "@/components/nutrition/CopyDayBefore";
 import { DateNav } from "@/components/DateNav";
 import { MEAL_TYPE_LABELS } from "@/components/profile/options";
 import { PageSkeleton, buttonClass, cn } from "@/components/ui";
@@ -19,7 +20,7 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
   const today = todayLocal(profile.timezone);
   const raw = (await searchParams).date;
   const date = typeof raw === "string" && isLocalDate(raw) && raw <= today ? raw : today;
-  const { meals, totals } = await getDayNutrition(user.id, date);
+  const [{ meals, totals }, dayBefore] = await Promise.all([getDayNutrition(user.id, date), getDayNutrition(user.id, addDays(date, -1))]);
 
   return (
     <>
@@ -32,6 +33,7 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
         {ORDER.map((type) => {
           const group = meals.filter((m) => m.mealType === type);
           const kcal = group.reduce((s, m) => s + m.kcal, 0);
+          const before = dayBefore.meals.filter((m) => m.mealType === type);
           return (
             <section key={type}>
               <div className="mb-1 flex items-baseline justify-between">
@@ -48,6 +50,14 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
                   <MealCard key={meal.id} meal={meal} canCopy={date !== today} />
                 ))}
               </div>
+              {group.length === 0 && before.length > 0 && (
+                <CopyDayBefore
+                  date={date}
+                  mealType={type}
+                  kcal={before.reduce((s, m) => s + m.kcal, 0)}
+                  label={`Same as ${date === today ? "yesterday" : "the day before"}: ${before.map((m) => m.description).join(", ")}`}
+                />
+              )}
             </section>
           );
         })}

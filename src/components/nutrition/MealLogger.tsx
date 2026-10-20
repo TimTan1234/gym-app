@@ -3,13 +3,18 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, Loader2, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
-import { saveMeal, markSavedFoodsUsed } from "@/server/nutrition";
+import { Camera, History, Loader2, Plus, ScanBarcode, Sparkles, Star, Trash2, X } from "lucide-react";
+import dynamic from "next/dynamic";
+import { deleteSavedFood, saveMeal, markSavedFoodsUsed } from "@/server/nutrition";
 import { scaleItem, sumNutrients } from "@/lib/nutrition/totals";
 import type { MealAnalysis } from "@/lib/ai/schemas";
 import { MEAL_TYPE_LABELS } from "@/components/profile/options";
 import { Button, Card, Input, MacroLine, Textarea, cn } from "@/components/ui";
 import { useClientValue } from "@/lib/use-client";
+import type { BarcodeItem } from "@/lib/nutrition/barcode";
+
+// The scanner pulls in a WebAssembly decoder on browsers without one, so load it on demand.
+const BarcodeScanner = dynamic(() => import("./BarcodeScanner").then((m) => m.BarcodeScanner), { ssr: false });
 
 type MealType = keyof typeof MEAL_TYPE_LABELS;
 type Source = "AI_TEXT" | "AI_PHOTO" | "MANUAL";
@@ -41,8 +46,18 @@ function baseOf(i: DraftItem): BaseValues {
   return { grams, kcal, proteinG, carbsG, fatG, fiberG, sugarG, sodiumMg };
 }
 
-export interface SavedFoodOption extends Omit<DraftItem, "key" | "confidence" | "assumptions" | "savedFoodId"> {
+type ItemValues = Omit<DraftItem, "key" | "confidence" | "assumptions" | "savedFoodId" | "base">;
+
+export interface SavedFoodOption extends ItemValues {
   id: string;
+}
+
+export interface RecentMealOption {
+  id: string;
+  description: string;
+  mealType: MealType;
+  kcal: number;
+  items: ItemValues[];
 }
 
 const MAX_DIM = 1024;
@@ -91,11 +106,13 @@ export function MealLogger({
   isToday,
   initialType,
   savedFoods,
+  recentMeals,
 }: {
   date: string;
   isToday: boolean;
   initialType: MealType | null;
   savedFoods: SavedFoodOption[];
+  recentMeals: RecentMealOption[];
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -110,6 +127,9 @@ export function MealLogger({
   const [notes, setNotes] = useState<string | null>(null);
   const [source, setSource] = useState<Source>("MANUAL");
   const [saving, startSaving] = useTransition();
+  const [editingSaved, setEditingSaved] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [removing, startRemoving] = useTransition();
 
   async function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -172,6 +192,26 @@ export function MealLogger({
   function addSaved(food: SavedFoodOption) {
     const { id, ...rest } = food;
     setItems((cur) => [...cur, { ...rest, key: newKey(), confidence: null, assumptions: null, savedFoodId: id }]);
+  }
+
+  function addScanned({ hasNutrition, ...item }: BarcodeItem) {
+    setScanning(false);
+    setItems((cur) => [...cur, { ...item, key: newKey(), confidence: null, assumptions: hasNutrition ? null : "No nutrition data for this product. Enter it from the label." }]);
+    if (hasNutrition) toast.success(`Added ${item.name}`);
+    else toast("Found the product, but it has no nutrition data. Enter it from the label.");
+  }
+
+  /** Load an earlier meal into the draft so it can be adjusted before saving. */
+  function addRecent(meal: RecentMealOption) {
+    setItems((cur) => [...cur, ...meal.items.map((i) => ({ ...i, key: newKey(), confidence: null, assumptions: null }))]);
+    setTitle((t) => t || meal.description);
+  }
+
+  function removeSaved(food: SavedFoodOption) {
+    startRemoving(async () => {
+      const res = await deleteSavedFood(food.id);
+      if (!res.ok) toast.error(res.error);
+    });
   }
 
   function save() {
@@ -268,23 +308,79 @@ export function MealLogger({
         </div>
       </Card>
 
+      <Button type="button" variant="secondary" className="w-full" onClick={() => setScanning(true)}>
+        <ScanBarcode className="size-4" /> Scan a barcode
+      </Button>
+      {scanning && <BarcodeScanner onFound={addScanned} onClose={() => setScanning(false)} />}
+
+      {recentMeals.length > 0 && (
+        <section>
+          <h2 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-steel">
+            <History className="size-4" /> Recent meals
+          </h2>
+          <ul className="divide-y divide-line border-y border-line">
+            {[...recentMeals]
+              .sort((a, b) => Number(b.mealType === mealType) - Number(a.mealType === mealType))
+              .slice(0, 5)
+              .map((m) => (
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    onClick={() => addRecent(m)}
+                    aria-label={`Add ${m.description}`}
+                    className="flex w-full items-center gap-3 py-2.5 text-left text-sm hover:bg-wash"
+                  >
+                    <Plus className="size-4 shrink-0 text-steel" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate font-medium">{m.description}</span>
+                    <span className="num text-steel">{Math.round(m.kcal).toLocaleString("en-US")} kcal</span>
+                  </button>
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
+
       {savedFoods.length > 0 && (
         <section>
-          <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-steel">
-            <Star className="size-4" /> Saved foods
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {savedFoods.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => addSaved(f)}
-                className="rounded-full border border-line bg-paper px-3 py-1.5 text-sm hover:border-iron"
-              >
-                {f.name} <span className="num text-steel">{Math.round(f.kcal)} kcal</span>
-              </button>
-            ))}
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-steel">
+              <Star className="size-4" /> Saved foods
+            </h2>
+            <button
+              type="button"
+              onClick={() => setEditingSaved((e) => !e)}
+              aria-pressed={editingSaved}
+              className="rounded-[8px] px-2 py-1 text-[13px] font-medium text-steel hover:bg-wash hover:text-iron"
+            >
+              {editingSaved ? "Done" : "Edit"}
+            </button>
           </div>
+          <div className="flex flex-wrap gap-2">
+            {savedFoods.map((f) =>
+              editingSaved ? (
+                <button
+                  key={f.id}
+                  type="button"
+                  disabled={removing}
+                  onClick={() => removeSaved(f)}
+                  aria-label={`Remove ${f.name} from saved foods`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-alert/40 bg-paper px-3 py-1.5 text-sm text-alert hover:bg-alert/10 disabled:opacity-50"
+                >
+                  <X className="size-3.5" aria-hidden /> {f.name}
+                </button>
+              ) : (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => addSaved(f)}
+                  className="rounded-full border border-line bg-paper px-3 py-1.5 text-sm hover:border-iron"
+                >
+                  {f.name} <span className="num text-steel">{Math.round(f.kcal)} kcal</span>
+                </button>
+              ),
+            )}
+          </div>
+          {editingSaved && <p className="mt-2 text-xs text-steel">Tap a food to remove it. Star items on the Nutrition page to save more.</p>}
         </section>
       )}
 

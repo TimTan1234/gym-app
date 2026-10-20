@@ -1,6 +1,9 @@
 import "server-only";
 import { db } from "./db";
 import { sumNutrients } from "./nutrition/totals";
+import { addDays, todayLocal } from "./dates";
+import { CHECKIN_DAYS, weeklyCheckin } from "./nutrition/checkin";
+import type { Goal, Sex } from "./nutrition/targets";
 
 export async function getDayNutrition(userId: string, localDate: string) {
   const meals = await db.meal.findMany({
@@ -81,4 +84,36 @@ export async function lastSessionSets(userId: string, exerciseIds: string[], exc
     });
   }
   return out;
+}
+
+/** Inputs for the weekly check-in, read for the last 14 full days. */
+export async function getCheckin(
+  userId: string,
+  profile: {
+    timezone: string;
+    targetKcal: number;
+    targetProteinG: number;
+    goal: Goal;
+    rateKgPerWeek: number;
+    sex: Sex;
+    targetsSetOn: string | null;
+  },
+) {
+  const today = todayLocal(profile.timezone);
+  const from = addDays(today, -(CHECKIN_DAYS + 7));
+  const [days, weights] = await Promise.all([
+    db.meal.groupBy({ by: ["localDate"], where: { userId, localDate: { gte: from, lt: today } }, _sum: { kcal: true } }),
+    db.bodyMetric.findMany({ where: { userId, localDate: { gte: from, lt: today } }, select: { localDate: true, weightKg: true } }),
+  ]);
+  return weeklyCheckin({
+    today,
+    intake: days.map((d) => ({ date: d.localDate, kcal: d._sum.kcal ?? 0 })),
+    weights: weights.map((w) => ({ date: w.localDate, weightKg: w.weightKg })),
+    targetKcal: profile.targetKcal,
+    proteinG: profile.targetProteinG,
+    goal: profile.goal,
+    rateKgPerWeek: profile.rateKgPerWeek,
+    sex: profile.sex,
+    targetsSetOn: profile.targetsSetOn,
+  });
 }

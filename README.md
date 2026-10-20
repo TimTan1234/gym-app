@@ -8,9 +8,10 @@ AI-powered gym companion: snap or describe a meal and get calories, protein, car
 
 | Area | What it does |
 |---|---|
-| **AI meal logging** | Text and/or photo → per-item nutrition draft with confidence + assumptions (knows Malaysian/SEA dishes). Edit grams and nutrients scale; totals are always recomputed server-side. Saved foods and "log again" for quick re-logging. |
-| **Targets** | Mifflin-St Jeor BMR × activity, goal-based deficit/surplus, protein 1.8–2.2 g/kg; safety floor (1200/1500 kcal). Auto-updates when you log weight, or set custom targets. |
-| **Workout logger** | Start empty or from a plan day; last session's sets inline; double-progression suggestion; auto rest timer (survives reloads, vibrates/notifies); PRs (max weight, e1RM, best set volume) with toasts. |
+| **AI meal logging** | Text and/or photo → per-item nutrition draft with confidence + assumptions (knows Malaysian/SEA dishes). Edit grams and nutrients scale; totals are always recomputed server-side. |
+| **Quick logging** | Barcode scanning (camera, photo or typed number) looked up on [Open Food Facts](https://world.openfoodfacts.org); recent meals and saved foods load into the draft in one tap; "Same as yesterday" repeats a meal type; "Log again" on past days. |
+| **Targets** | Mifflin-St Jeor BMR × activity, goal-based deficit/surplus, protein 1.8–2.2 g/kg; safety floor (1200/1500 kcal). Auto-updates when you log weight, or set custom targets. **Weekly check-in** estimates your real burn from 14 days of intake and weight trend, and suggests a capped (±250 kcal) change; it then waits a week on the new target. |
+| **Workout logger** | Start empty or from a plan day; last session's sets inline; double-progression suggestion; auto rest timer (survives reloads, vibrates/notifies); PRs (max weight, e1RM, best set volume) with toasts; plate math for barbell lifts (kg or lb, 20/15/10 kg or 45/35/25 lb bar). |
 | **Training plans** | AI generator (goal, days, session length, level, equipment, focus, injuries) constrained to the exercise library; manual builder/editor; active plan drives "up next". |
 | **Progress** | Body-weight trend with 7-day average, calories/protein vs target, adherence + logging streak, sets per muscle, weekly volume, best e1RMs, per-exercise history. Every chart has a table view. |
 | **AI coach** | Streaming chat with read-only tools over your data; can *propose* target or plan changes that only apply when you tap **Apply**. |
@@ -19,7 +20,7 @@ AI-powered gym companion: snap or describe a meal and get calories, protein, car
 ## Setup
 
 ```bash
-npm install                      # also runs `prisma generate`
+npm install                      # also runs `prisma generate` and copies the barcode decoder to public/vendor
 cp .env.example .env             # then fill in the values below
 ```
 
@@ -41,18 +42,20 @@ cp .env.example .env             # then fill in the values below
 4. Create tables and seed the 111-exercise library:
 
 ```bash
-npm run db:migrate
+npm run db:migrate               # applies prisma/migrations; run again after pulling updates
 npm run db:seed
 npm run dev                      # http://localhost:3000
 ```
+
+To add a migration on the local `prisma dev` database, generate the SQL with `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` into a new `prisma/migrations/<timestamp>_<name>/migration.sql`, then run `npm run db:migrate`. `prisma migrate dev` fails there because its shadow database is copied from `template1`, which already has the tables.
 
 ## Scripts
 
 | Command | |
 |---|---|
 | `npm run dev` / `build` / `start` | Next.js |
-| `npm test` | Unit tests (Vitest): targets, dates/timezones, units, nutrition totals, e1RM, progression, PRs, progress stats, AI schema validation, OpenAI strict-format checks |
-| `npm run test:e2e` | Playwright flows on a production build at :3100 with AI mocked: sign-up → onboarding → AI meal (text + photo) → workout → history; AI plan → planned workout → progress; coach proposal → apply |
+| `npm test` | Unit tests (Vitest): targets, dates/timezones, units, nutrition totals, e1RM, progression, PRs, progress stats, plate math, weekly check-in, barcode product mapping, AI schema validation, OpenAI strict-format checks |
+| `npm run test:e2e` | Playwright flows on a production build at :3100 with AI and barcode lookups mocked: sign-up → onboarding → AI meal (text + photo) → workout → history; AI plan → planned workout → progress; coach proposal → apply; same-as-yesterday, recent meals, barcode lookup, saved foods; plate math; check-in |
 | `npm run test:e2e:live` | Same flows against the **real AI provider** (costs tokens). Needs `npm run dev` on :3000 with `AI_MOCK="0"` |
 | `npm run typecheck` / `lint` | |
 | `npm run db:migrate` / `db:seed` / `db:local` | Prisma |

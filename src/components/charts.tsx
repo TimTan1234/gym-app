@@ -94,6 +94,9 @@ export function TrendChart({
 }) {
   const [table, setTable] = useState(false);
   const hasAvg = data.some((d) => d.avg !== undefined && d.avg !== null);
+  // A flat series (e.g. weight within 1 kg) needs a decimal on the axis or every tick reads the same.
+  const values = data.flatMap((d) => [d.value, d.avg ?? d.value]).filter((v): v is number => v !== null);
+  const axisDecimals = values.length > 0 && Math.max(...values) - Math.min(...values) < 5 ? 1 : 0;
 
   return (
     <figure className="space-y-2">
@@ -120,7 +123,7 @@ export function TrendChart({
             <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
               <CartesianGrid stroke="var(--line)" vertical={false} />
               <XAxis dataKey="date" tickFormatter={shortDate} tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
-              <YAxis tick={AXIS} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={48} tickFormatter={(v: number) => fmt(v, 0)} />
+              <YAxis tick={AXIS} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={48} tickFormatter={(v: number) => fmt(v, axisDecimals)} />
               {target !== undefined && (
                 <ReferenceLine y={target} stroke="var(--steel)" strokeDasharray="4 4" label={{ value: "Target", position: "insideTopRight", fontSize: 11, fill: "var(--steel)" }} />
               )}

@@ -3,8 +3,9 @@
 import { z } from "zod";
 import { refresh } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
-import { computeTargets } from "@/lib/nutrition/targets";
+import { requireProfile, requireUser } from "@/lib/session";
+import { getCheckin } from "@/lib/queries";
+import { KCAL_FLOOR, computeTargets } from "@/lib/nutrition/targets";
 import { ageOn, isLocalDate, isValidTimezone, todayLocal } from "@/lib/dates";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -67,10 +68,14 @@ export async function saveProfile(input: ProfileInput): Promise<ActionResult> {
         }
       : targetsFor({ ...p, weightKg }, today)),
   };
+  // A goal or activity change that moves calories restarts the weekly check-in clock;
+  // small drifts from weigh-ins don't.
+  const targetsSetOn =
+    existing && Math.abs(data.targetKcal - existing.targetKcal) >= 100 ? today : (existing?.targetsSetOn ?? null);
 
   await db.$transaction([
     db.user.update({ where: { id: user.id }, data: { name: p.name } }),
-    db.profile.upsert({ where: { userId: user.id }, create: { userId: user.id, ...data }, update: data }),
+    db.profile.upsert({ where: { userId: user.id }, create: { userId: user.id, ...data }, update: { ...data, targetsSetOn } }),
     ...(weightChanged
       ? [
           db.bodyMetric.upsert({
@@ -150,12 +155,30 @@ export async function setTargets(input: z.infer<typeof TargetsSchema>): Promise<
   const parsed = TargetsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const { manual, ...targets } = parsed.data;
+  const profile = await db.profile.findUnique({ where: { userId: user.id }, select: { sex: true, timezone: true } });
+  if (!profile) return { ok: false, error: "Set up your profile first" };
+  // Lets the weekly check-in wait for a week of data on the new targets.
+  const targetsSetOn = todayLocal(profile.timezone);
   if (manual) {
-    await db.profile.update({ where: { userId: user.id }, data: { ...targets, targetsManual: true } });
+    const floor = KCAL_FLOOR[profile.sex];
+    if (targets.targetKcal < floor) return { ok: false, error: `Calories can't be set below ${floor} kcal a day` };
+    await db.profile.update({ where: { userId: user.id }, data: { ...targets, targetsManual: true, targetsSetOn } });
   } else {
-    await db.profile.update({ where: { userId: user.id }, data: { targetsManual: false } });
+    await db.profile.update({ where: { userId: user.id }, data: { targetsManual: false, targetsSetOn } });
     await recomputeTargets(user.id);
   }
   refresh();
   return { ok: true };
+}
+
+/**
+ * Apply the weekly check-in's suggested targets. The suggestion is recomputed
+ * here from the user's data, never taken from the client.
+ */
+export async function applyCheckin(): Promise<ActionResult> {
+  const { user, profile } = await requireProfile();
+  const checkin = await getCheckin(user.id, profile);
+  if (checkin.status !== "adjust" || !checkin.suggested) return { ok: false, error: "No change is suggested right now" };
+  const s = checkin.suggested;
+  return setTargets({ manual: true, targetKcal: s.kcal, targetProteinG: s.proteinG, targetCarbsG: s.carbsG, targetFatG: s.fatG });
 }

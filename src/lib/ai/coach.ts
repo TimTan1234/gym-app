@@ -5,6 +5,8 @@ import type { ResponseInputItem } from "openai/resources/responses/responses";
 import { db } from "@/lib/db";
 import { addDays, todayLocal } from "@/lib/dates";
 import { KCAL_FLOOR } from "@/lib/nutrition/targets";
+import type { CheckinResult } from "@/lib/nutrition/checkin";
+import { getCheckin } from "@/lib/queries";
 import { sumNutrients } from "@/lib/nutrition/totals";
 import { best1RM } from "@/lib/training/summary";
 import { isAiMock, models, openai, reasoningOptions } from "./client";
@@ -61,6 +63,12 @@ async function buildTools(ctx: CoachContext) {
     zodResponsesFunction({ name: "get_recent_workouts", parameters: Count, description: "Most recent finished workouts with exercises and sets." }),
     zodResponsesFunction({ name: "get_active_plan", parameters: Empty, description: "The user's active training plan." }),
     zodResponsesFunction({ name: "get_body_metrics", parameters: Days, description: "Body weight / body fat / waist entries." }),
+    zodResponsesFunction({
+      name: "get_weekly_checkin",
+      parameters: Empty,
+      description:
+        "Weekly check-in over the last 14 full days: average intake, weight-trend change per week, estimated real TDEE and, when needed, a suggested calorie target (already capped and floor-checked).",
+    }),
     zodResponsesFunction({ name: "get_exercise_history", parameters: ExerciseQuery, description: "Recent sessions and estimated 1RM for one exercise." }),
     zodResponsesFunction({
       name: "propose_target_change",
@@ -182,6 +190,16 @@ async function buildTools(ctx: CoachContext) {
           })),
         };
       }
+      case "get_weekly_checkin": {
+        const profile = await db.profile.findUnique({ where: { userId: ctx.userId } });
+        if (!profile) return { error: "No profile" };
+        const checkin = await getCheckin(ctx.userId, profile);
+        return {
+          ...checkin,
+          currentTargets: { kcal: profile.targetKcal, proteinG: profile.targetProteinG, carbsG: profile.targetCarbsG, fatG: profile.targetFatG },
+          goal: profile.goal,
+        };
+      }
       case "propose_target_change": {
         const p = TargetProposal.parse(args);
         const floor = KCAL_FLOOR[ctx.sex];
@@ -277,7 +295,28 @@ async function runMockCoach(
   };
   const t = info.targets ?? { kcal: 2000, proteinG: 150, carbsG: 200, fatG: 65 };
   let text = `(Mock coach. Set OPENAI_API_KEY for real answers.)\n\nHi ${ctx.userName.split(" ")[0]}! Your daily targets are **${t.kcal} kcal**, ${t.proteinG} g protein, ${t.carbsG} g carbs and ${t.fatG} g fat.`;
-  if (question.includes("target") || question.includes("calorie")) {
+  if (question.includes("check-in")) {
+    const c = (await execute("get_weekly_checkin", "{}", proposals)) as CheckinResult;
+    if (c.status === "adjust" && c.suggested) {
+      const before = proposals.length;
+      const s = c.suggested;
+      await execute(
+        "propose_target_change",
+        JSON.stringify({ targetKcal: s.kcal, targetProteinG: s.proteinG, targetCarbsG: s.carbsG, targetFatG: s.fatG, reason: `Your estimated burn is ${c.estimatedTdee} kcal a day.` }),
+        proposals,
+      );
+      proposals.slice(before).forEach(cb.onProposal);
+      text += `\n\nWeekly check-in: you're burning about **${c.estimatedTdee} kcal** a day. I've proposed ${s.kcal} kcal below.`;
+    } else {
+      const verdict =
+        c.status === "on_track"
+          ? "you're on track, keep your targets."
+          : c.status === "waiting"
+            ? `your targets changed recently. Next check-in on ${c.nextOn}.`
+            : `not enough data yet. Still needed: ${c.missing.join(", ")}.`;
+      text += `\n\nWeekly check-in: ${verdict}`;
+    }
+  } else if (question.includes("target") || question.includes("calorie")) {
     const before = proposals.length;
     await execute(
       "propose_target_change",

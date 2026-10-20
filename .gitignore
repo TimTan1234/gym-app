@@ -45,3 +45,6 @@ next-env.d.ts
 # testing
 /test-results
 /playwright-report
+
+# copied from node_modules on postinstall
+/public/vendor

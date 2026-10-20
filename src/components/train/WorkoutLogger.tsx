@@ -12,6 +12,7 @@ import { formatLocalDate } from "@/lib/dates";
 import { Button, Card, Input, Textarea, cn } from "@/components/ui";
 import { ExercisePicker, type PickerExercise } from "./ExercisePicker";
 import { RestTimerBar, useRestTimer } from "./RestTimer";
+import { PlateLoad } from "./PlateLoad";
 
 export interface Target {
   sets: number;
@@ -351,6 +352,7 @@ function ExerciseBlock({
           </span>
         </div>
       </div>
+      {exercise.equipment === "barbell" && Number(weight) > 0 && <PlateLoad weight={Number(weight)} units={units} />}
       <label className="flex w-fit items-center gap-2 text-[13px] text-steel">
         <input type="checkbox" checked={warmup} onChange={(e) => setWarmup(e.target.checked)} className="size-4 accent-[var(--iron)]" />
         This is a warm-up set

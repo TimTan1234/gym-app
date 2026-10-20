@@ -10,6 +10,8 @@ import { totalVolume } from "@/lib/training/summary";
 import { CategoryBars, DailyBars, TrendChart } from "@/components/charts";
 import { BodyMetricsLog } from "@/components/body/BodyMetricsLog";
 import { label } from "@/lib/format";
+import { getCheckin } from "@/lib/queries";
+import { WeeklyCheckin } from "@/components/progress/WeeklyCheckin";
 import { EmptyState, PageHeader, PageSkeleton, cn } from "@/components/ui";
 
 export const metadata = { title: "Progress" };
@@ -38,7 +40,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
   const start = addDays(today, -(rangeDays - 1));
   const units = profile.unitSystem;
 
-  const [metrics, mealDays, sessions, prs, streakDays] = await Promise.all([
+  const [metrics, mealDays, sessions, prs, streakDays, checkin] = await Promise.all([
     db.bodyMetric.findMany({ where: { userId: user.id, localDate: { gte: start } }, orderBy: { localDate: "asc" } }),
     db.meal.groupBy({
       by: ["localDate"],
@@ -64,6 +66,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
       distinct: ["localDate"],
       select: { localDate: true },
     }),
+    getCheckin(user.id, profile),
   ]);
 
   const prNames = new Map(
@@ -106,6 +109,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
   return (
     <div className="space-y-10">
       <PageHeader title="Progress" />
+      <WeeklyCheckin checkin={checkin} targetKcal={profile.targetKcal} units={units} />
       <nav aria-label="Range" className="flex gap-1.5">
         {RANGES.map((r) => (
           <Link

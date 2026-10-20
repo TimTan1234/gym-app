@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
-import { isLocalDate, todayLocal, toLocalDate } from "@/lib/dates";
+import { addDays, isLocalDate, todayLocal, toLocalDate } from "@/lib/dates";
 import { sumNutrients, NUTRIENT_KEYS } from "@/lib/nutrition/totals";
 import { MealSaveSchema, type MealSave } from "@/lib/ai/schemas";
 import type { ActionResult } from "./profile";
@@ -59,35 +59,60 @@ export async function deleteMeal(mealId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Re-log an earlier meal today (e.g. the same breakfast). */
-export async function copyMealToToday(mealId: string): Promise<ActionResult> {
-  const { user, profile } = await requireProfile();
-  const meal = await db.meal.findFirst({ where: { id: mealId, userId: user.id }, include: { items: true } });
-  if (!meal) return { ok: false, error: "Meal not found" };
-  const now = new Date();
-  await db.meal.create({
+type MealWithItems = NonNullable<Awaited<ReturnType<typeof findMealWithItems>>>;
+
+const findMealWithItems = (userId: string, mealId: string) =>
+  db.meal.findFirst({ where: { id: mealId, userId }, include: { items: true } });
+
+/** Copy a meal onto another day. Totals are recomputed from the copied items. */
+function cloneMeal(userId: string, meal: MealWithItems, localDate: string, eatenAt: Date) {
+  const items = meal.items.map(({ id: _id, mealId: _mealId, ...item }) => item);
+  return db.meal.create({
     data: {
-      userId: user.id,
-      eatenAt: now,
-      localDate: todayLocal(profile.timezone, now),
+      userId,
+      eatenAt,
+      localDate,
       mealType: meal.mealType,
       description: meal.description,
       source: meal.source,
       notes: meal.notes,
-      kcal: meal.kcal,
-      proteinG: meal.proteinG,
-      carbsG: meal.carbsG,
-      fatG: meal.fatG,
-      fiberG: meal.fiberG,
-      sugarG: meal.sugarG,
-      sodiumMg: meal.sodiumMg,
-      items: {
-        create: meal.items.map(({ id: _id, mealId: _mealId, ...item }) => item),
-      },
+      ...sumNutrients(items),
+      items: { create: items },
     },
   });
+}
+
+/** Re-log an earlier meal today (e.g. the same breakfast). */
+export async function copyMealToToday(mealId: string): Promise<ActionResult> {
+  const { user, profile } = await requireProfile();
+  const meal = await findMealWithItems(user.id, mealId);
+  if (!meal) return { ok: false, error: "Meal not found" };
+  const now = new Date();
+  await cloneMeal(user.id, meal, todayLocal(profile.timezone, now), now);
   refresh();
   return { ok: true };
+}
+
+const MealTypeSchema = MealSaveSchema.shape.mealType;
+
+/** Copy every meal of one type from the previous day onto `localDate`. */
+export async function copyFromDayBefore(localDate: string, mealType: MealSave["mealType"]): Promise<ActionResult & { count?: number }> {
+  const { user, profile } = await requireProfile();
+  const today = todayLocal(profile.timezone);
+  if (!isLocalDate(localDate) || localDate > today || !MealTypeSchema.safeParse(mealType).success) {
+    return { ok: false, error: "Invalid day" };
+  }
+  const meals = await db.meal.findMany({
+    where: { userId: user.id, localDate: addDays(localDate, -1), mealType },
+    include: { items: true },
+    orderBy: { eatenAt: "asc" },
+  });
+  if (meals.length === 0) return { ok: false, error: "Nothing to copy" };
+  // Like saveMeal, past-day logs keep the real log time and an explicit local date.
+  const eatenAt = new Date();
+  await db.$transaction(meals.map((m) => cloneMeal(user.id, m, localDate, eatenAt)));
+  refresh();
+  return { ok: true, count: meals.length };
 }
 
 /** Star a logged item so it can be re-added in one tap. */

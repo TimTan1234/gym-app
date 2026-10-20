@@ -72,12 +72,14 @@ export function BarcodeScanner({ onFound, onClose }: { onFound: (item: BarcodeIt
     let stream: MediaStream | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let cancelled = false;
+    const stopCamera = () => stream?.getTracks().forEach((t) => t.stop());
 
     (async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia) throw new Error("No camera API");
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
-        if (cancelled) return;
+        // Closed while the camera was starting: release it, or the camera light stays on.
+        if (cancelled) return stopCamera();
         const video = videoRef.current!;
         video.srcObject = stream;
         await video.play();
@@ -105,7 +107,7 @@ export function BarcodeScanner({ onFound, onClose }: { onFound: (item: BarcodeIt
     return () => {
       cancelled = true;
       clearTimeout(timer);
-      stream?.getTracks().forEach((t) => t.stop());
+      stopCamera();
     };
     // Runs once per open; lookup only reads refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -140,7 +142,7 @@ export function BarcodeScanner({ onFound, onClose }: { onFound: (item: BarcodeIt
         </div>
 
         {camera !== "off" && (
-          <div className="relative aspect-[4/3] overflow-hidden rounded-[10px] bg-iron">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-[10px] bg-black">
             <video ref={videoRef} muted playsInline className="size-full object-cover" />
             {/* Aiming guide */}
             <div aria-hidden className="absolute inset-x-8 top-1/2 h-20 -translate-y-1/2 rounded-[8px] border-2 border-white/80" />

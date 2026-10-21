@@ -42,6 +42,7 @@ export async function saveMeal(input: MealSave): Promise<ActionResult & { mealId
           fatG: i.fatG,
           fiberG: i.fiberG,
           sugarG: i.sugarG,
+          addedSugarG: i.addedSugarG,
           sodiumMg: i.sodiumMg,
           confidence: i.confidence,
           assumptions: i.assumptions,

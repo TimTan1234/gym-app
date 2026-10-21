@@ -34,6 +34,7 @@ export interface DraftItem {
   fatG: number;
   fiberG: number;
   sugarG: number;
+  addedSugarG: number;
   sodiumMg: number;
   confidence: number | null;
   assumptions: string | null;
@@ -42,11 +43,11 @@ export interface DraftItem {
   base?: BaseValues;
 }
 
-type BaseValues = Pick<DraftItem, "grams" | "kcal" | "proteinG" | "carbsG" | "fatG" | "fiberG" | "sugarG" | "sodiumMg">;
+type BaseValues = Pick<DraftItem, "grams" | "kcal" | "proteinG" | "carbsG" | "fatG" | "fiberG" | "sugarG" | "addedSugarG" | "sodiumMg">;
 
 function baseOf(i: DraftItem): BaseValues {
-  const { grams, kcal, proteinG, carbsG, fatG, fiberG, sugarG, sodiumMg } = i;
-  return { grams, kcal, proteinG, carbsG, fatG, fiberG, sugarG, sodiumMg };
+  const { grams, kcal, proteinG, carbsG, fatG, fiberG, sugarG, addedSugarG, sodiumMg } = i;
+  return { grams, kcal, proteinG, carbsG, fatG, fiberG, sugarG, addedSugarG, sodiumMg };
 }
 
 type ItemValues = Omit<DraftItem, "key" | "confidence" | "assumptions" | "savedFoodId" | "base">;
@@ -109,6 +110,7 @@ const emptyItem = (): DraftItem => ({
   fatG: 0,
   fiberG: 0,
   sugarG: 0,
+  addedSugarG: 0,
   sodiumMg: 0,
   confidence: null,
   assumptions: null,
@@ -210,9 +212,10 @@ export function MealLogger({
     setItems((cur) => [...cur, { ...rest, key: newKey(), confidence: null, assumptions: null, savedFoodId: id }]);
   }
 
-  function addScanned({ hasNutrition, ...item }: BarcodeItem) {
+  function addScanned({ hasNutrition, addedSugarFromTotal, ...item }: BarcodeItem) {
     setScanning(false);
-    setItems((cur) => [...cur, { ...item, key: newKey(), confidence: null, assumptions: hasNutrition ? null : t("nutrition.noNutritionAssumption") }]);
+    const assumptions = !hasNutrition ? t("nutrition.noNutritionAssumption") : addedSugarFromTotal ? t("nutrition.addedSugarFromLabel") : null;
+    setItems((cur) => [...cur, { ...item, key: newKey(), confidence: null, assumptions }]);
     if (hasNutrition) toast.success(t("nutrition.addedItem", { name: item.name }));
     else toast(t("nutrition.noNutritionToast"));
   }
@@ -446,7 +449,7 @@ export function MealLogger({
               </p>
               <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <MacroLine p={totals.proteinG} c={totals.carbsG} f={totals.fatG} />
-                <SugarAmount g={totals.sugarG} high={totals.sugarG >= HIGH_SUGAR_MEAL_G} />
+                <SugarAmount total={totals.sugarG} added={totals.addedSugarG} high={totals.addedSugarG >= HIGH_SUGAR_MEAL_G} />
               </p>
             </div>
             <Button onClick={save} disabled={saving} size="lg">
@@ -502,13 +505,14 @@ function DraftRow({
           <Trash2 className="size-4" />
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
         <NumField label={t("nutrition.gramsField")} value={item.grams} onChange={(v) => onGrams(item.key, v)} className="[&_input]:border-iron/60" />
         <NumField label={t("common.kcal")} value={item.kcal} onChange={(v) => onChange(item.key, { kcal: v })} />
         <NumField label={t("common.protein")} value={item.proteinG} onChange={(v) => onChange(item.key, { proteinG: v })} />
         <NumField label={t("common.carbs")} value={item.carbsG} onChange={(v) => onChange(item.key, { carbsG: v })} />
         <NumField label={t("common.fat")} value={item.fatG} onChange={(v) => onChange(item.key, { fatG: v })} />
         <NumField label={t("nutrition.sugar")} value={item.sugarG} onChange={(v) => onChange(item.key, { sugarG: v })} />
+        <NumField label={t("nutrition.addedSugar")} value={item.addedSugarG} onChange={(v) => onChange(item.key, { addedSugarG: v })} />
       </div>
       {(item.assumptions || item.confidence !== null) && (
         <p className="text-xs text-steel">

@@ -29,6 +29,7 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
     fatG: true,
     fiberG: true,
     sugarG: true,
+    addedSugarG: true,
     sodiumMg: true,
   } as const;
 

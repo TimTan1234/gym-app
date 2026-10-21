@@ -19,6 +19,7 @@ export interface MealCardData {
   carbsG: number;
   fatG: number;
   sugarG: number;
+  addedSugarG: number;
   notes: string | null;
   items: {
     id: string;
@@ -31,6 +32,7 @@ export interface MealCardData {
     carbsG: number;
     fatG: number;
     sugarG: number;
+    addedSugarG: number;
     confidence: number | null;
     assumptions: string | null;
   }[];
@@ -60,7 +62,7 @@ export function MealCard({ meal, canCopy }: { meal: MealCardData; canCopy: boole
           <p className="truncate font-semibold">{meal.description}</p>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
             <MacroLine p={meal.proteinG} c={meal.carbsG} f={meal.fatG} />
-            <SugarAmount g={meal.sugarG} high={meal.sugarG >= HIGH_SUGAR_MEAL_G} />
+            <SugarAmount total={meal.sugarG} added={meal.addedSugarG} high={meal.addedSugarG >= HIGH_SUGAR_MEAL_G} />
             {meal.source !== "MANUAL" && <Sparkles className="size-3.5 text-steel" aria-label={t("nutrition.aiEstimated")} />}
           </p>
         </div>
@@ -87,7 +89,7 @@ export function MealCard({ meal, canCopy }: { meal: MealCardData; canCopy: boole
                       {Math.round(item.kcal)} {t("common.kcal")}
                     </span>
                     <MacroLine p={item.proteinG} c={item.carbsG} f={item.fatG} />
-                    <SugarAmount g={item.sugarG} />
+                    <SugarAmount total={item.sugarG} added={item.addedSugarG} />
                     {item.confidence !== null && item.confidence < 0.6 && <Badge>{t("nutrition.roughEstimateBadge")}</Badge>}
                   </p>
                   {item.assumptions && <p className="mt-0.5 text-xs italic text-steel">{item.assumptions}</p>}

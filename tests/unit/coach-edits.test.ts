@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { diffPlans, editMealItems, mealUnchanged, planEditStillValid, type ExistingItem, type PlanShape } from "@/lib/ai/coach-edits";
 
 const item = (id: string, name: string, grams: number, kcal: number): ExistingItem => ({
-  id, name, quantity: 1, unit: "plate", grams, kcal, proteinG: grams / 10, carbsG: grams / 5, fatG: grams / 20, fiberG: 1, sugarG: 1, sodiumMg: 100, confidence: 0.8, assumptions: null,
+  id, name, quantity: 1, unit: "plate", grams, kcal, proteinG: grams / 10, carbsG: grams / 5, fatG: grams / 20, fiberG: 1, sugarG: 1, addedSugarG: 0, sodiumMg: 100, confidence: 0.8, assumptions: null,
 });
 
 describe("editMealItems", () => {

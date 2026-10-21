@@ -8,9 +8,10 @@ test("sugar shows in the analysis and the day; a logged meal can be edited", asy
   await page.getByLabel("Meal description").fill("nasi lemak with fried chicken");
   await page.getByRole("button", { name: "Analyse with AI" }).click();
 
-  // Each analysed item has an editable sugar estimate (the mock sambal has 4 g)
+  // Each analysed item has editable total and added sugar (the mock sambal: 4 g, 3 g added)
   const sambal = page.getByTestId("draft-item").filter({ has: page.getByLabel("Food name").and(page.locator('[value="Sambal"]')) });
   await expect(sambal.getByLabel("Sugar", { exact: true })).toHaveValue("4");
+  await expect(sambal.getByLabel("Added sugar")).toHaveValue("3");
 
   // A sweet drink pushes the meal over the high-sugar line
   await page.getByRole("button", { name: "Add item manually" }).click();
@@ -18,14 +19,15 @@ test("sugar shows in the analysis and the day; a logged meal can be edited", asy
   await drink.getByLabel("Food name").fill("Teh tarik");
   await drink.getByLabel("kcal").fill("150");
   await drink.getByLabel("Sugar", { exact: true }).fill("30");
-  await expect(page.getByText("Sugar 35 g, high")).toBeVisible();
+  await drink.getByLabel("Added sugar").fill("30");
+  await expect(page.getByText("Sugar 35 g, 33 g added, high")).toBeVisible();
   await page.getByRole("button", { name: "Save meal" }).click();
 
   await expect(page).toHaveURL(/\/nutrition$/);
-  await expect(page.getByTestId("sugar-meter")).toContainText("35");
-  await expect(page.getByRole("meter", { name: "Sugar" })).toHaveAttribute("aria-valuenow", "35");
+  await expect(page.getByTestId("sugar-meter")).toContainText("Total sugar today, including fruit and milk: 35 g");
+  await expect(page.getByRole("meter", { name: "Added sugar" })).toHaveAttribute("aria-valuenow", "33");
   const meal = page.getByRole("button", { name: /Nasi lemak with fried chicken/ });
-  await expect(meal).toContainText("Sugar 35 g, high");
+  await expect(meal).toContainText("Sugar 35 g, 33 g added, high");
   await expect(meal).toContainText("1039");
 
   // Edit: drop the drink, halve the rice, move it to dinner
@@ -46,7 +48,7 @@ test("sugar shows in the analysis and the day; a logged meal can be edited", asy
   const dinner = page.locator("section", { has: page.getByRole("heading", { name: /^Dinner/ }) });
   const edited = dinner.getByRole("button", { name: /Nasi lemak with fried chicken/ });
   await expect(edited).toContainText("719");
-  await expect(edited).toContainText("Sugar 5 g");
+  await expect(edited).toContainText("Sugar 5 g, 3 g added");
   await expect(edited).not.toContainText("high");
   await expect(page.getByRole("button", { name: /Nasi lemak with fried chicken/ })).toHaveCount(1);
 

@@ -56,3 +56,20 @@ describe("productToItem", () => {
     expect(productToItem({ nutriments: { "energy-kcal_100g": 100 } })).toBeNull();
   });
 });
+
+describe("productToItem added sugar", () => {
+  const base = { product_name: "Kaya", serving_quantity: 100, nutriments: { "energy-kcal_100g": 300, proteins_100g: 3, carbohydrates_100g: 50, fat_100g: 10, sugars_100g: 40 } };
+
+  it("uses the label's added sugar when it has one", () => {
+    const item = productToItem({ ...base, nutriments: { ...base.nutriments, "added-sugars_100g": 25 } })!;
+    expect(item.sugarG).toBe(40);
+    expect(item.addedSugarG).toBe(25);
+    expect(item.addedSugarFromTotal).toBe(false);
+  });
+
+  it("counts all sugar as added when the label doesn't say, and says so", () => {
+    const item = productToItem(base)!;
+    expect(item.addedSugarG).toBe(40);
+    expect(item.addedSugarFromTotal).toBe(true);
+  });
+});

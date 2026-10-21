@@ -127,7 +127,7 @@ export function MacroSummary({ totals, targets, compact = false }: { totals: Nut
 
       {!compact && (
         <>
-          <SugarMeter g={totals.sugarG} targetKcal={targets.targetKcal} />
+          <SugarMeter added={totals.addedSugarG} total={totals.sugarG} targetKcal={targets.targetKcal} />
           <p className="num text-[13px] text-steel">{t("nutrition.micros", { fiber: fmt(totals.fiberG), sodium: fmt(totals.sodiumMg) })}</p>
         </>
       )}

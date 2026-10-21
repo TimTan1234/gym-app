@@ -336,7 +336,7 @@ async function buildTools(ctx: CoachContext) {
             type: m.mealType,
             description: m.description,
             kcal: m.kcal,
-            items: m.items.map((i) => ({ itemId: i.id, name: i.name, quantity: i.quantity, unit: i.unit, grams: i.grams, kcal: i.kcal, proteinG: i.proteinG, carbsG: i.carbsG, fatG: i.fatG, sugarG: i.sugarG })),
+            items: m.items.map((i) => ({ itemId: i.id, name: i.name, quantity: i.quantity, unit: i.unit, grams: i.grams, kcal: i.kcal, proteinG: i.proteinG, carbsG: i.carbsG, fatG: i.fatG, sugarG: i.sugarG, addedSugarG: i.addedSugarG })),
           })),
         };
       }

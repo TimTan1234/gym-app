@@ -14,7 +14,8 @@ export const MealItemDraftSchema = z.object({
   carbsG: z.number().nonnegative(),
   fatG: z.number().nonnegative(),
   fiberG: z.number().nonnegative(),
-  sugarG: z.number().nonnegative(),
+  sugarG: z.number().nonnegative().describe("Total sugars"),
+  addedSugarG: z.number().nonnegative().describe("Added (free) sugars only, at most sugarG"),
   sodiumMg: z.number().nonnegative(),
   confidence: z.number().min(0).max(1).describe("0–1 confidence in this estimate"),
   assumptions: z.string().max(300).nullable().describe("Portion/cooking assumptions made"),
@@ -89,7 +90,11 @@ export const MealSaveSchema = z.object({
     .array(
       MealItemDraftSchema.extend({
         confidence: z.number().min(0).max(1).nullable(),
-      }),
+        // Absent on drafts made before added sugar was tracked (e.g. an old coach card).
+        addedSugarG: z.number().nonnegative().default(0),
+      })
+        // Added sugar is part of total sugar.
+        .transform((i) => ({ ...i, addedSugarG: Math.min(i.addedSugarG, i.sugarG) })),
     )
     .min(1)
     .max(30),

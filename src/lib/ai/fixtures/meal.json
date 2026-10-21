@@ -2,11 +2,11 @@
   "isFood": true,
   "title": "Nasi lemak with fried chicken",
   "items": [
-    { "name": "Coconut rice", "quantity": 1, "unit": "plate", "grams": 200, "kcal": 340, "proteinG": 5, "carbsG": 56, "fatG": 11, "fiberG": 1, "sugarG": 0.5, "sodiumMg": 300, "confidence": 0.7, "assumptions": "Standard hawker portion cooked with coconut milk" },
-    { "name": "Fried chicken thigh", "quantity": 1, "unit": "piece", "grams": 130, "kcal": 320, "proteinG": 26, "carbsG": 8, "fatG": 20, "fiberG": 0, "sugarG": 0, "sodiumMg": 520, "confidence": 0.6, "assumptions": "Bone-in, skin on, deep fried" },
-    { "name": "Sambal", "quantity": 2, "unit": "tbsp", "grams": 30, "kcal": 60, "proteinG": 1, "carbsG": 5, "fatG": 4, "fiberG": 1, "sugarG": 4, "sodiumMg": 280, "confidence": 0.5, "assumptions": null },
-    { "name": "Fried anchovies and peanuts", "quantity": 1, "unit": "serving", "grams": 25, "kcal": 130, "proteinG": 8, "carbsG": 3, "fatG": 10, "fiberG": 1, "sugarG": 0, "sodiumMg": 400, "confidence": 0.6, "assumptions": null },
-    { "name": "Boiled egg (half)", "quantity": 0.5, "unit": "egg", "grams": 25, "kcal": 39, "proteinG": 3, "carbsG": 0.3, "fatG": 2.7, "fiberG": 0, "sugarG": 0.2, "sodiumMg": 31, "confidence": 0.8, "assumptions": null }
+    { "name": "Coconut rice", "quantity": 1, "unit": "plate", "grams": 200, "kcal": 340, "proteinG": 5, "carbsG": 56, "fatG": 11, "fiberG": 1, "sugarG": 0.5, "addedSugarG": 0, "sodiumMg": 300, "confidence": 0.7, "assumptions": "Standard hawker portion cooked with coconut milk" },
+    { "name": "Fried chicken thigh", "quantity": 1, "unit": "piece", "grams": 130, "kcal": 320, "proteinG": 26, "carbsG": 8, "fatG": 20, "fiberG": 0, "sugarG": 0, "addedSugarG": 0, "sodiumMg": 520, "confidence": 0.6, "assumptions": "Bone-in, skin on, deep fried" },
+    { "name": "Sambal", "quantity": 2, "unit": "tbsp", "grams": 30, "kcal": 60, "proteinG": 1, "carbsG": 5, "fatG": 4, "fiberG": 1, "sugarG": 4, "addedSugarG": 3, "sodiumMg": 280, "confidence": 0.5, "assumptions": null },
+    { "name": "Fried anchovies and peanuts", "quantity": 1, "unit": "serving", "grams": 25, "kcal": 130, "proteinG": 8, "carbsG": 3, "fatG": 10, "fiberG": 1, "sugarG": 0, "addedSugarG": 0, "sodiumMg": 400, "confidence": 0.6, "assumptions": null },
+    { "name": "Boiled egg (half)", "quantity": 0.5, "unit": "egg", "grams": 25, "kcal": 39, "proteinG": 3, "carbsG": 0.3, "fatG": 2.7, "fiberG": 0, "sugarG": 0.2, "addedSugarG": 0, "sodiumMg": 31, "confidence": 0.8, "assumptions": null }
   ],
   "notes": "Mock response (AI_MOCK=1). Values are typical estimates."
 }

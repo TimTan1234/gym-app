@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { kcalFromMacros, scaleItem, sumNutrients } from "@/lib/nutrition/totals";
 
-const rice = { grams: 200, kcal: 260, proteinG: 5.4, carbsG: 56, fatG: 0.6, fiberG: 0.8, sugarG: 0.2, sodiumMg: 2 };
-const chicken = { grams: 150, kcal: 248, proteinG: 46.5, carbsG: 0, fatG: 5.4, fiberG: 0, sugarG: 0, sodiumMg: 110 };
+const rice = { grams: 200, kcal: 260, proteinG: 5.4, carbsG: 56, fatG: 0.6, fiberG: 0.8, sugarG: 0.2, addedSugarG: 0, sodiumMg: 2 };
+const chicken = { grams: 150, kcal: 248, proteinG: 46.5, carbsG: 0, fatG: 5.4, fiberG: 0, sugarG: 0, addedSugarG: 0, sodiumMg: 110 };
 
 describe("sumNutrients", () => {
   it("sums items and ignores non-finite values", () => {

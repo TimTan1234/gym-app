@@ -7,7 +7,7 @@ import { LocaleBoundary } from "@/i18n/LocaleBoundary";
 
 // A plausible day so far (breakfast roti canai + lunch nasi lemak).
 const SAMPLE = {
-  totals: { kcal: 1885, proteinG: 79, carbsG: 214, fatG: 81, fiberG: 14, sugarG: 41, sodiumMg: 2650 },
+  totals: { kcal: 1885, proteinG: 79, carbsG: 214, fatG: 81, fiberG: 14, sugarG: 41, addedSugarG: 28, sodiumMg: 2650 },
   targets: { targetKcal: 2600, targetProteinG: 150, targetCarbsG: 320, targetFatG: 75 },
 };
 

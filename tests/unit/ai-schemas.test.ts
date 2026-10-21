@@ -31,6 +31,13 @@ describe("meal analysis schema", () => {
     expect(ok.success).toBe(true);
     expect(MealSaveSchema.safeParse({ mealType: "LUNCH", description: "x", source: "AI_TEXT", eatenAt: "now", items: [] }).success).toBe(false);
   });
+  it("keeps added sugar within total sugar and defaults it for older drafts", () => {
+    const save = (item: object) =>
+      MealSaveSchema.parse({ mealType: "SNACK", description: "x", source: "MANUAL", eatenAt: new Date().toISOString(), items: [{ ...mealFixture.items[2], ...item }] }).items[0];
+    expect(save({ sugarG: 4, addedSugarG: 9 }).addedSugarG).toBe(4);
+    const { addedSugarG: _a, ...older } = mealFixture.items[2];
+    expect(MealSaveSchema.parse({ mealType: "SNACK", description: "x", source: "MANUAL", eatenAt: new Date().toISOString(), items: [older] }).items[0].addedSugarG).toBe(0);
+  });
 });
 
 describe("plan draft", () => {

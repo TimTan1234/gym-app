@@ -184,13 +184,14 @@ model Meal {
   notes       String?
 
   // Cached totals, always recomputed server-side from items.
-  kcal     Float
-  proteinG Float
-  carbsG   Float
-  fatG     Float
-  fiberG   Float
-  sugarG   Float
-  sodiumMg Float
+  kcal        Float
+  proteinG    Float
+  carbsG      Float
+  fatG        Float
+  fiberG      Float
+  sugarG      Float
+  addedSugarG Float @default(0) // free sugars (WHO): sugar, syrups, honey, juice; not fruit or milk
+  sodiumMg    Float
 
   items     MealItem[]
   createdAt DateTime   @default(now())
@@ -212,29 +213,31 @@ model MealItem {
   fatG        Float
   fiberG      Float
   sugarG      Float
+  addedSugarG Float   @default(0) // free sugars (WHO): sugar, syrups, honey, juice; not fruit or milk
   sodiumMg    Float
   confidence  Float?
   assumptions String?
 }
 
 model SavedFood {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  quantity  Float
-  unit      String
-  grams     Float
-  kcal      Float
-  proteinG  Float
-  carbsG    Float
-  fatG      Float
-  fiberG    Float
-  sugarG    Float
-  sodiumMg  Float
-  useCount  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  quantity    Float
+  unit        String
+  grams       Float
+  kcal        Float
+  proteinG    Float
+  carbsG      Float
+  fatG        Float
+  fiberG      Float
+  sugarG      Float
+  addedSugarG Float    @default(0) // free sugars (WHO): sugar, syrups, honey, juice; not fruit or milk
+  sodiumMg    Float
+  useCount    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([userId, name])
 }

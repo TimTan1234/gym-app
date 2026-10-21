@@ -24,6 +24,8 @@ export interface BarcodeItem extends Nutrients {
   grams: number;
   /** False when OFF has the product but no usable nutrition data. */
   hasNutrition: boolean;
+  /** True when the label has no added-sugar figure, so all its sugar is counted as added. */
+  addedSugarFromTotal: boolean;
 }
 
 function num(v: unknown): number | null {
@@ -45,6 +47,10 @@ export function productToItem(p: OffProduct): BarcodeItem | null {
   const carbsG = num(n["carbohydrates_100g"]);
   const fatG = num(n["fat_100g"]);
   const sodiumG = num(n["sodium_100g"]) ?? (num(n["salt_100g"]) !== null ? num(n["salt_100g"])! / 2.5 : null);
+  const sugarG = num(n["sugars_100g"]) ?? 0;
+  // Few labels list added sugar. Without it, count all of a packaged food's
+  // sugar as added: an overestimate for plain milk, right for most snacks and drinks.
+  const addedSugar = num(n["added-sugars_100g"]);
   const hasNutrition = kcal !== null || (proteinG !== null && carbsG !== null && fatG !== null);
 
   const per100: Nutrients & { grams: number } = {
@@ -54,7 +60,8 @@ export function productToItem(p: OffProduct): BarcodeItem | null {
     carbsG: round1(carbsG ?? 0),
     fatG: round1(fatG ?? 0),
     fiberG: round1(num(n["fiber_100g"]) ?? 0),
-    sugarG: round1(num(n["sugars_100g"]) ?? 0),
+    sugarG: round1(sugarG),
+    addedSugarG: round1(Math.min(addedSugar ?? sugarG, sugarG)),
     sodiumMg: Math.round((sodiumG ?? 0) * 1000),
   };
 
@@ -68,5 +75,6 @@ export function productToItem(p: OffProduct): BarcodeItem | null {
     unit: useServing ? p.serving_size?.trim() || `${serving} g serving` : "100 g",
     ...scaled,
     hasNutrition,
+    addedSugarFromTotal: hasNutrition && addedSugar === null && sugarG > 0,
   };
 }

@@ -53,6 +53,7 @@ function normalize(analysis: MealAnalysis): MealAnalysis {
       fatG: r1(i.fatG),
       fiberG: r1(i.fiberG),
       sugarG: r1(i.sugarG),
+      addedSugarG: r1(Math.min(i.addedSugarG, i.sugarG)),
       sodiumMg: Math.round(i.sodiumMg),
     })),
   };

@@ -8,6 +8,7 @@ export const NUTRIENT_KEYS = [
   "fatG",
   "fiberG",
   "sugarG",
+  "addedSugarG",
   "sodiumMg",
 ] as const;
 
@@ -21,6 +22,7 @@ export const ZERO_NUTRIENTS: Nutrients = {
   fatG: 0,
   fiberG: 0,
   sugarG: 0,
+  addedSugarG: 0,
   sodiumMg: 0,
 };
 

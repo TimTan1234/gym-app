@@ -12,13 +12,13 @@ COPY package.json package-lock.json ./
 # Scripts run later, once the Prisma schema and scripts/ are in place.
 RUN npm ci --ignore-scripts
 
-# --- Source + generated Prisma client + barcode decoder ---
+# --- Source + generated Prisma client + barcode decoder + pose model ---
 FROM base AS source
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # prisma.config.ts reads DATABASE_URL when it loads; generate never connects, so a placeholder is fine.
 RUN DATABASE_URL="postgres://build:build@localhost:5432/build" npx prisma generate \
- && node scripts/copy-zxing.mjs
+ && node scripts/copy-vendor.mjs
 
 # --- One-off job: apply migrations and seed the exercise library ---
 FROM source AS migrate

@@ -21,6 +21,8 @@ const eslintConfig = defineConfig([
     "src/generated/**",
     "test-results/**",
     "playwright-report/**",
+    // Third-party files copied from node_modules (scripts/copy-vendor.mjs).
+    "public/vendor/**",
   ]),
 ]);
 

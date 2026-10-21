@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { BookOpen, ChevronRight, ClipboardList, History, Sparkles } from "lucide-react";
+import { BookOpen, ChevronRight, ClipboardList, History, ScanEye, Sparkles } from "lucide-react";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import { getActiveWorkout, getNextPlanDay } from "@/lib/queries";
@@ -85,6 +85,7 @@ async function Train() {
           { href: "/train/plans", icon: ClipboardList, label: t("train.plans"), hint: t("train.plansHint") },
           { href: "/train/history", icon: History, label: t("train.history"), hint: t("train.historyHint") },
           { href: "/train/exercises", icon: BookOpen, label: t("train.exercises"), hint: t("train.exercisesHint") },
+          { href: "/train/form-check", icon: ScanEye, label: t("train.formCheck.title"), hint: t("train.formCheck.navHint") },
         ].map(({ href, icon: Icon, label, hint }) => (
           <Link key={href} href={href} className="flex items-center gap-3 py-3.5 hover:bg-wash">
             <Icon className="size-5 text-steel" aria-hidden />

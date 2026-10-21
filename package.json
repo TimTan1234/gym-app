@@ -12,13 +12,14 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:local": "prisma dev --name gympal --detach",
-    "postinstall": "prisma generate && node scripts/copy-zxing.mjs",
+    "postinstall": "prisma generate && node scripts/copy-vendor.mjs",
     "test:e2e": "playwright test",
     "icons": "node scripts/generate-icons.mjs",
     "test:e2e:live": "LIVE_AI=1 playwright test tests/e2e/live-ai.spec.ts"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
+    "@mediapipe/tasks-vision": "1.1.1",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
     "barcode-detector": "3.2.2",

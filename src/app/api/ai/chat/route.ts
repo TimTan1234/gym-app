@@ -2,7 +2,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getUserForApi } from "@/lib/session";
 import { AiLimitError, reserveAiCall } from "@/lib/ai/client";
-import { runCoach, type ChatTurn, type Proposal } from "@/lib/ai/coach";
+import { describeProposals, runCoach, type ChatTurn, type Proposal } from "@/lib/ai/coach";
 import { todayLocal } from "@/lib/dates";
 import { getLocale } from "@/i18n/server";
 import { createT } from "@/i18n/translate";
@@ -58,9 +58,11 @@ export async function POST(request: Request) {
     where: { threadId },
     orderBy: { createdAt: "desc" },
     take: HISTORY_LIMIT,
-    select: { role: true, content: true },
+    select: { role: true, content: true, proposals: true },
   });
-  const history = recent.reverse().map((m) => ({ role: m.role, content: m.content }) as ChatTurn);
+  const history = recent
+    .reverse()
+    .map((m) => ({ role: m.role, content: m.content + describeProposals((m.proposals ?? []) as Proposal[]) }) as ChatTurn);
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({

@@ -55,7 +55,33 @@ export async function saveMeal(input: MealSave): Promise<ActionResult & { mealId
 
 export async function deleteMeal(mealId: string): Promise<ActionResult> {
   const { user } = await requireProfile();
-  await db.meal.deleteMany({ where: { id: mealId, userId: user.id } });
+  const { count } = await db.meal.deleteMany({ where: { id: mealId, userId: user.id } });
+  if (count === 0) return { ok: false, error: (await getT())("nutrition.mealNotFound") };
+  refresh();
+  return { ok: true };
+}
+
+/** Replace a meal's items (and optionally its type). Totals are recomputed from the items. */
+export async function updateMeal(mealId: string, input: Pick<MealSave, "mealType" | "description" | "items">): Promise<ActionResult> {
+  const { user } = await requireProfile();
+  const t = await getT();
+  const parsed = MealSaveSchema.pick({ mealType: true, description: true, items: true }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: t("nutrition.invalidMeal") };
+  const m = parsed.data;
+  const existing = await db.meal.findFirst({ where: { id: mealId, userId: user.id }, select: { id: true } });
+  if (!existing) return { ok: false, error: t("nutrition.mealNotFound") };
+  await db.$transaction([
+    db.mealItem.deleteMany({ where: { mealId } }),
+    db.meal.update({
+      where: { id: mealId },
+      data: {
+        mealType: m.mealType,
+        description: m.description,
+        ...sumNutrients(m.items),
+        items: { create: m.items },
+      },
+    }),
+  ]);
   refresh();
   return { ok: true };
 }

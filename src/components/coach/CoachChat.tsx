@@ -1,9 +1,14 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Check, Loader2, Send, Sparkles } from "lucide-react";
-import type { Proposal } from "@/lib/ai/coach";
+import { ArrowRight, Check, Loader2, Minus, Plus, Send, Sparkles } from "lucide-react";
+import type { MealDraft, Proposal } from "@/lib/ai/coach";
+import type { PlanChange } from "@/lib/ai/coach-edits";
+import { sumNutrients } from "@/lib/nutrition/totals";
+import { formatLocalDate } from "@/lib/dates";
+import { INTL_LOCALE } from "@/i18n/config";
+import { MacroLine } from "@/components/MacroLine";
 import type { ChatEvent } from "@/app/api/ai/chat/route";
 import { applyProposal } from "@/server/coach";
 import { Button, Textarea, cn, Plate } from "@/components/ui";
@@ -52,32 +57,112 @@ function Markdown({ text }: { text: string }) {
   );
 }
 
+const PLATES = { protein: "var(--plate-blue)", carbs: "var(--plate-yellow)", fat: "var(--plate-red)" } as const;
+
+function TargetsBody({ proposal }: { proposal: Extract<Proposal, { kind: "targets" }> }) {
+  const t = useT();
+  return (
+    <dl className="grid grid-cols-4 gap-2">
+      {(
+        [
+          [t("common.kcal"), proposal.targetKcal.toLocaleString("en-US"), null],
+          [t("common.protein"), `${proposal.targetProteinG} g`, PLATES.protein],
+          [t("common.carbs"), `${proposal.targetCarbsG} g`, PLATES.carbs],
+          [t("common.fat"), `${proposal.targetFatG} g`, PLATES.fat],
+        ] as const
+      ).map(([k, v, color]) => (
+        <div key={k} className="flex flex-col-reverse">
+          <dt className="flex items-center gap-1 text-[12px] text-steel">
+            {color && <Plate color={color} className="h-3 w-[5px]" />} {k}
+          </dt>
+          <dd className="score text-[22px]">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Items of a meal as divided rows, then the total. */
+function MealItems({ meal }: { meal: MealDraft }) {
+  const t = useT();
+  const totals = sumNutrients(meal.items);
+  return (
+    <>
+      <ul className="divide-y divide-line border-y border-line">
+        {meal.items.map((i, n) => (
+          <li key={n} className="flex items-baseline justify-between gap-3 py-1.5">
+            <span className="min-w-0">
+              {i.name} <span className="num text-steel">{Math.round(i.grams)} g</span>
+            </span>
+            <span className="num shrink-0">{Math.round(i.kcal)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-semibold">{t("coach.proposal.totalKcal", { kcal: Math.round(totals.kcal).toLocaleString("en-US") })}</span>
+        <MacroLine p={totals.proteinG} c={totals.carbsG} f={totals.fatG} />
+      </p>
+    </>
+  );
+}
+
+function PlanChanges({ changes }: { changes: PlanChange[] }) {
+  const t = useT();
+  const name = (c: { slug: string; name: string }) => exerciseName(t, c);
+  const rx = (p: { sets: number; repMin: number; repMax: number; restSec: number }) =>
+    t("coach.proposal.change.prescription", { sets: p.sets, repMin: p.repMin, repMax: p.repMax, rest: p.restSec });
+  const line = (c: PlanChange): [string, "add" | "remove" | "change"] => {
+    switch (c.type) {
+      case "dayAdded":
+        return [t("coach.proposal.change.dayAdded", { day: c.day }), "add"];
+      case "dayRemoved":
+        return [t("coach.proposal.change.dayRemoved", { day: c.day }), "remove"];
+      case "dayRenamed":
+        return [t("coach.proposal.change.dayRenamed", { from: c.from, to: c.to }), "change"];
+      case "exerciseAdded":
+        return [t("coach.proposal.change.exerciseAdded", { day: c.day, exercise: name(c), prescription: rx(c) }), "add"];
+      case "exerciseRemoved":
+        return [t("coach.proposal.change.exerciseRemoved", { day: c.day, exercise: name(c) }), "remove"];
+      case "exerciseChanged":
+        return [t("coach.proposal.change.exerciseChanged", { day: c.day, exercise: name(c), from: rx(c.from), to: rx(c.to) }), "change"];
+    }
+  };
+  return (
+    <ul className="space-y-1" data-testid="plan-changes">
+      {changes.map((c, i) => {
+        const [text, tone] = line(c);
+        const Icon = tone === "add" ? Plus : tone === "remove" ? Minus : ArrowRight;
+        return (
+          <li key={i} className="flex items-start gap-2">
+            <Icon className={cn("mt-0.5 size-4 shrink-0", tone === "remove" ? "text-alert" : "text-steel")} aria-hidden />
+            <span>{text}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function ProposalCard({ proposal, messageId, index }: { proposal: Proposal; messageId: string | null; index: number }) {
   const t = useT();
   const [applied, setApplied] = useState(Boolean(proposal.applied));
   const [pending, startTransition] = useTransition();
-  return (
-    <div className="mt-3 space-y-3 border-t border-line pt-3 text-sm" data-testid="proposal">
-      <p className="display text-[17px]">{proposal.kind === "targets" ? t("coach.proposal.newTargets") : t("coach.proposal.newPlan", { name: proposal.plan.name })}</p>
-      {proposal.kind === "targets" ? (
-        <dl className="grid grid-cols-4 gap-2">
-          {(
-            [
-              [t("common.kcal"), proposal.targetKcal.toLocaleString("en-US"), null],
-              [t("common.protein"), `${proposal.targetProteinG} g`, "var(--plate-blue)"],
-              [t("common.carbs"), `${proposal.targetCarbsG} g`, "var(--plate-yellow)"],
-              [t("common.fat"), `${proposal.targetFatG} g`, "var(--plate-red)"],
-            ] as const
-          ).map(([k, v, color]) => (
-            <div key={k} className="flex flex-col-reverse">
-              <dt className="flex items-center gap-1 text-[12px] text-steel">
-                {color && <Plate color={color} className="h-3 w-[5px]" />} {k}
-              </dt>
-              <dd className="score text-[22px]">{v}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : (
+  const intl = INTL_LOCALE[t.locale];
+  const mealType = (type: MealDraft["mealType"]) => t(`labels.mealType.${type}`);
+  const day = (date: string) => formatLocalDate(date, undefined, intl);
+
+  let title: string;
+  let body: ReactNode;
+  let success: string;
+  switch (proposal.kind) {
+    case "targets":
+      title = t("coach.proposal.newTargets");
+      body = <TargetsBody proposal={proposal} />;
+      success = t("coach.proposal.targetsUpdated");
+      break;
+    case "plan":
+      title = t("coach.proposal.newPlan", { name: proposal.plan.name });
+      body = (
         <ul className="space-y-1">
           {proposal.plan.days.map((d, i) => (
             <li key={i}>
@@ -86,10 +171,64 @@ function ProposalCard({ proposal, messageId, index }: { proposal: Proposal; mess
             </li>
           ))}
         </ul>
-      )}
+      );
+      success = t("coach.proposal.planSaved");
+      break;
+    case "planEdit":
+      title = t("coach.proposal.editPlan", { name: proposal.planName });
+      body = <PlanChanges changes={proposal.changes} />;
+      success = t("coach.proposal.planUpdated");
+      break;
+    case "mealLog":
+      // Mid-sentence in English ("Log lunch"); lowercasing leaves Chinese as it is.
+      title = t("coach.proposal.logMeal", { mealType: mealType(proposal.meal.mealType).toLocaleLowerCase(), date: day(proposal.meal.localDate) });
+      body = (
+        <>
+          <p className="font-medium">{proposal.meal.description}</p>
+          <MealItems meal={proposal.meal} />
+        </>
+      );
+      success = t("coach.proposal.mealLogged");
+      break;
+    case "mealUpdate": {
+      const after = Math.round(sumNutrients(proposal.meal.items).kcal);
+      title = t("coach.proposal.updateMeal", { description: proposal.before.description });
+      body = (
+        <>
+          <p className="text-steel">
+            {t("coach.proposal.mealOn", { mealType: mealType(proposal.meal.mealType), date: day(proposal.before.localDate), kcal: Math.round(proposal.before.kcal).toLocaleString("en-US") })}
+          </p>
+          <p className="score text-[22px]">{t("coach.proposal.beforeAfter", { before: Math.round(proposal.before.kcal).toLocaleString("en-US"), after: after.toLocaleString("en-US") })}</p>
+          <MealItems meal={proposal.meal} />
+        </>
+      );
+      success = t("coach.proposal.mealUpdated");
+      break;
+    }
+    case "mealDelete":
+      title = t("coach.proposal.deleteMeal", { description: proposal.before.description });
+      body = (
+        <p className="text-steel">
+          {t("coach.proposal.mealOn", { mealType: mealType(proposal.before.mealType), date: day(proposal.before.localDate), kcal: Math.round(proposal.before.kcal).toLocaleString("en-US") })}
+        </p>
+      );
+      success = t("coach.proposal.mealDeleted");
+      break;
+    default: {
+      const unknown: never = proposal;
+      return unknown;
+    }
+  }
+  const isDelete = proposal.kind === "mealDelete";
+
+  return (
+    <div className="mt-3 space-y-3 border-t border-line pt-3 text-sm" data-testid="proposal">
+      <p className="display text-[17px]">{title}</p>
+      {body}
       <p className="text-[13px] text-steel">{proposal.reason}</p>
       <Button
         size="sm"
+        variant={isDelete && !applied ? "danger" : "primary"}
         disabled={applied || pending || !messageId}
         onClick={() =>
           startTransition(async () => {
@@ -97,11 +236,21 @@ function ProposalCard({ proposal, messageId, index }: { proposal: Proposal; mess
             const res = await applyProposal(messageId, index);
             if (!res.ok) return void toast.error(res.error);
             setApplied(true);
-            toast.success(proposal.kind === "targets" ? t("coach.proposal.targetsUpdated") : t("coach.proposal.planSaved"));
+            toast.success(success);
           })
         }
       >
-        {applied ? <><Check className="size-4" /> {t("coach.proposal.applied")}</> : pending ? t("coach.proposal.applying") : t("coach.proposal.apply")}
+        {applied ? (
+          <>
+            <Check className="size-4" /> {isDelete ? t("coach.proposal.deleted") : t("coach.proposal.applied")}
+          </>
+        ) : pending ? (
+          t("coach.proposal.applying")
+        ) : isDelete ? (
+          t("coach.proposal.deleteButton")
+        ) : (
+          t("coach.proposal.apply")
+        )}
       </Button>
     </div>
   );

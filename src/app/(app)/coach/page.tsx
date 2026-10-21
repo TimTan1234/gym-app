@@ -5,6 +5,7 @@ import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import type { Proposal } from "@/lib/ai/coach";
 import { CoachChat, type UiMessage } from "@/components/coach/CoachChat";
+import { DeleteThreadButton } from "@/components/coach/DeleteThreadButton";
 import { PageSkeleton, buttonClass, cn } from "@/components/ui";
 import { getT } from "@/i18n/server";
 
@@ -51,13 +52,14 @@ async function Coach({ searchParams }: { searchParams: PageProps<"/coach">["sear
           </summary>
           <ul className="mt-2 space-y-0.5">
             {threads.map((t) => (
-              <li key={t.id}>
+              <li key={t.id} className="flex items-center gap-1">
                 <Link
                   href={`/coach?thread=${t.id}`}
-                  className={cn("block truncate rounded-[8px] px-2 py-1.5 hover:bg-wash", t.id === thread?.id && "bg-wash font-semibold")}
+                  className={cn("block min-w-0 flex-1 truncate rounded-[8px] px-2 py-1.5 hover:bg-wash", t.id === thread?.id && "bg-wash font-semibold")}
                 >
                   {t.title}
                 </Link>
+                <DeleteThreadButton threadId={t.id} title={t.title} current={t.id === thread?.id} />
               </li>
             ))}
           </ul>

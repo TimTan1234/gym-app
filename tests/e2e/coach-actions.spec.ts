@@ -1,0 +1,78 @@
+import { expect, test, type Page } from "@playwright/test";
+import { signUpAndOnboard } from "./helpers";
+
+async function ask(page: Page, message: string) {
+  const before = await page.getByTestId("proposal").count();
+  await page.getByLabel("Message the coach").fill(message);
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByTestId("proposal")).toHaveCount(before + 1);
+  return page.getByTestId("proposal").last();
+}
+
+test("coach logs, edits and deletes a meal; conversations can be deleted", async ({ page }) => {
+  await signUpAndOnboard(page);
+  await page.goto("/coach");
+
+  const log = await ask(page, "Log nasi lemak with fried chicken");
+  await expect(log.getByText("Log lunch,")).toBeVisible();
+  await expect(log.getByText("Coconut rice")).toBeVisible();
+  await log.getByRole("button", { name: "Apply" }).click();
+  await expect(log.getByRole("button", { name: "Applied" })).toBeVisible();
+  await expect(page).toHaveURL(/\/coach\?thread=/);
+  const thread = page.url();
+
+  await page.goto("/nutrition");
+  await expect(page.getByText("Nasi lemak with fried chicken")).toBeVisible();
+
+  // Rice from 200 g to 150 g: its 340 kcal scale to 255
+  await page.goto(thread);
+  const update = await ask(page, "The rice was only 150 grams");
+  await expect(update.getByText("Update Nasi lemak with fried chicken")).toBeVisible();
+  await expect(update.getByText("Coconut rice 150 g")).toBeVisible();
+  await expect(update.getByText("255", { exact: true })).toBeVisible();
+  await update.getByRole("button", { name: "Apply" }).click();
+  await expect(update.getByRole("button", { name: "Applied" })).toBeVisible();
+
+  const del = await ask(page, "Please delete that meal");
+  await expect(del.getByText("Delete Nasi lemak with fried chicken")).toBeVisible();
+  await del.getByRole("button", { name: "Delete meal" }).click();
+  await expect(del.getByRole("button", { name: "Deleted" })).toBeVisible();
+
+  await page.goto("/nutrition");
+  await expect(page.getByText("Nasi lemak with fried chicken")).toHaveCount(0);
+
+  // The conversation can be deleted from Past conversations
+  await page.goto(thread);
+  await page.getByText("Past conversations").click();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: /^Delete conversation:/ }).click();
+  await expect(page.getByText("Conversation deleted")).toBeVisible();
+  await expect(page).toHaveURL(/\/coach$/);
+  await expect(page.getByText("Past conversations")).toHaveCount(0);
+});
+
+test("coach edits the active plan in place", async ({ page }) => {
+  await signUpAndOnboard(page);
+  await page.getByRole("link", { name: "Create a plan" }).click();
+  await page.getByRole("button", { name: "Build muscle" }).click();
+  await page.getByRole("button", { name: "Generate plan" }).click();
+  await page.getByRole("button", { name: "Save & activate" }).click();
+  await expect(page).toHaveURL(/\/train\/plans$/);
+
+  await page.goto("/coach");
+  const edit = await ask(page, "Swap my first exercise");
+  const changes = edit.getByTestId("plan-changes");
+  await expect(changes.getByText("Upper A: remove Barbell Bench Press")).toBeVisible();
+  await expect(changes.getByText(/^Upper A: add Dumbbell Bench Press, 4×5–8/)).toBeVisible();
+  await expect(changes.getByRole("listitem")).toHaveCount(2);
+  await edit.getByRole("button", { name: "Apply" }).click();
+  await expect(edit.getByRole("button", { name: "Applied" })).toBeVisible();
+
+  // Still one plan, now with the swap
+  await page.goto("/train/plans");
+  await expect(page.getByText("Active", { exact: true })).toHaveCount(1);
+  await page.getByRole("link", { name: "Today" }).click();
+  await page.getByRole("button", { name: "Start Upper A" }).click();
+  await expect(page.getByTestId("exercise-block").filter({ hasText: "Dumbbell Bench Press" })).toHaveCount(1);
+  await expect(page.getByTestId("exercise-block").filter({ hasText: "Barbell Bench Press" })).toHaveCount(0);
+});

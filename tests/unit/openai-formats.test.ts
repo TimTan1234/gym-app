@@ -3,6 +3,7 @@ import { z } from "zod";
 import { zodResponsesFunction, zodTextFormat } from "openai/helpers/zod";
 import { MealAnalysisSchema, planDraftSchema } from "@/lib/ai/schemas";
 import { EXERCISES } from "../../prisma/seed/exercises";
+import { GetMealsParams, MealDeleteParams, MealLogParams, MealUpdateParams } from "@/lib/ai/coach-edits";
 
 // Builds the exact request formats sent to OpenAI. Strict structured outputs
 // require every object to list all keys as required and forbid extra keys;
@@ -48,5 +49,18 @@ describe("OpenAI request formats", () => {
     expect(tool.type).toBe("function");
     expect(tool.strict).toBe(true);
     assertStrict(tool.parameters as JsonSchema);
+  });
+
+  it("coach meal tools are strict-compatible", () => {
+    for (const [name, parameters] of [
+      ["get_meals", GetMealsParams],
+      ["propose_meal_log", MealLogParams],
+      ["propose_meal_update", MealUpdateParams],
+      ["propose_meal_delete", MealDeleteParams],
+    ] as const) {
+      const tool = zodResponsesFunction({ name, parameters });
+      expect(tool.strict, name).toBe(true);
+      assertStrict(tool.parameters as JsonSchema, name);
+    }
   });
 });

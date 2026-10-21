@@ -3,7 +3,7 @@ import { z } from "zod";
 import { zodResponsesFunction } from "openai/helpers/zod";
 import type { ResponseInputItem } from "openai/resources/responses/responses";
 import { db } from "@/lib/db";
-import { addDays, todayLocal } from "@/lib/dates";
+import { addDays, isLocalDate, todayLocal } from "@/lib/dates";
 import { KCAL_FLOOR } from "@/lib/nutrition/targets";
 import type { CheckinResult } from "@/lib/nutrition/checkin";
 import { describeMissing } from "@/lib/nutrition/checkin-text";
@@ -11,7 +11,9 @@ import { createT } from "@/i18n/translate";
 import { getCheckin } from "@/lib/queries";
 import { sumNutrients } from "@/lib/nutrition/totals";
 import { best1RM } from "@/lib/training/summary";
-import { isAiMock, models, openai, reasoningOptions } from "./client";
+import { isAiMock, models, openai, reasoningOptions, reserveAiCall, AiLimitError } from "./client";
+import { analyzeMeal } from "./meal";
+import { GetMealsParams, MealDeleteParams, MealLogParams, MealUpdateParams, diffPlans, editMealItems, type ItemValues, type PlanChange } from "./coach-edits";
 import { coachSystemPrompt, languageInstruction } from "./prompts";
 import type { Locale } from "@/i18n/config";
 import { planDraftSchema } from "./schemas";
@@ -29,7 +31,30 @@ export type Proposal =
       reason: string;
       applied?: boolean;
     }
-  | { kind: "plan"; plan: ResolvedPlanDraft; reason: string; applied?: boolean };
+  | { kind: "plan"; plan: ResolvedPlanDraft; reason: string; applied?: boolean }
+  | { kind: "mealLog"; meal: MealDraft; reason: string; applied?: boolean }
+  | { kind: "mealUpdate"; mealId: string; before: MealSnapshot; meal: MealDraft; reason: string; applied?: boolean }
+  | { kind: "mealDelete"; mealId: string; before: MealSnapshot; reason: string; applied?: boolean }
+  | { kind: "planEdit"; planId: string; planName: string; plan: ResolvedPlanDraft; changes: PlanChange[]; reason: string; applied?: boolean };
+
+export type MealType = "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK";
+
+/** A meal as it will be saved (items carry full nutrients; totals are recomputed on save). */
+export interface MealDraft {
+  localDate: string;
+  mealType: MealType;
+  description: string;
+  items: ItemValues[];
+}
+
+/** What the meal looked like when the change was proposed, for the confirm card. */
+export interface MealSnapshot {
+  localDate: string;
+  mealType: MealType;
+  description: string;
+  kcal: number;
+  items: { name: string; grams: number; kcal: number }[];
+}
 
 export interface CoachContext {
   userId: string;
@@ -83,9 +108,75 @@ async function buildTools(ctx: CoachContext) {
     zodResponsesFunction({
       name: "propose_plan",
       parameters: PlanProposal,
-      description: "Propose a new or modified training plan (full plan). The user must confirm; it is saved as their active plan.",
+      description:
+        "Propose a brand-new training plan (full plan). The user must confirm; it is saved as a new plan and becomes active. To change the current plan, use propose_plan_edit instead.",
+    }),
+    zodResponsesFunction({
+      name: "propose_plan_edit",
+      parameters: PlanProposal,
+      description:
+        "Edit the user's ACTIVE plan in place (swap an exercise, change sets/reps/rest, add or remove a day). Call get_active_plan first and send the whole plan with your edits; keep everything you are not changing exactly as it was. The user sees the differences and must confirm.",
+    }),
+    zodResponsesFunction({
+      name: "get_meals",
+      parameters: GetMealsParams,
+      description: "Meals logged on one date (last 30 days), with meal ids and item ids, grams and nutrients. Call before editing or deleting a meal.",
+    }),
+    zodResponsesFunction({
+      name: "propose_meal_log",
+      parameters: MealLogParams,
+      description:
+        "Log a meal the user ate. Describe it with quantities; the nutrition is estimated by the meal analyser. The user sees the items and must confirm.",
+    }),
+    zodResponsesFunction({
+      name: "propose_meal_update",
+      parameters: MealUpdateParams,
+      description:
+        "Change a logged meal: new grams for items, remove items, add food, or move it to another meal type. Nutrients are rescaled on the server. The user must confirm.",
+    }),
+    zodResponsesFunction({
+      name: "propose_meal_delete",
+      parameters: MealDeleteParams,
+      description: "Delete a logged meal. The user must confirm.",
     }),
   ];
+
+  /** The meal-analysis model counts against the user's daily meal-analysis limit. */
+  async function analyse(description: string) {
+    try {
+      const reservation = await reserveAiCall(ctx.userId, "MEAL", todayLocal(ctx.timezone));
+      try {
+        const analysis = await analyzeMeal({ text: description, locale: ctx.locale });
+        if (!analysis.isFood || analysis.items.length === 0) {
+          await reservation.refund();
+          return { error: "That doesn't describe food. Ask the user what they ate." } as const;
+        }
+        return { analysis } as const;
+      } catch (e) {
+        await reservation.refund();
+        throw e;
+      }
+    } catch (e) {
+      if (e instanceof AiLimitError) return { error: "The user's daily meal-analysis limit is reached; tell them to log it manually." } as const;
+      throw e;
+    }
+  }
+
+  const recentDate = (date: string, today: string) => isLocalDate(date) && date <= today && date >= addDays(today, -30);
+
+  async function ownMeal(mealId: string) {
+    return db.meal.findFirst({ where: { id: mealId, userId: ctx.userId }, include: { items: true } });
+  }
+
+  function snapshot(meal: NonNullable<Awaited<ReturnType<typeof ownMeal>>>): MealSnapshot {
+    return {
+      localDate: meal.localDate,
+      mealType: meal.mealType,
+      description: meal.description,
+      kcal: meal.kcal,
+      items: meal.items.map((i) => ({ name: i.name, grams: i.grams, kcal: i.kcal })),
+    };
+  }
 
   async function execute(name: string, rawArgs: string, proposals: Proposal[]): Promise<unknown> {
     const args = rawArgs ? JSON.parse(rawArgs) : {};
@@ -160,7 +251,8 @@ async function buildTools(ctx: CoachContext) {
           notes: plan.notes,
           days: plan.days.map((d) => ({
             name: d.name,
-            exercises: d.exercises.map((e) => ({ slug: e.exercise.slug, name: e.exercise.name, sets: e.sets, repMin: e.repMin, repMax: e.repMax, restSec: e.restSec, targetRpe: e.targetRpe })),
+            // Same keys as propose_plan_edit, so the model can copy unchanged exercises as they are.
+            exercises: d.exercises.map((e) => ({ exerciseSlug: e.exercise.slug, name: e.exercise.name, sets: e.sets, repMin: e.repMin, repMax: e.repMax, restSec: e.restSec, targetRpe: e.targetRpe, notes: e.notes })),
           })),
         };
       }
@@ -220,12 +312,143 @@ async function buildTools(ctx: CoachContext) {
         proposals.push({ kind: "plan", plan: resolvePlanDraft(p.plan, library), reason: p.reason });
         return { status: "Plan proposal card shown to the user. Tell them to review and tap Apply to save it as their active plan." };
       }
+      case "propose_plan_edit": {
+        const p = PlanProposal.parse(args);
+        const active = await db.trainingPlan.findFirst({
+          where: { userId: ctx.userId, isActive: true },
+          include: { days: { orderBy: { dayIndex: "asc" }, include: { exercises: { orderBy: { order: "asc" }, include: { exercise: { select: { slug: true, name: true } } } } } } },
+        });
+        if (!active) return { error: "The user has no active plan. Use propose_plan to create one." };
+        const plan = resolvePlanDraft(p.plan, library);
+        const changes = diffPlans(
+          {
+            days: active.days.map((d) => ({
+              name: d.name,
+              exercises: d.exercises.map((e) => ({
+                exerciseId: e.exerciseId,
+                exerciseName: e.exercise.name,
+                exerciseSlug: e.exercise.slug,
+                sets: e.sets,
+                repMin: e.repMin,
+                repMax: e.repMax,
+                restSec: e.restSec,
+                targetRpe: e.targetRpe,
+              })),
+            })),
+          },
+          plan,
+        );
+        if (changes.length === 0) return { error: "That plan is identical to the current one. Make the requested change." };
+        proposals.push({ kind: "planEdit", planId: active.id, planName: active.name, plan, changes, reason: p.reason });
+        return { status: "Edit card shown with the differences. Tell the user to review it and tap Apply.", changes };
+      }
+      case "get_meals": {
+        const { date } = GetMealsParams.parse(args);
+        if (!recentDate(date, today)) return { error: `Use a date between ${addDays(today, -30)} and ${today}.` };
+        const meals = await db.meal.findMany({ where: { userId: ctx.userId, localDate: date }, include: { items: true }, orderBy: { eatenAt: "asc" } });
+        return {
+          date,
+          meals: meals.map((m) => ({
+            mealId: m.id,
+            type: m.mealType,
+            description: m.description,
+            kcal: m.kcal,
+            items: m.items.map((i) => ({ itemId: i.id, name: i.name, quantity: i.quantity, unit: i.unit, grams: i.grams, kcal: i.kcal, proteinG: i.proteinG, carbsG: i.carbsG, fatG: i.fatG })),
+          })),
+        };
+      }
+      case "propose_meal_log": {
+        const p = MealLogParams.parse(args);
+        if (!recentDate(p.date, today)) return { error: `Meals can be logged for ${addDays(today, -30)} to ${today}.` };
+        const result = await analyse(p.description);
+        if ("error" in result) return { error: result.error };
+        const { analysis } = result;
+        proposals.push({
+          kind: "mealLog",
+          meal: { localDate: p.date, mealType: p.mealType, description: analysis.title || p.description.slice(0, 120), items: analysis.items },
+          reason: p.reason,
+        });
+        return { status: "Meal card shown. Tell the user to check the items and tap Apply to log it.", items: analysis.items.map((i) => ({ name: i.name, grams: i.grams, kcal: i.kcal })) };
+      }
+      case "propose_meal_update": {
+        const p = MealUpdateParams.parse(args);
+        const meal = await ownMeal(p.mealId);
+        if (!meal) return { error: "No meal with that id. Call get_meals to find it." };
+        const { items, unknownIds } = editMealItems(meal.items, p.changes);
+        if (unknownIds.length) return { error: `Unknown item ids: ${unknownIds.join(", ")}. Use item ids from get_meals.` };
+        if (p.addDescription?.trim()) {
+          const result = await analyse(p.addDescription);
+          if ("error" in result) return { error: result.error };
+          items.push(...result.analysis.items);
+        }
+        if (items.length === 0) return { error: "That would leave the meal empty. Use propose_meal_delete instead." };
+        proposals.push({
+          kind: "mealUpdate",
+          mealId: meal.id,
+          before: snapshot(meal),
+          meal: { localDate: meal.localDate, mealType: p.mealType ?? meal.mealType, description: meal.description, items },
+          reason: p.reason,
+        });
+        return { status: "Edit card shown with before and after. Tell the user to tap Apply to save it.", newKcal: sumNutrients(items).kcal };
+      }
+      case "propose_meal_delete": {
+        const p = MealDeleteParams.parse(args);
+        const meal = await ownMeal(p.mealId);
+        if (!meal) return { error: "No meal with that id. Call get_meals to find it." };
+        proposals.push({ kind: "mealDelete", mealId: meal.id, before: snapshot(meal), reason: p.reason });
+        return { status: "Delete card shown. Tell the user to tap Delete to confirm." };
+      }
       default:
         return { error: `Unknown tool ${name}` };
     }
   }
 
-  return { tools, execute };
+  // Plain tool definitions: with the zod helpers attached, the SDK parses the
+  // arguments itself and a single malformed call aborts the whole reply. Our
+  // execute() parses them instead and hands any error back to the model.
+  const plainTools = tools.map(({ type, name, description, parameters, strict }) => ({ type, name, description, parameters, strict }));
+  return { tools: plainTools, execute };
+}
+
+/** A short error the model can act on (zod's enum errors list every slug otherwise). */
+function toolError(e: unknown): string {
+  if (e instanceof z.ZodError) {
+    return (
+      "Invalid arguments: " +
+      e.issues
+        .slice(0, 5)
+        .map((i) => `${i.path.join(".")}: ${i.code === "invalid_value" ? "not an allowed value" : i.message}`)
+        .join("; ")
+    );
+  }
+  return e instanceof Error ? e.message.slice(0, 300) : "Tool failed";
+}
+
+/**
+ * What the cards on an earlier reply proposed and whether the user applied them.
+ * Appended to that reply in the history, so the model edits a meal that is
+ * already logged instead of logging it a second time.
+ */
+export function describeProposals(proposals: Proposal[]): string {
+  if (proposals.length === 0) return "";
+  const what = (p: Proposal) => {
+    switch (p.kind) {
+      case "targets":
+        return `new targets ${p.targetKcal} kcal`;
+      case "plan":
+        return `new plan "${p.plan.name}"`;
+      case "planEdit":
+        return `edit to the plan "${p.planName}"`;
+      case "mealLog":
+        return `log ${p.meal.mealType} "${p.meal.description}" on ${p.meal.localDate}`;
+      case "mealUpdate":
+        return `update meal "${p.before.description}" on ${p.before.localDate}`;
+      case "mealDelete":
+        return `delete meal "${p.before.description}" on ${p.before.localDate}`;
+    }
+  };
+  const list = proposals.map((p, i) => `${i + 1}) ${what(p)}: ${p.applied ? "applied by the user" : "not applied"}`).join("; ");
+  return `\n\n[Proposal cards on this reply: ${list}.]`;
 }
 
 export interface ChatTurn {
@@ -281,7 +504,7 @@ export async function runCoach(ctx: CoachContext, history: ChatTurn[], cb: Coach
       try {
         result = await execute(call.name, call.arguments, proposals);
       } catch (e) {
-        result = { error: e instanceof Error ? e.message : "Tool failed" };
+        result = { error: toolError(e) };
       }
       for (const p of proposals.slice(before)) cb.onProposal(p);
       outputs.push({ type: "function_call_output", call_id: call.call_id, output: JSON.stringify(result) });
@@ -310,6 +533,12 @@ async function runMockCoach(
     targets?: { kcal: number; proteinG: number; carbsG: number; fatG: number };
   };
   const t = info.targets ?? { kcal: 2000, proteinG: 150, carbsG: 200, fatG: 65 };
+  const proposeMock = async (tool: string, args: object) => {
+    const before = proposals.length;
+    const result = await execute(tool, JSON.stringify(args), proposals);
+    if (result && typeof result === "object" && "error" in result) console.warn(`[coach] mock ${tool}:`, result.error);
+    proposals.slice(before).forEach(cb.onProposal);
+  };
   let text = `(Mock coach. Set OPENAI_API_KEY for real answers.)\n\nHi ${ctx.userName.split(" ")[0]}! Your daily targets are **${t.kcal} kcal**, ${t.proteinG} g protein, ${t.carbsG} g carbs and ${t.fatG} g fat.`;
   // The mock recognises the check-in prompt in either language.
   if (question.includes("check-in") || question.includes("复盘")) {
@@ -333,6 +562,39 @@ async function runMockCoach(
             : `not enough data yet. Still needed: ${c.missing.map((m) => describeMissing(createT("en"), m)).join(", ")}.`;
       text += `\n\nWeekly check-in: ${verdict}`;
     }
+  } else if (question.includes("swap")) {
+    // Swap day 1's first exercise for a chest press it doesn't already have.
+    const plan = (await execute("get_active_plan", "{}", proposals)) as {
+      name: string;
+      weeks: number;
+      notes: string | null;
+      days?: { name: string; exercises: { exerciseSlug: string; sets: number; repMin: number; repMax: number; restSec: number; targetRpe: number | null }[] }[];
+    };
+    if (plan.days) {
+      const inDay1 = new Set(plan.days[0].exercises.map((e) => e.exerciseSlug));
+      const swapTo = ["dumbbell-bench-press", "machine-chest-press", "push-up"].find((slug) => !inDay1.has(slug))!;
+      const days = plan.days.map((d, i) => ({
+        name: d.name,
+        exercises: d.exercises.map((e, j) => ({ ...e, exerciseSlug: i === 0 && j === 0 ? swapTo : e.exerciseSlug, notes: null })),
+      }));
+      await proposeMock("propose_plan_edit", { plan: { name: plan.name, notes: plan.notes ?? "", weeks: plan.weeks, days }, reason: "A variation for the same muscles." });
+      text += "\n\nHere's the swap. Tap **Apply** to update your plan.";
+    } else text += "\n\nYou don't have an active plan yet.";
+  } else if (question.includes("delete") || question.includes("grams")) {
+    const { meals } = (await execute("get_meals", JSON.stringify({ date: todayLocal(ctx.timezone) }), proposals)) as { meals: { mealId: string; items: { itemId: string }[] }[] };
+    const meal = meals[0];
+    if (!meal) text += "\n\nYou haven't logged any meals today.";
+    else if (question.includes("delete")) {
+      await proposeMock("propose_meal_delete", { mealId: meal.mealId, reason: "You asked to remove it." });
+      text += "\n\nTap **Delete meal** to remove it.";
+    } else {
+      const changes = [{ itemId: meal.items[0].itemId, newGrams: 150, remove: false }];
+      await proposeMock("propose_meal_update", { mealId: meal.mealId, changes, addDescription: null, mealType: null, reason: "Portion corrected to 150 g." });
+      text += "\n\nHere's the corrected meal. Tap **Apply** to save it.";
+    }
+  } else if (question.startsWith("log ")) {
+    await proposeMock("propose_meal_log", { description: history.at(-1)!.content.slice(4), mealType: "LUNCH", date: todayLocal(ctx.timezone), reason: "Logged from your message." });
+    text += "\n\nTap **Apply** to add it to today.";
   } else if (question.includes("target") || question.includes("calorie")) {
     const before = proposals.length;
     await execute(

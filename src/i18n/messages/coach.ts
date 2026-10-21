@@ -40,6 +40,7 @@ export const en = {
     mealUpdated: "Meal updated",
     mealDeleted: "Meal deleted",
     planUpdated: "Plan updated",
+    item: { added: "Added", removed: "Removed" },
     change: {
       dayAdded: "Add day: {day}",
       dayRemoved: "Remove day: {day}",
@@ -104,6 +105,7 @@ export const zh: typeof en = {
     mealUpdated: "已更新这一餐",
     mealDeleted: "已删除这一餐",
     planUpdated: "计划已更新",
+    item: { added: "新增", removed: "移除" },
     change: {
       dayAdded: "新增训练日：{day}",
       dayRemoved: "删除训练日：{day}",

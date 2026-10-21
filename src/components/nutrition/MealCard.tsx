@@ -8,7 +8,7 @@ import { copyMealToToday, deleteMeal, saveFoodFromItem } from "@/server/nutritio
 import { Badge, Button, buttonClass, cn } from "@/components/ui";
 import { MacroLine } from "@/components/MacroLine";
 import { useT } from "@/i18n/client";
-import { HIGH_SUGAR_MEAL_G, SugarAmount } from "./Sugar";
+import { HIGH_SUGAR_MEAL_G, SugarAmount, SugarTag } from "./Sugar";
 
 export interface MealCardData {
   id: string;
@@ -62,7 +62,7 @@ export function MealCard({ meal, canCopy }: { meal: MealCardData; canCopy: boole
           <p className="truncate font-semibold">{meal.description}</p>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
             <MacroLine p={meal.proteinG} c={meal.carbsG} f={meal.fatG} />
-            <SugarAmount total={meal.sugarG} added={meal.addedSugarG} high={meal.addedSugarG >= HIGH_SUGAR_MEAL_G} />
+            <SugarTag total={meal.sugarG} added={meal.addedSugarG} high={meal.addedSugarG >= HIGH_SUGAR_MEAL_G} />
             {meal.source !== "MANUAL" && <Sparkles className="size-3.5 text-steel" aria-label={t("nutrition.aiEstimated")} />}
           </p>
         </div>

@@ -10,7 +10,7 @@ import { scaleItem, sumNutrients } from "@/lib/nutrition/totals";
 import type { MealAnalysis } from "@/lib/ai/schemas";
 import { Button, Card, Input, Textarea, cn } from "@/components/ui";
 import { MacroLine } from "@/components/MacroLine";
-import { HIGH_SUGAR_MEAL_G, SugarAmount } from "./Sugar";
+import { HIGH_SUGAR_MEAL_G, SugarTag } from "./Sugar";
 import { useClientValue } from "@/lib/use-client";
 import type { BarcodeItem } from "@/lib/nutrition/barcode";
 import { useT } from "@/i18n/client";
@@ -286,29 +286,12 @@ export function MealLogger({
 
   const totals = sumNutrients(items);
 
-  return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label={t("nutrition.mealType")}>
-        {MEAL_TYPES.map((type) => (
-          <button
-            key={type}
-            type="button"
-            role="radio"
-            aria-checked={mealType === type}
-            onClick={() => setMealType(type)}
-            className={cn(
-              "rounded-[10px] border py-2 text-xs font-semibold sm:text-sm",
-              mealType === type ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
-            )}
-          >
-            {t(`labels.mealType.${type}`)}
-          </button>
-        ))}
-      </div>
-
+  /** Ways to put food into the draft: AI, barcode, recent meals, saved foods. */
+  const adders = (
+    <>
       <Card className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold">
-          <Sparkles className="size-4 text-iron" /> {t("nutrition.describeTitle")}
+          <Sparkles className="size-4 text-iron" /> {editing ? t("nutrition.describeToAdd") : t("nutrition.describeTitle")}
         </div>
         <Textarea
           value={text}
@@ -423,11 +406,16 @@ export function MealLogger({
           {editingSaved && <p className="mt-2 text-xs text-steel">{t("nutrition.savedFoodsHint")}</p>}
         </section>
       )}
+    </>
+  );
 
+  /** The draft's items, editable. */
+  const review = (
+    <>
       {items.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="display text-[22px]">{t("nutrition.review")}</h2>
+            <h2 className="display text-[22px]">{editing ? t("nutrition.inThisMeal") : t("nutrition.review")}</h2>
             {source !== "MANUAL" && <span className="text-[13px] text-steel">{t("nutrition.aiEstimateHint")}</span>}
           </div>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("nutrition.mealName")} aria-label={t("nutrition.mealName")} maxLength={120} />
@@ -441,6 +429,46 @@ export function MealLogger({
       <Button type="button" variant="ghost" onClick={() => setItems((cur) => [...cur, emptyItem()])}>
         <Plus className="size-4" /> {t("nutrition.addManually")}
       </Button>
+    </>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label={t("nutrition.mealType")}>
+        {MEAL_TYPES.map((type) => (
+          <button
+            key={type}
+            type="button"
+            role="radio"
+            aria-checked={mealType === type}
+            onClick={() => setMealType(type)}
+            className={cn(
+              "rounded-[10px] border py-2 text-xs font-semibold sm:text-sm",
+              mealType === type ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
+            )}
+          >
+            {t(`labels.mealType.${type}`)}
+          </button>
+        ))}
+      </div>
+
+      {editing ? (
+        // Editing: the meal itself comes first, ways to add more food after it.
+        <>
+          {review}
+          <section className="space-y-5 border-t border-line pt-6" aria-labelledby="add-food">
+            <h2 id="add-food" className="display text-[22px]">
+              {t("nutrition.addToMeal")}
+            </h2>
+            {adders}
+          </section>
+        </>
+      ) : (
+        <>
+          {adders}
+          {review}
+        </>
+      )}
 
       {items.length > 0 && (
         <div className="sticky bottom-20 z-20 md:bottom-4">
@@ -452,7 +480,7 @@ export function MealLogger({
               </p>
               <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <MacroLine p={totals.proteinG} c={totals.carbsG} f={totals.fatG} />
-                <SugarAmount total={totals.sugarG} added={totals.addedSugarG} high={totals.addedSugarG >= HIGH_SUGAR_MEAL_G} />
+                <SugarTag total={totals.sugarG} added={totals.addedSugarG} high={totals.addedSugarG >= HIGH_SUGAR_MEAL_G} />
               </p>
             </div>
             <Button onClick={save} disabled={saving} size="lg">

@@ -4,7 +4,7 @@ import { History, Plus } from "lucide-react";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import type { Proposal } from "@/lib/ai/coach";
-import { CoachChat, type UiMessage } from "@/components/coach/CoachChat";
+import { CoachSession, type UiMessage } from "@/components/coach/CoachChat";
 import { DeleteThreadButton } from "@/components/coach/DeleteThreadButton";
 import { PageSkeleton, buttonClass, cn } from "@/components/ui";
 import { getT } from "@/i18n/server";
@@ -65,8 +65,7 @@ async function Coach({ searchParams }: { searchParams: PageProps<"/coach">["sear
           </ul>
         </details>
       )}
-      {/* Keyed so switching threads (or a new prefill) starts fresh state. */}
-      <CoachChat key={`${thread?.id ?? "new"}:${prefill ?? ""}`} threadId={thread?.id ?? null} initialMessages={messages} prefill={prefill} />
+      <CoachSession threadId={thread?.id ?? null} initialMessages={messages} prefill={prefill} />
     </>
   );
 }

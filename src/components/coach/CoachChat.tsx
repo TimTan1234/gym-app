@@ -1,9 +1,11 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowRight, Check, Loader2, Minus, Plus, Send, Sparkles } from "lucide-react";
-import type { MealDraft, Proposal } from "@/lib/ai/coach";
+import type { MealDraft, MealSnapshot, Proposal } from "@/lib/ai/coach";
+import { HIGH_SUGAR_MEAL_G, SugarTag } from "@/components/nutrition/Sugar";
 import type { PlanChange } from "@/lib/ai/coach-edits";
 import { sumNutrients } from "@/lib/nutrition/totals";
 import { formatLocalDate } from "@/lib/dates";
@@ -82,25 +84,61 @@ function TargetsBody({ proposal }: { proposal: Extract<Proposal, { kind: "target
   );
 }
 
-/** Items of a meal as divided rows, then the total. */
-function MealItems({ meal }: { meal: MealDraft }) {
+type Row = { name: string; grams: number; kcal: number; was?: number; change?: "added" | "removed" };
+
+/** Match a meal's items to its earlier snapshot by name, so an edit card can show what moved. */
+function compareItems(after: MealDraft["items"], before: MealSnapshot["items"]): Row[] {
+  const pool = [...before];
+  const rows: Row[] = after.map((i) => {
+    const at = pool.findIndex((b) => b.name === i.name);
+    if (at < 0) return { name: i.name, grams: i.grams, kcal: i.kcal, change: "added" };
+    const [old] = pool.splice(at, 1);
+    return { name: i.name, grams: i.grams, kcal: i.kcal, was: Math.round(old.grams) !== Math.round(i.grams) ? old.grams : undefined };
+  });
+  return [...rows, ...pool.map((b) => ({ ...b, change: "removed" as const }))];
+}
+
+/** Items of a meal as divided rows, then the total. With `before`, changes are marked. */
+function MealItems({ meal, before }: { meal: MealDraft; before?: MealSnapshot["items"] }) {
   const t = useT();
   const totals = sumNutrients(meal.items);
+  const rows: Row[] = before ? compareItems(meal.items, before) : meal.items;
+  // Leave room for the added/removed marks only when there are any.
+  const marks = rows.some((r) => r.change);
   return (
     <>
       <ul className="divide-y divide-line border-y border-line">
-        {meal.items.map((i, n) => (
-          <li key={n} className="flex items-baseline justify-between gap-3 py-1.5">
-            <span className="min-w-0">
-              {i.name} <span className="num text-steel">{Math.round(i.grams)} g</span>
-            </span>
-            <span className="num shrink-0">{Math.round(i.kcal)}</span>
-          </li>
-        ))}
+        {rows.map((i, n) => {
+          const Icon = i.change === "added" ? Plus : i.change === "removed" ? Minus : null;
+          return (
+            <li key={n} className={cn("flex items-baseline gap-2 py-1.5", i.change === "removed" && "text-steel")}>
+              {marks && (
+                <span className="w-4 shrink-0 self-center">
+                  {Icon && <Icon className="size-4 text-steel" aria-label={t(`coach.proposal.item.${i.change!}`)} />}
+                </span>
+              )}
+              <span className={cn("min-w-0 flex-1", i.change === "removed" && "line-through")}>
+                {i.name}{" "}
+                <span className="num text-steel">
+                  {i.was !== undefined && (
+                    <>
+                      <s>{Math.round(i.was)}</s> →{" "}
+                    </>
+                  )}
+                  <span className={cn(i.was !== undefined && "font-semibold text-iron")}>{Math.round(i.grams)}</span> g
+                </span>
+              </span>
+              <span className={cn("num shrink-0", i.change === "removed" && "line-through")}>{Math.round(i.kcal)}</span>
+            </li>
+          );
+        })}
       </ul>
       <p className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-semibold">{t("coach.proposal.totalKcal", { kcal: Math.round(totals.kcal).toLocaleString("en-US") })}</span>
-        <MacroLine p={totals.proteinG} c={totals.carbsG} f={totals.fatG} />
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <MacroLine p={totals.proteinG} c={totals.carbsG} f={totals.fatG} />
+          <SugarTag total={totals.sugarG} added={totals.addedSugarG} high={totals.addedSugarG >= HIGH_SUGAR_MEAL_G} />
+        </span>
       </p>
     </>
   );
@@ -199,7 +237,7 @@ function ProposalCard({ proposal, messageId, index }: { proposal: Proposal; mess
             {t("coach.proposal.mealOn", { mealType: mealType(proposal.meal.mealType), date: day(proposal.before.localDate), kcal: Math.round(proposal.before.kcal).toLocaleString("en-US") })}
           </p>
           <p className="score text-[22px]">{t("coach.proposal.beforeAfter", { before: Math.round(proposal.before.kcal).toLocaleString("en-US"), after: after.toLocaleString("en-US") })}</p>
-          <MealItems meal={proposal.meal} />
+          <MealItems meal={proposal.meal} before={proposal.before.items} />
         </>
       );
       success = t("coach.proposal.mealUpdated");
@@ -256,7 +294,38 @@ function ProposalCard({ proposal, messageId, index }: { proposal: Proposal; mess
   );
 }
 
-export function CoachChat({ threadId: initialThreadId, initialMessages, prefill }: { threadId: string | null; initialMessages: UiMessage[]; prefill?: string }) {
+interface ChatProps {
+  threadId: string | null;
+  initialMessages: UiMessage[];
+  prefill?: string;
+}
+
+/**
+ * Keeps one CoachChat per conversation the user opens. A remount follows the
+ * URL's thread (a past conversation, New chat, deleting the open one) or a new
+ * prefilled question, but not the thread a new chat creates for itself, so a
+ * refresh (e.g. after Apply) never wipes a reply that is still streaming.
+ */
+export function CoachSession({ threadId, initialMessages, prefill }: ChatProps) {
+  const urlThread = useSearchParams().get("thread");
+  const [created, setCreated] = useState<string | null>(null);
+  const [session, setSession] = useState({ thread: urlThread, prefill, n: 0 });
+
+  if (urlThread !== session.thread || prefill !== session.prefill) {
+    const ownNewThread = session.thread === null && urlThread === created && prefill === session.prefill;
+    setSession({ thread: urlThread, prefill, n: ownNewThread ? session.n : session.n + 1 });
+  }
+
+  // Put a newly created thread in the URL (so a reload reopens it) only once it
+  // is recorded as ours, so the URL change above is not taken for navigation.
+  useEffect(() => {
+    if (created) window.history.replaceState(null, "", `/coach?thread=${created}`);
+  }, [created]);
+
+  return <CoachChat key={session.n} threadId={threadId} initialMessages={initialMessages} prefill={prefill} onThreadCreated={setCreated} />;
+}
+
+function CoachChat({ threadId: initialThreadId, initialMessages, prefill, onThreadCreated }: ChatProps & { onThreadCreated: (id: string) => void }) {
   const t = useT();
   const [threadId, setThreadId] = useState(initialThreadId);
   const [messages, setMessages] = useState(initialMessages);
@@ -306,7 +375,7 @@ export function CoachChat({ threadId: initialThreadId, initialMessages, prefill 
           const event = JSON.parse(line) as ChatEvent;
           if (event.type === "thread" && event.threadId !== threadId) {
             setThreadId(event.threadId);
-            window.history.replaceState(null, "", `/coach?thread=${event.threadId}`);
+            onThreadCreated(event.threadId);
           } else if (event.type === "delta") patchLast((m) => ({ ...m, content: m.content + event.text }));
           else if (event.type === "proposal") patchLast((m) => ({ ...m, proposals: [...m.proposals, event.proposal] }));
           else if (event.type === "done") patchLast((m) => ({ ...m, id: event.messageId }));

@@ -29,7 +29,7 @@ test("coach logs, edits and deletes a meal; conversations can be deleted", async
   await page.goto(thread);
   const update = await ask(page, "The rice was only 150 grams");
   await expect(update.getByText("Update Nasi lemak with fried chicken")).toBeVisible();
-  await expect(update.getByText("Coconut rice 150 g")).toBeVisible();
+  await expect(update.getByText("Coconut rice 200 → 150 g")).toBeVisible();
   await expect(update.getByText("255", { exact: true })).toBeVisible();
   await update.getByRole("button", { name: "Apply" }).click();
   await expect(update.getByRole("button", { name: "Applied" })).toBeVisible();
@@ -81,4 +81,36 @@ test("coach edits the active plan in place", async ({ page }) => {
   await page.getByRole("button", { name: "Start Upper A" }).click();
   await expect(page.getByTestId("exercise-block").filter({ hasText: "Dumbbell Bench Press" })).toHaveCount(1);
   await expect(page.getByTestId("exercise-block").filter({ hasText: "Barbell Bench Press" })).toHaveCount(0);
+});
+
+test("coach conversations: apply then send keeps the reply, New chat clears, past ones reopen", async ({ page }) => {
+  await signUpAndOnboard(page);
+  await page.goto("/coach");
+  const first = await ask(page, "Should I change my calorie targets?");
+
+  // Sending straight after Apply: the refresh Apply triggers must not wipe the new reply
+  await first.getByRole("button", { name: "Apply" }).click();
+  await page.getByLabel("Message the coach").fill("Log kaya toast and kopi");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByTestId("proposal")).toHaveCount(2);
+  await expect(first.getByRole("button", { name: "Applied" })).toBeVisible();
+  await expect(page).toHaveURL(/thread=/);
+  await page.reload();
+  await expect(page.getByTestId("proposal")).toHaveCount(2);
+
+  // New chat starts empty, even right after a reply
+  await page.getByRole("link", { name: "New chat" }).click();
+  await expect(page).toHaveURL(/\/coach$/);
+  const log = page.getByTestId("chat-log");
+  await expect(log.getByText("Should I change my calorie targets?")).toHaveCount(0);
+  await page.getByLabel("Message the coach").fill("How is my protein?");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(log).toHaveAttribute("aria-busy", "false");
+  await expect(log.getByText("How is my protein?")).toBeVisible();
+
+  // The earlier conversation reopens from Past conversations
+  await page.getByText("Past conversations").click();
+  await page.getByRole("link", { name: "Should I change my calorie targets?" }).click();
+  await expect(log.getByText("How is my protein?")).toHaveCount(0);
+  await expect(page.getByTestId("proposal")).toHaveCount(2);
 });

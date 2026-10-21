@@ -13,6 +13,14 @@ test("sugar shows in the analysis and the day; a logged meal can be edited", asy
   await expect(sambal.getByLabel("Sugar", { exact: true })).toHaveValue("4");
   await expect(sambal.getByLabel("Added sugar")).toHaveValue("3");
 
+  // Added sugar is part of the total: typing one keeps the other consistent
+  await sambal.getByLabel("Added sugar").fill("6");
+  await expect(sambal.getByLabel("Sugar", { exact: true })).toHaveValue("6");
+  await sambal.getByLabel("Sugar", { exact: true }).fill("2");
+  await expect(sambal.getByLabel("Added sugar")).toHaveValue("2");
+  await sambal.getByLabel("Sugar", { exact: true }).fill("4");
+  await sambal.getByLabel("Added sugar").fill("3");
+
   // A sweet drink pushes the meal over the high-sugar line
   await page.getByRole("button", { name: "Add item manually" }).click();
   const drink = page.getByTestId("draft-item").last();

@@ -191,6 +191,9 @@ export function MealLogger({
       cur.map((i) => {
         if (i.key !== key) return i;
         const next = { ...i, ...patch };
+        // Added sugar is part of total sugar: keep the pair consistent with whichever was typed.
+        if (patch.addedSugarG !== undefined) next.sugarG = Math.max(next.sugarG, next.addedSugarG);
+        if (patch.sugarG !== undefined) next.addedSugarG = Math.min(next.addedSugarG, next.sugarG);
         // A manual nutrient edit becomes the new reference for gram scaling.
         return next.grams > 0 ? { ...next, base: baseOf(next) } : next;
       }),

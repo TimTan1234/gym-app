@@ -49,7 +49,12 @@ export function SugarMeter({ added, total, targetKcal }: { added: number; total:
         <div className={cn("h-full rounded-full", over ? "bg-alert" : "bg-iron")} style={{ width: `${pct}%` }} />
       </div>
       <p className="text-xs text-steel">
-        {over ? <span className="font-medium text-alert">{t("nutrition.sugarOver", { g: fmt(added - guide) })}. </span> : null}
+        {over ? (
+          <span className="font-medium text-alert">
+            {t("nutrition.sugarOver", { g: fmt(added - guide) })}
+            {t.locale === "zh" ? "。" : ". "}
+          </span>
+        ) : null}
         {t("nutrition.sugarNote", { total: fmt(total) })}
       </p>
     </div>

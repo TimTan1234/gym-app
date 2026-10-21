@@ -145,3 +145,50 @@ export function diffPlans(before: PlanShape, after: PlanShape): PlanChange[] {
   }
   return changes;
 }
+
+/** A stored plan's days (with their exercise rows) in the shape diffPlans compares. */
+export function planShapeOf(
+  days: { name: string; exercises: (Omit<PlanExerciseShape, "exerciseName" | "exerciseSlug"> & { exercise: { slug: string; name: string } })[] }[],
+): PlanShape {
+  return {
+    days: days.map((d) => ({
+      name: d.name,
+      exercises: d.exercises.map((e) => ({
+        exerciseId: e.exerciseId,
+        exerciseName: e.exercise.name,
+        exerciseSlug: e.exercise.slug,
+        sets: e.sets,
+        repMin: e.repMin,
+        repMax: e.repMax,
+        restSec: e.restSec,
+        targetRpe: e.targetRpe,
+      })),
+    })),
+  };
+}
+
+// ---------- Stale cards ----------
+// Edit cards hold a full replacement built from the data as it was when the
+// coach proposed it. If the meal or plan changed since (another card, or the
+// user's own edits), applying the card would silently undo those changes.
+
+/** JSON with object keys sorted: Postgres jsonb does not keep the order they were written in. */
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, v) =>
+    v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1))) : v,
+  );
+}
+
+/** Whether the plan still differs from the proposal exactly as the card says. */
+export function planEditStillValid(current: PlanShape, proposed: PlanShape, changes: PlanChange[]): boolean {
+  return canonical(diffPlans(current, proposed)) === canonical(changes);
+}
+
+type MealFingerprint = { localDate: string; mealType: string; kcal: number; items: { name: string; grams: number }[] };
+const fingerprint = (m: MealFingerprint) =>
+  JSON.stringify([m.localDate, m.mealType, Math.round(m.kcal), m.items.map((i) => `${i.name}:${Math.round(i.grams)}`).sort()]);
+
+/** Whether a meal still matches the snapshot an edit card was built from. */
+export function mealUnchanged(before: MealFingerprint, now: MealFingerprint): boolean {
+  return fingerprint(before) === fingerprint(now);
+}

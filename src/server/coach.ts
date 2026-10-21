@@ -7,6 +7,7 @@ import type { Proposal } from "@/lib/ai/coach";
 import { createPlan, updatePlan } from "./plans";
 import { deleteMeal, saveMeal, updateMeal } from "./nutrition";
 import type { ResolvedPlanDraft } from "@/lib/ai/plan";
+import { mealUnchanged, planEditStillValid, planShapeOf } from "@/lib/ai/coach-edits";
 import { setTargets, type ActionResult } from "./profile";
 import { getT } from "@/i18n/server";
 
@@ -62,8 +63,14 @@ async function apply(proposal: Proposal): Promise<ActionResult> {
     }
     case "planEdit": {
       const { user } = await requireProfile();
-      const existing = await db.trainingPlan.findFirst({ where: { id: proposal.planId, userId: user.id } });
+      const existing = await db.trainingPlan.findFirst({
+        where: { id: proposal.planId, userId: user.id },
+        include: { days: { orderBy: { dayIndex: "asc" }, include: { exercises: { orderBy: { order: "asc" }, include: { exercise: { select: { slug: true, name: true } } } } } } },
+      });
       if (!existing) return { ok: false, error: (await getT())("plans.errors.notFound") };
+      if (!planEditStillValid(planShapeOf(existing.days), proposal.plan, proposal.changes)) {
+        return { ok: false, error: (await getT())("coach.errors.staleProposal") };
+      }
       // Keep the plan's own name, goal and source; the coach only edits the days.
       return updatePlan(existing.id, {
         name: existing.name,
@@ -78,8 +85,13 @@ async function apply(proposal: Proposal): Promise<ActionResult> {
       const m = proposal.meal;
       return saveMeal({ mealType: m.mealType, description: m.description, source: "AI_TEXT", notes: null, eatenAt: new Date().toISOString(), localDate: m.localDate, items: m.items });
     }
-    case "mealUpdate":
+    case "mealUpdate": {
+      const { user } = await requireProfile();
+      const current = await db.meal.findFirst({ where: { id: proposal.mealId, userId: user.id }, include: { items: true } });
+      if (!current) return { ok: false, error: (await getT())("nutrition.mealNotFound") };
+      if (!mealUnchanged(proposal.before, current)) return { ok: false, error: (await getT())("coach.errors.staleProposal") };
       return updateMeal(proposal.mealId, { mealType: proposal.meal.mealType, description: proposal.meal.description, items: proposal.meal.items });
+    }
     case "mealDelete":
       return deleteMeal(proposal.mealId);
     default: {

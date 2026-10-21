@@ -6,7 +6,8 @@ async function ask(page: Page, message: string) {
   await page.getByLabel("Message the coach").fill(message);
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.getByTestId("proposal")).toHaveCount(before + 1);
-  return page.getByTestId("proposal").last();
+  await expect(page.getByTestId("chat-log")).toHaveAttribute("aria-busy", "false");
+  return page.getByTestId("proposal").nth(before);
 }
 
 test("coach logs, edits and deletes a meal; conversations can be deleted", async ({ page }) => {
@@ -65,8 +66,13 @@ test("coach edits the active plan in place", async ({ page }) => {
   await expect(changes.getByText("Upper A: remove Barbell Bench Press")).toBeVisible();
   await expect(changes.getByText(/^Upper A: add Dumbbell Bench Press, 4×5–8/)).toBeVisible();
   await expect(changes.getByRole("listitem")).toHaveCount(2);
+  // A second card built from the same plan goes stale once the first is applied
+  const again = await ask(page, "Swap my first exercise");
   await edit.getByRole("button", { name: "Apply" }).click();
   await expect(edit.getByRole("button", { name: "Applied" })).toBeVisible();
+  await again.getByRole("button", { name: "Apply" }).click();
+  await expect(page.getByText("This card is out of date")).toBeVisible();
+  await expect(again.getByRole("button", { name: "Apply" })).toBeEnabled();
 
   // Still one plan, now with the swap
   await page.goto("/train/plans");

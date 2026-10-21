@@ -13,7 +13,7 @@ import { sumNutrients } from "@/lib/nutrition/totals";
 import { best1RM } from "@/lib/training/summary";
 import { isAiMock, models, openai, reasoningOptions, reserveAiCall, AiLimitError } from "./client";
 import { analyzeMeal } from "./meal";
-import { GetMealsParams, MealDeleteParams, MealLogParams, MealUpdateParams, diffPlans, editMealItems, type ItemValues, type PlanChange } from "./coach-edits";
+import { GetMealsParams, MealDeleteParams, MealLogParams, MealUpdateParams, diffPlans, editMealItems, planShapeOf, type ItemValues, type PlanChange } from "./coach-edits";
 import { coachSystemPrompt, languageInstruction } from "./prompts";
 import type { Locale } from "@/i18n/config";
 import { planDraftSchema } from "./schemas";
@@ -320,24 +320,7 @@ async function buildTools(ctx: CoachContext) {
         });
         if (!active) return { error: "The user has no active plan. Use propose_plan to create one." };
         const plan = resolvePlanDraft(p.plan, library);
-        const changes = diffPlans(
-          {
-            days: active.days.map((d) => ({
-              name: d.name,
-              exercises: d.exercises.map((e) => ({
-                exerciseId: e.exerciseId,
-                exerciseName: e.exercise.name,
-                exerciseSlug: e.exercise.slug,
-                sets: e.sets,
-                repMin: e.repMin,
-                repMax: e.repMax,
-                restSec: e.restSec,
-                targetRpe: e.targetRpe,
-              })),
-            })),
-          },
-          plan,
-        );
+        const changes = diffPlans(planShapeOf(active.days), plan);
         if (changes.length === 0) return { error: "That plan is identical to the current one. Make the requested change." };
         proposals.push({ kind: "planEdit", planId: active.id, planName: active.name, plan, changes, reason: p.reason });
         return { status: "Edit card shown with the differences. Tell the user to review it and tap Apply.", changes };

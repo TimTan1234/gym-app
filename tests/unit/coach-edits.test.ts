@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diffPlans, editMealItems, type ExistingItem, type PlanShape } from "@/lib/ai/coach-edits";
+import { diffPlans, editMealItems, mealUnchanged, planEditStillValid, type ExistingItem, type PlanShape } from "@/lib/ai/coach-edits";
 
 const item = (id: string, name: string, grams: number, kcal: number): ExistingItem => ({
   id, name, quantity: 1, unit: "plate", grams, kcal, proteinG: grams / 10, carbsG: grams / 5, fatG: grams / 20, fiberG: 1, sugarG: 1, sodiumMg: 100, confidence: 0.8, assumptions: null,
@@ -52,5 +52,27 @@ describe("diffPlans", () => {
 
   it("is empty when nothing changed", () => {
     expect(diffPlans(before, structuredClone(before))).toEqual([]);
+  });
+});
+
+describe("stale edit cards", () => {
+  it("a plan edit is valid only while the plan is as it was proposed", () => {
+    const base: PlanShape = { days: [{ name: "Upper A", exercises: [ex("bench"), ex("row")] }] };
+    const proposed: PlanShape = { days: [{ name: "Upper A", exercises: [ex("db-bench"), ex("row")] }] };
+    // As read back from jsonb, which reorders object keys
+    const reorder = (v: unknown): unknown =>
+      Array.isArray(v) ? v.map(reorder) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).reverse().map(([k, x]) => [k, reorder(x)])) : v;
+    const changes = reorder(diffPlans(base, proposed)) as ReturnType<typeof diffPlans>;
+    expect(planEditStillValid(base, proposed, changes)).toBe(true);
+    // Another edit landed first: rows went to 4 sets
+    const moved: PlanShape = { days: [{ name: "Upper A", exercises: [ex("bench"), ex("row", 4)] }] };
+    expect(planEditStillValid(moved, proposed, changes)).toBe(false);
+  });
+
+  it("a meal edit is valid only while the meal is unchanged, in any item order", () => {
+    const before = { localDate: "2026-10-21", mealType: "LUNCH", kcal: 660.2, items: [{ name: "Rice", grams: 200 }, { name: "Chicken", grams: 130 }] };
+    expect(mealUnchanged(before, { ...before, kcal: 660, items: [...before.items].reverse() })).toBe(true);
+    expect(mealUnchanged(before, { ...before, items: [{ name: "Rice", grams: 150 }, { name: "Chicken", grams: 130 }] })).toBe(false);
+    expect(mealUnchanged(before, { ...before, mealType: "DINNER" })).toBe(false);
   });
 });

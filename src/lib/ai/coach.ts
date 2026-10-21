@@ -251,22 +251,32 @@ export async function runCoach(ctx: CoachContext, history: ChatTurn[], cb: Coach
   let text = "";
   const instructions = coachSystemPrompt(todayLocal(ctx.timezone), ctx.userName) + languageInstruction(ctx.locale);
 
+  const started = Date.now();
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const roundStart = Date.now();
+    let firstToken = 0;
     const stream = openai().responses.stream({ model: models.smart(), ...reasoningOptions(), instructions, input, tools });
     for await (const event of stream) {
       if (event.type === "response.output_text.delta") {
+        firstToken ||= Date.now() - roundStart;
         text += event.delta;
         cb.onDelta(event.delta);
       }
     }
     const response = await stream.finalResponse();
     const calls = response.output.filter((o) => o.type === "function_call");
+    // Timing per model round, to see where a slow reply spends its time.
+    console.info(
+      `[coach] round ${round + 1}: ${Date.now() - roundStart} ms` +
+        (firstToken ? `, first text at ${firstToken} ms` : "") +
+        (calls.length ? `, tools ${calls.map((c) => c.name).join(", ")}` : "") +
+        (response.usage ? `, tokens in ${response.usage.input_tokens} out ${response.usage.output_tokens}` : ""),
+    );
     if (calls.length === 0) break;
 
     const outputs: ResponseInputItem[] = [];
     for (const call of calls) {
       const before = proposals.length;
-      console.info(`[coach] tool ${call.name}`);
       let result: unknown;
       try {
         result = await execute(call.name, call.arguments, proposals);
@@ -283,6 +293,7 @@ export async function runCoach(ctx: CoachContext, history: ChatTurn[], cb: Coach
     }
   }
 
+  console.info(`[coach] reply done in ${Date.now() - started} ms`);
   return { text: text.trim(), proposals };
 }
 

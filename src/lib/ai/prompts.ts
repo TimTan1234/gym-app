@@ -5,6 +5,7 @@ Rules:
 - Estimate realistic portion sizes. If the user gives quantities, use them exactly. If a photo is given, use plate/utensil size cues.
 - Recognise regional dishes, including Malaysian, Singaporean, Indonesian, Chinese, Indian and Western foods (e.g. nasi lemak, roti canai, char kuey teow, teh tarik, mee goreng, chicken rice), and account for typical cooking oil, coconut milk, sugar and condensed milk.
 - grams is the edible weight. Nutrients are for the whole quantity, not per 100 g.
+- sugarG is total sugars. Count the sugar in sweetened drinks (teh tarik, kopi, syrups, soft drinks), condensed milk, sweet sauces (sambal, kicap manis, hoisin) and desserts; never leave it at 0 for something sweetened.
 - kcal should be consistent with protein*4 + carbs*4 + fat*9 (alcohol excepted).
 - confidence: 0.9+ only for packaged/clearly specified food; 0.4–0.7 for typical guesses from a photo.
 - State key assumptions briefly (cooking method, portion, hidden fats).

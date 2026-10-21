@@ -8,7 +8,7 @@ import type { Goal, Sex } from "./nutrition/targets";
 export async function getDayNutrition(userId: string, localDate: string) {
   const meals = await db.meal.findMany({
     where: { userId, localDate },
-    include: { items: true },
+    include: { items: { orderBy: { id: "asc" } } },
     orderBy: { eatenAt: "asc" },
   });
   return { meals, totals: sumNutrients(meals) };

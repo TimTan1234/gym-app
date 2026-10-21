@@ -1,10 +1,11 @@
 import { Suspense } from "react";
+import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import { addDays, isLocalDate, todayLocal, formatLocalDate } from "@/lib/dates";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
-import { MealLogger } from "@/components/nutrition/MealLogger";
+import { MealLogger, type EditableMeal } from "@/components/nutrition/MealLogger";
 import { PageHeader, PageSkeleton } from "@/components/ui";
 
 export const metadata = { title: "Log meal" };
@@ -15,7 +16,6 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
   const { user, profile } = await requireProfile();
   const sp = await searchParams;
   const today = todayLocal(profile.timezone);
-  const date = typeof sp.date === "string" && isLocalDate(sp.date) && sp.date <= today ? sp.date : today;
   const type = TYPES.find((t) => t === sp.type) ?? null;
 
   const itemSelect = {
@@ -31,6 +31,33 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
     sugarG: true,
     sodiumMg: true,
   } as const;
+
+  // ?meal=<id> opens a logged meal for editing, on its own day.
+  const editId = typeof sp.meal === "string" ? sp.meal : null;
+  const editing = editId
+    ? await db.meal.findFirst({
+        where: { id: editId, userId: user.id },
+        select: {
+          id: true,
+          localDate: true,
+          mealType: true,
+          description: true,
+          source: true,
+          notes: true,
+          items: { select: { id: true, ...itemSelect, confidence: true, assumptions: true }, orderBy: { id: "asc" } },
+        },
+      })
+    : null;
+  if (editId && !editing) notFound();
+  const editable: EditableMeal | null = editing && {
+    id: editing.id,
+    mealType: editing.mealType,
+    description: editing.description,
+    source: editing.source,
+    notes: editing.notes,
+    items: editing.items.map(({ id: _id, ...item }) => item),
+  };
+  const date = editing?.localDate ?? (typeof sp.date === "string" && isLocalDate(sp.date) && sp.date <= today ? sp.date : today);
 
   const [savedFoods, recent, t] = await Promise.all([
     db.savedFood.findMany({
@@ -62,10 +89,19 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
   return (
     <>
       <PageHeader
-        title={t("nutrition.logTitle")}
+        title={editing ? t("nutrition.editTitle") : t("nutrition.logTitle")}
         subtitle={date === today ? t("common.today") : formatLocalDate(date, undefined, INTL_LOCALE[t.locale])}
       />
-      <MealLogger date={date} isToday={date === today} initialType={type} savedFoods={savedFoods} recentMeals={recentMeals} />
+      <MealLogger
+        // Saving an edit recreates the items, so the key changes and a later edit starts from fresh data.
+        key={editing ? `${editing.id}:${editing.items.map((i) => i.id).join(",")}` : "new"}
+        date={date}
+        isToday={date === today}
+        initialType={type}
+        savedFoods={savedFoods}
+        recentMeals={recentMeals.filter((m) => m.id !== editing?.id)}
+        editing={editable}
+      />
     </>
   );
 }

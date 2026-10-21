@@ -4,6 +4,7 @@
 import type { Nutrients } from "@/lib/nutrition/totals";
 import { Plate, cn } from "@/components/ui";
 import { useT } from "@/i18n/client";
+import { SugarMeter } from "./Sugar";
 
 interface Targets {
   targetKcal: number;
@@ -125,9 +126,10 @@ export function MacroSummary({ totals, targets, compact = false }: { totals: Nut
       </dl>
 
       {!compact && (
-        <p className="num text-[13px] text-steel">
-          {t("nutrition.micros", { fiber: fmt(totals.fiberG), sugar: fmt(totals.sugarG), sodium: fmt(totals.sodiumMg) })}
-        </p>
+        <>
+          <SugarMeter g={totals.sugarG} targetKcal={targets.targetKcal} />
+          <p className="num text-[13px] text-steel">{t("nutrition.micros", { fiber: fmt(totals.fiberG), sodium: fmt(totals.sodiumMg) })}</p>
+        </>
       )}
     </div>
   );

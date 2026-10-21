@@ -2,11 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Copy, Star, Trash2, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, Copy, Pencil, Star, Trash2, Sparkles } from "lucide-react";
 import { copyMealToToday, deleteMeal, saveFoodFromItem } from "@/server/nutrition";
-import { Badge, Button, cn } from "@/components/ui";
+import { Badge, Button, buttonClass, cn } from "@/components/ui";
 import { MacroLine } from "@/components/MacroLine";
 import { useT } from "@/i18n/client";
+import { HIGH_SUGAR_MEAL_G, SugarAmount } from "./Sugar";
 
 export interface MealCardData {
   id: string;
@@ -16,6 +18,7 @@ export interface MealCardData {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  sugarG: number;
   notes: string | null;
   items: {
     id: string;
@@ -27,6 +30,7 @@ export interface MealCardData {
     proteinG: number;
     carbsG: number;
     fatG: number;
+    sugarG: number;
     confidence: number | null;
     assumptions: string | null;
   }[];
@@ -54,8 +58,9 @@ export function MealCard({ meal, canCopy }: { meal: MealCardData; canCopy: boole
       >
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{meal.description}</p>
-          <p className="mt-1 flex items-center gap-2">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
             <MacroLine p={meal.proteinG} c={meal.carbsG} f={meal.fatG} />
+            <SugarAmount g={meal.sugarG} high={meal.sugarG >= HIGH_SUGAR_MEAL_G} />
             {meal.source !== "MANUAL" && <Sparkles className="size-3.5 text-steel" aria-label={t("nutrition.aiEstimated")} />}
           </p>
         </div>
@@ -82,6 +87,7 @@ export function MealCard({ meal, canCopy }: { meal: MealCardData; canCopy: boole
                       {Math.round(item.kcal)} {t("common.kcal")}
                     </span>
                     <MacroLine p={item.proteinG} c={item.carbsG} f={item.fatG} />
+                    <SugarAmount g={item.sugarG} />
                     {item.confidence !== null && item.confidence < 0.6 && <Badge>{t("nutrition.roughEstimateBadge")}</Badge>}
                   </p>
                   {item.assumptions && <p className="mt-0.5 text-xs italic text-steel">{item.assumptions}</p>}
@@ -99,7 +105,10 @@ export function MealCard({ meal, canCopy }: { meal: MealCardData; canCopy: boole
             ))}
           </ul>
           {meal.notes && <p className="mt-2 text-xs text-steel">{meal.notes}</p>}
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href={`/nutrition/log?meal=${meal.id}`} className={buttonClass("secondary", "sm")} aria-label={t("nutrition.editNamed", { name: meal.description })}>
+              <Pencil className="size-4" /> {t("common.edit")}
+            </Link>
             {canCopy && (
               <Button variant="secondary" size="sm" disabled={pending} onClick={() => run(() => copyMealToToday(meal.id), t("nutrition.addedToToday"))}>
                 <Copy className="size-4" /> {t("nutrition.logAgainToday")}

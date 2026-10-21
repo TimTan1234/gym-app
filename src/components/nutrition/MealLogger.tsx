@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Camera, History, Loader2, Plus, ScanBarcode, Sparkles, Star, Trash2, X } from "lucide-react";
 import dynamic from "next/dynamic";
-import { deleteSavedFood, saveMeal, markSavedFoodsUsed } from "@/server/nutrition";
+import { deleteSavedFood, saveMeal, markSavedFoodsUsed, updateMeal } from "@/server/nutrition";
 import { scaleItem, sumNutrients } from "@/lib/nutrition/totals";
 import type { MealAnalysis } from "@/lib/ai/schemas";
 import { Button, Card, Input, Textarea, cn } from "@/components/ui";
 import { MacroLine } from "@/components/MacroLine";
+import { HIGH_SUGAR_MEAL_G, SugarAmount } from "./Sugar";
 import { useClientValue } from "@/lib/use-client";
 import type { BarcodeItem } from "@/lib/nutrition/barcode";
 import { useT } from "@/i18n/client";
@@ -52,6 +53,16 @@ type ItemValues = Omit<DraftItem, "key" | "confidence" | "assumptions" | "savedF
 
 export interface SavedFoodOption extends ItemValues {
   id: string;
+}
+
+/** A logged meal opened for editing: the draft starts from its items. */
+export interface EditableMeal {
+  id: string;
+  mealType: MealType;
+  description: string;
+  source: Source;
+  notes: string | null;
+  items: (ItemValues & { confidence: number | null; assumptions: string | null })[];
 }
 
 export interface RecentMealOption {
@@ -109,26 +120,28 @@ export function MealLogger({
   initialType,
   savedFoods,
   recentMeals,
+  editing = null,
 }: {
   date: string;
   isToday: boolean;
   initialType: MealType | null;
   savedFoods: SavedFoodOption[];
   recentMeals: RecentMealOption[];
+  editing?: EditableMeal | null;
 }) {
   const t = useT();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const guessedType = useClientValue(guessMealType, "LUNCH");
-  const [chosenType, setMealType] = useState<MealType | null>(initialType);
+  const [chosenType, setMealType] = useState<MealType | null>(editing?.mealType ?? initialType);
   const mealType = chosenType ?? guessedType;
   const [text, setText] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [items, setItems] = useState<DraftItem[]>([]);
-  const [title, setTitle] = useState("");
-  const [notes, setNotes] = useState<string | null>(null);
-  const [source, setSource] = useState<Source>("MANUAL");
+  const [items, setItems] = useState<DraftItem[]>(() => editing?.items.map((i) => ({ ...i, key: newKey() })) ?? []);
+  const [title, setTitle] = useState(editing?.description ?? "");
+  const [notes, setNotes] = useState<string | null>(editing?.notes ?? null);
+  const [source, setSource] = useState<Source>(editing?.source ?? "MANUAL");
   const [saving, startSaving] = useTransition();
   const [editingSaved, setEditingSaved] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -224,6 +237,19 @@ export function MealLogger({
       return;
     }
     const description = title.trim() || text.trim().slice(0, 120) || clean.map((i) => i.name).join(", ").slice(0, 120);
+    const cleanItems = clean.map(({ key: _k, savedFoodId: _s, base: _b, ...i }) => ({ ...i, name: i.name.trim() }));
+    const back = isToday ? "/nutrition" : `/nutrition?date=${date}`;
+    if (editing) {
+      startSaving(async () => {
+        const res = await updateMeal(editing.id, { mealType, description, items: cleanItems });
+        if (!res.ok) return void toast.error(res.error);
+        const usedSaved = clean.flatMap((i) => (i.savedFoodId ? [i.savedFoodId] : []));
+        if (usedSaved.length) await markSavedFoodsUsed(usedSaved);
+        toast.success(t("nutrition.mealUpdated"));
+        router.push(back);
+      });
+      return;
+    }
     startSaving(async () => {
       const res = await saveMeal({
         mealType,
@@ -232,7 +258,7 @@ export function MealLogger({
         notes,
         eatenAt: new Date().toISOString(),
         localDate: date,
-        items: clean.map(({ key: _k, savedFoodId: _s, base: _b, ...i }) => ({ ...i, name: i.name.trim() })),
+        items: cleanItems,
       });
       if (!res.ok) {
         toast.error(res.error);
@@ -248,7 +274,7 @@ export function MealLogger({
       setTitle("");
       setNotes(null);
       setSource("MANUAL");
-      router.push(isToday ? "/nutrition" : `/nutrition?date=${date}`);
+      router.push(back);
     });
   }
 
@@ -418,10 +444,13 @@ export function MealLogger({
                 <span className="score text-[30px]" data-testid="draft-total-kcal">{Math.round(totals.kcal)}</span>
                 <span className="ml-1 text-sm text-steel">{t("common.kcal")}</span>
               </p>
-              <MacroLine p={totals.proteinG} c={totals.carbsG} f={totals.fatG} />
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <MacroLine p={totals.proteinG} c={totals.carbsG} f={totals.fatG} />
+                <SugarAmount g={totals.sugarG} high={totals.sugarG >= HIGH_SUGAR_MEAL_G} />
+              </p>
             </div>
             <Button onClick={save} disabled={saving} size="lg">
-              {saving ? t("common.saving") : t("nutrition.saveMeal")}
+              {saving ? t("common.saving") : editing ? t("nutrition.saveChanges") : t("nutrition.saveMeal")}
             </Button>
           </Card>
         </div>
@@ -473,12 +502,13 @@ function DraftRow({
           <Trash2 className="size-4" />
         </button>
       </div>
-      <div className="grid grid-cols-5 gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
         <NumField label={t("nutrition.gramsField")} value={item.grams} onChange={(v) => onGrams(item.key, v)} className="[&_input]:border-iron/60" />
         <NumField label={t("common.kcal")} value={item.kcal} onChange={(v) => onChange(item.key, { kcal: v })} />
         <NumField label={t("common.protein")} value={item.proteinG} onChange={(v) => onChange(item.key, { proteinG: v })} />
         <NumField label={t("common.carbs")} value={item.carbsG} onChange={(v) => onChange(item.key, { carbsG: v })} />
         <NumField label={t("common.fat")} value={item.fatG} onChange={(v) => onChange(item.key, { fatG: v })} />
+        <NumField label={t("nutrition.sugar")} value={item.sugarG} onChange={(v) => onChange(item.key, { sugarG: v })} />
       </div>
       {(item.assumptions || item.confidence !== null) && (
         <p className="text-xs text-steel">

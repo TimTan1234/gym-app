@@ -71,9 +71,8 @@ export function computeTargets(input: TargetInput): Targets {
   const floor = KCAL_FLOOR[input.sex];
   const kcal = Math.round(Math.max(desired, floor));
 
-  const proteinG = Math.round(input.weightKg * proteinPerKg(input.goal));
   const carbCapG = input.diabetes ? carbBudget(input.sex, input.activityLevel).dailyMax : null;
-  const { carbsG, fatG } = splitMacros(kcal, proteinG, carbCapG);
+  const { proteinG, carbsG, fatG } = splitMacros(kcal, Math.round(input.weightKg * proteinPerKg(input.goal)), carbCapG);
 
   return {
     bmr: Math.round(bmr),
@@ -86,14 +85,29 @@ export function computeTargets(input: TargetInput): Targets {
   };
 }
 
+/** Fat's usual share of kcal, and the guideline's minimum in diabetes mode. */
+const FAT_SHARE = 0.25;
+
 /**
  * Fat 25% of kcal, carbs fill the rest. With a carb cap (diabetes mode), carbs
- * stop at the cap (never under 130 g) and fat takes the remainder up to 35% of
- * kcal; past that, carbs take the rest again so the calories still add up.
+ * stop at the cap and fat takes the remainder up to 35% of kcal; past that,
+ * carbs take the rest again so the calories still add up.
+ *
+ * Diabetes mode also keeps carbs at 130 g or more and fat at 25% or more (CPG
+ * section 3.5). When the calories can't fit those and the protein too (a cut
+ * near the calorie floor), protein gives way.
  */
-export function splitMacros(kcal: number, proteinG: number, carbCapG: number | null = null): { carbsG: number; fatG: number } {
+export function splitMacros(
+  kcal: number,
+  proteinG: number,
+  carbCapG: number | null = null,
+): { proteinG: number; carbsG: number; fatG: number } {
+  let fatG = Math.round((kcal * FAT_SHARE) / 9);
+  if (carbCapG !== null) {
+    const maxProteinG = Math.floor((kcal - MIN_DAILY_CARBS_G * 4 - fatG * 9) / 4);
+    proteinG = Math.max(0, Math.min(proteinG, maxProteinG));
+  }
   const rest = Math.max(0, kcal - proteinG * 4);
-  let fatG = Math.round((kcal * 0.25) / 9);
   let carbsG = Math.max(0, Math.round((rest - fatG * 9) / 4));
   if (carbCapG !== null && carbsG > carbCapG) {
     carbsG = Math.max(carbCapG, MIN_DAILY_CARBS_G);
@@ -104,5 +118,5 @@ export function splitMacros(kcal: number, proteinG: number, carbCapG: number | n
       carbsG = Math.round((rest - fatG * 9) / 4);
     }
   }
-  return { carbsG, fatG };
+  return { proteinG, carbsG, fatG };
 }

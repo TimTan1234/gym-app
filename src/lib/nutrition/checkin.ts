@@ -64,7 +64,7 @@ export interface CheckinResult {
 
 /** Same split as the initial targets (protein kept), including diabetes mode's carb cap. */
 export function macrosFor(kcal: number, proteinG: number, carbCapG: number | null = null) {
-  return { kcal, proteinG, ...splitMacros(kcal, proteinG, carbCapG) };
+  return { kcal, ...splitMacros(kcal, proteinG, carbCapG) };
 }
 
 /** 7-day trailing average at each weigh-in (unrounded; 0.1 kg matters here). */

@@ -97,6 +97,22 @@ describe("diabetes-mode targets", () => {
     expect(big.carbsG).toBeGreaterThan(210);
   });
 
+  it("keeps 130 g of carbs and 25% fat at the calorie floor, lowering protein instead", () => {
+    // A sedentary woman cutting: 1200 kcal, and 2.2 g/kg protein would be 176 g.
+    const t = computeTargets({ sex: "FEMALE", age: 50, heightCm: 160, weightKg: 80, activityLevel: "SEDENTARY", goal: "CUT", rateKgPerWeek: 0.5, diabetes: true });
+    expect(t.kcal).toBe(1200);
+    expect(t.carbsG).toBeGreaterThanOrEqual(130);
+    expect((t.fatG * 9) / t.kcal).toBeGreaterThanOrEqual(0.245);
+    expect(t.proteinG).toBeLessThan(176);
+    expect(Math.abs(t.proteinG * 4 + t.carbsG * 4 + t.fatG * 9 - t.kcal)).toBeLessThan(10);
+    // Without diabetes mode protein stays at 2.2 g/kg.
+    expect(computeTargets({ sex: "FEMALE", age: 50, heightCm: 160, weightKg: 80, activityLevel: "SEDENTARY", goal: "CUT", rateKgPerWeek: 0.5 }).proteinG).toBe(176);
+
+    const m = macrosFor(1200, 176, carbBudget("FEMALE", "SEDENTARY").dailyMax);
+    expect(m.carbsG).toBeGreaterThanOrEqual(130);
+    expect(Math.abs(m.proteinG * 4 + m.carbsG * 4 + m.fatG * 9 - m.kcal)).toBeLessThan(10);
+  });
+
   it("applies the same cap to weekly check-in suggestions", () => {
     expect(macrosFor(2800, 170, 300).carbsG).toBe(300);
     expect(macrosFor(2800, 170).carbsG).toBeGreaterThan(300);

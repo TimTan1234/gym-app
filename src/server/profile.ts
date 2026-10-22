@@ -177,15 +177,15 @@ export async function setTargets(input: z.infer<typeof TargetsSchema>): Promise<
   const { manual, ...targets } = parsed.data;
   const profile = await db.profile.findUnique({ where: { userId: user.id }, select: { sex: true, timezone: true, diabetesMode: true } });
   if (!profile) return { ok: false, error: (await getT())("settings.errors.noProfile") };
-  // The CPG minimum; this also covers targets proposed by the coach or a check-in.
-  if (profile.diabetesMode && targets.targetCarbsG < MIN_DAILY_CARBS_G) {
-    return { ok: false, error: (await getT())("settings.errors.carbFloor", { min: MIN_DAILY_CARBS_G }) };
-  }
   // Lets the weekly check-in wait for a week of data on the new targets.
   const targetsSetOn = todayLocal(profile.timezone);
   if (manual) {
     const floor = KCAL_FLOOR[profile.sex];
     if (targets.targetKcal < floor) return { ok: false, error: (await getT())("settings.errors.kcalFloor", { floor }) };
+    // The CPG minimum; this also covers targets proposed by the coach or a check-in.
+    if (profile.diabetesMode && targets.targetCarbsG < MIN_DAILY_CARBS_G) {
+      return { ok: false, error: (await getT())("settings.errors.carbFloor", { min: MIN_DAILY_CARBS_G }) };
+    }
     await db.profile.update({ where: { userId: user.id }, data: { ...targets, targetsManual: true, targetsSetOn } });
   } else {
     await db.profile.update({ where: { userId: user.id }, data: { targetsManual: false, targetsSetOn } });

@@ -10,6 +10,8 @@ import { MacroLine } from "@/components/MacroLine";
 import { useT } from "@/i18n/client";
 import { HIGH_SUGAR_MEAL_G, SugarAmount, SugarTag } from "./Sugar";
 import { MealGlucose } from "@/components/glucose/GlucoseBits";
+import { GiTag } from "./CarbBudget";
+import { highGiCarbShare } from "@/lib/nutrition/diabetes";
 import type { AfterMealReading } from "@/lib/glucose-queries";
 import type { GlucoseUnit } from "@/lib/glucose";
 
@@ -36,6 +38,7 @@ export interface MealCardData {
     fatG: number;
     sugarG: number;
     addedSugarG: number;
+    gi: number | null;
     confidence: number | null;
     assumptions: string | null;
   }[];
@@ -48,9 +51,10 @@ export function MealCard({
 }: {
   meal: MealCardData;
   canCopy: boolean;
-  /** Diabetes mode: after-meal readings linked to this meal. */
+  /** Diabetes mode: after-meal readings linked to this meal; GI shown per item. */
   glucose?: { readings: AfterMealReading[]; unit: GlucoseUnit };
 }) {
+  const highGi = glucose ? highGiCarbShare(meal.items) : null;
   const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -77,6 +81,7 @@ export function MealCard({
             <SugarTag total={meal.sugarG} added={meal.addedSugarG} high={meal.addedSugarG >= HIGH_SUGAR_MEAL_G} />
             {meal.source !== "MANUAL" && <Sparkles className="size-3.5 text-steel" aria-label={t("nutrition.aiEstimated")} />}
           </p>
+          {highGi && highGi.share >= 0.5 && <p className="text-[13px] text-steel">{t("glucose.highGiShare", { pct: Math.round(highGi.share * 100) })}</p>}
           {glucose && glucose.readings.length > 0 && <MealGlucose readings={glucose.readings} unit={glucose.unit} />}
         </div>
         <span className="text-right">
@@ -103,6 +108,7 @@ export function MealCard({
                     </span>
                     <MacroLine p={item.proteinG} c={item.carbsG} f={item.fatG} />
                     <SugarAmount total={item.sugarG} added={item.addedSugarG} />
+                    {glucose && <GiTag gi={item.gi} />}
                     {item.confidence !== null && item.confidence < 0.6 && <Badge>{t("nutrition.roughEstimateBadge")}</Badge>}
                   </p>
                   {item.assumptions && <p className="mt-0.5 text-xs italic text-steel">{item.assumptions}</p>}

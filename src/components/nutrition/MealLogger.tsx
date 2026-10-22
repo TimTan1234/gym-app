@@ -11,6 +11,8 @@ import type { MealAnalysis } from "@/lib/ai/schemas";
 import { Button, Card, Input, Textarea, cn } from "@/components/ui";
 import { MacroLine } from "@/components/MacroLine";
 import { HIGH_SUGAR_MEAL_G, SugarTag } from "./Sugar";
+import { CarbBudgetLine, GiTag } from "./CarbBudget";
+import { budgetFor, type CarbBudget } from "@/lib/nutrition/diabetes";
 import { useClientValue } from "@/lib/use-client";
 import type { BarcodeItem } from "@/lib/nutrition/barcode";
 import { useT } from "@/i18n/client";
@@ -36,6 +38,8 @@ export interface DraftItem {
   sugarG: number;
   addedSugarG: number;
   sodiumMg: number;
+  /** Glycaemic index of the food; not scaled with grams. */
+  gi: number | null;
   confidence: number | null;
   assumptions: string | null;
   savedFoodId?: string;
@@ -112,6 +116,7 @@ const emptyItem = (): DraftItem => ({
   sugarG: 0,
   addedSugarG: 0,
   sodiumMg: 0,
+  gi: null,
   confidence: null,
   assumptions: null,
 });
@@ -124,6 +129,7 @@ export function MealLogger({
   recentMeals,
   editing = null,
   eatenTime: initialTime = null,
+  carbBudget = null,
 }: {
   date: string;
   isToday: boolean;
@@ -133,6 +139,8 @@ export function MealLogger({
   editing?: EditableMeal | null;
   /** Diabetes mode: ask when the meal was eaten ("HH:MM"), starting from this. */
   eatenTime?: string | null;
+  /** Diabetes mode: the CPG carb budget, shown against the draft, and GI per item. */
+  carbBudget?: CarbBudget | null;
 }) {
   const t = useT();
   const router = useRouter();
@@ -222,7 +230,7 @@ export function MealLogger({
   function addScanned({ hasNutrition, addedSugarFromTotal, ...item }: BarcodeItem) {
     setScanning(false);
     const assumptions = !hasNutrition ? t("nutrition.noNutritionAssumption") : addedSugarFromTotal ? t("nutrition.addedSugarFromLabel") : null;
-    setItems((cur) => [...cur, { ...item, key: newKey(), confidence: null, assumptions }]);
+    setItems((cur) => [...cur, { ...item, key: newKey(), gi: null, confidence: null, assumptions }]);
     if (hasNutrition) toast.success(t("nutrition.addedItem", { name: item.name }));
     else toast(t("nutrition.noNutritionToast"));
   }
@@ -427,7 +435,14 @@ export function MealLogger({
           </div>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("nutrition.mealName")} aria-label={t("nutrition.mealName")} maxLength={120} />
           {items.map((item) => (
-            <DraftRow key={item.key} item={item} onChange={update} onGrams={changeGrams} onRemove={(k) => setItems((cur) => cur.filter((i) => i.key !== k))} />
+            <DraftRow
+              key={item.key}
+              item={item}
+              showGi={carbBudget !== null}
+              onChange={update}
+              onGrams={changeGrams}
+              onRemove={(k) => setItems((cur) => cur.filter((i) => i.key !== k))}
+            />
           ))}
           {notes && <p className="text-xs text-steel">{notes}</p>}
         </section>
@@ -496,6 +511,7 @@ export function MealLogger({
                 <MacroLine p={totals.proteinG} c={totals.carbsG} f={totals.fatG} />
                 <SugarTag total={totals.sugarG} added={totals.addedSugarG} high={totals.addedSugarG >= HIGH_SUGAR_MEAL_G} />
               </p>
+              {carbBudget && <CarbBudgetLine carbs={totals.carbsG} range={budgetFor(carbBudget, mealType)} />}
             </div>
             <Button onClick={save} disabled={saving} size="lg">
               {saving ? t("common.saving") : editing ? t("nutrition.saveChanges") : t("nutrition.saveMeal")}
@@ -526,11 +542,13 @@ function NumField({ label, value, onChange, className }: { label: string; value:
 
 function DraftRow({
   item,
+  showGi,
   onChange,
   onGrams,
   onRemove,
 }: {
   item: DraftItem;
+  showGi: boolean;
   onChange: (key: string, patch: Partial<DraftItem>) => void;
   onGrams: (key: string, grams: number) => void;
   onRemove: (key: string) => void;
@@ -559,8 +577,9 @@ function DraftRow({
         <NumField label={t("nutrition.sugar")} value={item.sugarG} onChange={(v) => onChange(item.key, { sugarG: v })} />
         <NumField label={t("nutrition.addedSugar")} value={item.addedSugarG} onChange={(v) => onChange(item.key, { addedSugarG: v })} />
       </div>
-      {(item.assumptions || item.confidence !== null) && (
+      {(item.assumptions || item.confidence !== null || (showGi && item.gi !== null)) && (
         <p className="text-xs text-steel">
+          {showGi && <GiTag gi={item.gi} />}{" "}
           {item.confidence !== null && (
             <span className={cn("mr-1.5", item.confidence < 0.6 ? "font-semibold text-iron" : "")}>
               {item.confidence < 0.6 ? t("nutrition.roughEstimate") : t("nutrition.confident", { pct: Math.round(item.confidence * 100) })}

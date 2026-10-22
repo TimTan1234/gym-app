@@ -54,6 +54,8 @@ function normalize(analysis: MealAnalysis): MealAnalysis {
       fiberG: r1(i.fiberG),
       sugarG: r1(i.sugarG),
       addedSugarG: r1(Math.min(i.addedSugarG, i.sugarG)),
+      // GI only means something for food with real carbs.
+      gi: i.gi === null || i.carbsG < 5 ? null : Math.round(i.gi),
       sodiumMg: Math.round(i.sodiumMg),
     })),
   };

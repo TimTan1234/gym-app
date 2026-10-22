@@ -7,6 +7,7 @@ Rules:
 - grams is the edible weight. Nutrients are for the whole quantity, not per 100 g.
 - sugarG is total sugars. Count the sugar in sweetened drinks (teh tarik, kopi, syrups, soft drinks), condensed milk, sweet sauces (sambal, kicap manis, hoisin) and desserts; never leave it at 0 for something sweetened.
 - addedSugarG is the added (free) sugar within sugarG: table sugar, syrups, honey, condensed milk's added sugar, sweetened sauces, fruit juice. Sugar naturally in whole fruit, vegetables and plain milk is not added. Plain rice, meat or eggs: 0. Never more than sugarG.
+- gi is the food's glycaemic index (glucose = 100) from published GI tables, e.g. white or jasmine rice ~73, nasi lemak rice ~70, brown rice ~55, roti canai ~80, thosai ~75, white bread ~75, oats ~55, most fruit 40-55, teh tarik ~60. Use null for items with under 5 g carbs (meat, eggs, oil, plain vegetables).
 - kcal should be consistent with protein*4 + carbs*4 + fat*9 (alcohol excepted).
 - confidence: 0.9+ only for packaged/clearly specified food; 0.4–0.7 for typical guesses from a photo.
 - State key assumptions briefly (cooking method, portion, hidden fats).

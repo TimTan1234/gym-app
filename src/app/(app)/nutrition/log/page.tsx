@@ -6,6 +6,7 @@ import { addDays, isLocalDate, todayLocal, formatLocalDate, toLocalTime } from "
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
 import { MealLogger, type EditableMeal } from "@/components/nutrition/MealLogger";
+import { carbBudget } from "@/lib/nutrition/diabetes";
 import { PageHeader, PageSkeleton } from "@/components/ui";
 
 export const metadata = { title: "Log meal" };
@@ -30,6 +31,7 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
     fiberG: true,
     sugarG: true,
     addedSugarG: true,
+    gi: true,
     sodiumMg: true,
   } as const;
 
@@ -103,6 +105,7 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
         savedFoods={savedFoods}
         recentMeals={recentMeals.filter((m) => m.id !== editing?.id)}
         editing={editable}
+        carbBudget={profile.diabetesMode ? carbBudget(profile.sex, profile.activityLevel) : null}
         eatenTime={
           !profile.diabetesMode
             ? null

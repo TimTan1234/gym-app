@@ -44,6 +44,8 @@ export interface ItemValues extends Nutrients {
   grams: number;
   confidence: number | null;
   assumptions: string | null;
+  /** Glycaemic index; a property of the food, so grams changes keep it. */
+  gi: number | null;
 }
 
 export type ExistingItem = ItemValues & { id: string };

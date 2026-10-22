@@ -30,6 +30,10 @@ export function carbBudget(sex: Sex, activityLevel: ActivityLevel): CarbBudget {
   return { meal, snack, dailyMax: Math.max(MIN_DAILY_CARBS_G, 3 * meal.max + snack.max) };
 }
 
+/** The carb range for this kind of meal: a snack has its own, smaller budget. */
+export const budgetFor = (budget: CarbBudget, mealType: "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK") =>
+  mealType === "SNACK" ? budget.snack : budget.meal;
+
 export type GiBand = "low" | "intermediate" | "high";
 
 export function giBand(gi: number | null | undefined): GiBand | null {

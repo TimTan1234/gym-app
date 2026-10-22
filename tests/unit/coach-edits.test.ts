@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { diffPlans, editMealItems, mealUnchanged, planEditStillValid, type ExistingItem, type PlanShape } from "@/lib/ai/coach-edits";
 
 const item = (id: string, name: string, grams: number, kcal: number): ExistingItem => ({
-  id, name, quantity: 1, unit: "plate", grams, kcal, proteinG: grams / 10, carbsG: grams / 5, fatG: grams / 20, fiberG: 1, sugarG: 1, addedSugarG: 0, sodiumMg: 100, confidence: 0.8, assumptions: null,
+  id, name, quantity: 1, unit: "plate", grams, kcal, proteinG: grams / 10, carbsG: grams / 5, fatG: grams / 20, fiberG: 1, sugarG: 1, addedSugarG: 0, sodiumMg: 100, gi: 70, confidence: 0.8, assumptions: null,
 });
 
 describe("editMealItems", () => {
@@ -74,5 +74,13 @@ describe("stale edit cards", () => {
     expect(mealUnchanged(before, { ...before, kcal: 660, items: [...before.items].reverse() })).toBe(true);
     expect(mealUnchanged(before, { ...before, items: [{ name: "Rice", grams: 150 }, { name: "Chicken", grams: 130 }] })).toBe(false);
     expect(mealUnchanged(before, { ...before, mealType: "DINNER" })).toBe(false);
+  });
+});
+
+describe("editMealItems and GI", () => {
+  it("keeps an item's GI when its grams change (GI is a property of the food)", () => {
+    const [rice] = editMealItems([item("a", "Rice", 200, 260)], [{ itemId: "a", newGrams: 100, remove: false }]).items;
+    expect(rice.gi).toBe(70);
+    expect(rice.carbsG).toBe(20);
   });
 });

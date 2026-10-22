@@ -10,6 +10,8 @@ import { CopyDayBefore } from "@/components/nutrition/CopyDayBefore";
 import { DateNav } from "@/components/DateNav";
 import { AfterMealPrompt } from "@/components/glucose/GlucoseBits";
 import { afterMealReadings, mealDueForCheck } from "@/lib/glucose-queries";
+import { budgetFor, carbBudget } from "@/lib/nutrition/diabetes";
+import { CarbBudgetLine } from "@/components/nutrition/CarbBudget";
 import { PageSkeleton, buttonClass, cn } from "@/components/ui";
 import { getT } from "@/i18n/server";
 
@@ -24,6 +26,7 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
   const date = typeof raw === "string" && isLocalDate(raw) && raw <= today ? raw : today;
   const [{ meals, totals }, dayBefore, t] = await Promise.all([getDayNutrition(user.id, date), getDayNutrition(user.id, addDays(date, -1)), getT()]);
   const diabetes = profile.diabetesMode;
+  const budget = diabetes ? carbBudget(profile.sex, profile.activityLevel) : null;
   const [glucoseByMeal, dueForCheck] = diabetes
     ? await Promise.all([afterMealReadings(user.id, meals, profile), date === today ? mealDueForCheck(user.id, today, profile) : null])
     : [null, null];
@@ -60,6 +63,9 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
                   <Plus className="size-4" /> {t("common.add")}
                 </Link>
               </div>
+              {budget && group.length > 0 && (
+                <CarbBudgetLine carbs={group.reduce((s, m) => s + m.carbsG, 0)} range={budgetFor(budget, type)} className="mb-1 block" />
+              )}
               <div className={group.length > 0 ? "border-b border-line" : undefined}>
                 {group.map((meal) => (
                   <MealCard

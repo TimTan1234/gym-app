@@ -144,3 +144,33 @@ test("diabetes mode: meal time, after-meal reminder, linked readings and meal re
   await form.getByRole("button", { name: "Save reading" }).click();
   await expect(page.getByTestId("glucose-reading").first()).toContainText("Too soon after eating to compare");
 });
+
+test("diabetes mode: carb budget per meal and GI bands", async ({ page }) => {
+  await signUpAndOnboard(page);
+  await enableDiabetesMode(page);
+
+  await page.goto("/nutrition/log?type=LUNCH");
+  await page.getByLabel("Meal description").fill("nasi lemak with fried chicken");
+  await page.getByRole("button", { name: "Analyse with AI" }).click();
+  await expect(page.getByText("Review & adjust")).toBeVisible();
+  // The rice is high GI (CPG Appendix 4: over 70); the mock meal has 72 g of carbs
+  const rice = page.getByTestId("draft-item").first();
+  await expect(rice.getByText("High GI")).toBeVisible();
+  await expect(page.getByTestId("carb-budget")).toHaveText(/^72 g carbs, budget \d+–\d+ g$/);
+  await page.getByRole("button", { name: "Save meal" }).click();
+  await expect(page).toHaveURL(/\/nutrition$/);
+
+  await expect(page.getByTestId("carb-budget")).toHaveText(/^72 g carbs, budget \d+–\d+ g$/);
+  const meal = page.getByRole("button", { name: /Nasi lemak/ });
+  await expect(meal).toContainText("100% of carbs from high-GI food");
+  await meal.click();
+  await expect(page.getByText("High GI")).toBeVisible();
+
+  // A big snack goes over the 15–30 g snack budget
+  await page.goto("/nutrition/log?type=SNACK");
+  await page.getByRole("button", { name: "Add item manually" }).click();
+  const k = page.getByTestId("draft-item").last();
+  await k.getByLabel("Food name").fill("Kuih lapis");
+  await k.getByLabel("Carbs").fill("45");
+  await expect(page.getByTestId("carb-budget")).toHaveText("45 g carbs, 15 g over the 30 g budget");
+});

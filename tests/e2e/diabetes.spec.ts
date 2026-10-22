@@ -174,3 +174,38 @@ test("diabetes mode: carb budget per meal and GI bands", async ({ page }) => {
   await k.getByLabel("Carbs").fill("45");
   await expect(page.getByTestId("carb-budget")).toHaveText("45 g carbs, 15 g over the 30 g budget");
 });
+
+test("diabetes mode: pre-training glucose check and the coach reads glucose", async ({ page }) => {
+  await signUpAndOnboard(page);
+  await enableDiabetesMode(page, { meds: true });
+
+  // On a sulfonylurea with no recent reading: check first
+  await page.goto("/train");
+  await expect(page.getByTestId("pre-exercise")).toContainText("Check your glucose before you train");
+  await page.getByTestId("pre-exercise").getByRole("link", { name: "Log a reading" }).click();
+  await expect(page.getByRole("form", { name: "Log a reading" }).getByRole("radio", { name: "Before exercise" })).toHaveAttribute("aria-checked", "true");
+  await logReading(page, "5.2", "Before exercise");
+
+  // Under 5.6 (CPG Appendix 5): eat first
+  await page.goto("/train");
+  await expect(page.getByTestId("pre-exercise")).toContainText("Your glucose is 5.2 mmol/L. Have some extra carbs before you train");
+
+  // A low: treat it first
+  await page.goto("/glucose");
+  await logReading(page, "3.5", "Before exercise");
+  await page.goto("/today");
+  await expect(page.getByTestId("pre-exercise")).toContainText("Your glucose is low (3.5 mmol/L)");
+  await expect(page.getByTestId("hypo-card")).toBeVisible();
+
+  // Fine to train after eating
+  await page.goto("/glucose");
+  await logReading(page, "6.4", "Before exercise");
+  await page.goto("/train");
+  await expect(page.getByTestId("pre-exercise")).toContainText("Last reading 6.4 mmol/L");
+
+  // The coach can see the log
+  await page.goto("/coach");
+  await page.getByLabel("Message the coach").fill("How is my glucose this week?");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText("Glucose: 2 of 3 readings in target (mmol/L).")).toBeVisible();
+});

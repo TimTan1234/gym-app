@@ -8,6 +8,7 @@ import { formatLocalDate } from "@/lib/dates";
 import { displayWeight, weightUnit } from "@/lib/units";
 import { durationMinutes, totalVolume } from "@/lib/training/summary";
 import { StartWorkoutButton } from "@/components/train/StartWorkoutButton";
+import { PreExerciseCheck } from "@/components/glucose/PreExerciseCheck";
 import { EmptyState, PageHeader, PageSkeleton, Section, buttonClass } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
@@ -33,6 +34,8 @@ async function Train() {
   return (
     <div className="space-y-8">
       <PageHeader title={t("train.title")} />
+
+      {profile.diabetesMode && !active && <PreExerciseCheck userId={user.id} hypoRiskMeds={profile.hypoRiskMeds} unit={profile.glucoseUnit} />}
 
       <section className="rounded-[14px] bg-panel p-5 text-panel-fg">
         {active ? (

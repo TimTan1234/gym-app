@@ -3,7 +3,7 @@ import { z } from "zod";
 import { zodResponsesFunction } from "openai/helpers/zod";
 import type { ResponseInputItem } from "openai/resources/responses/responses";
 import { db } from "@/lib/db";
-import { addDays, isLocalDate, todayLocal } from "@/lib/dates";
+import { addDays, isLocalDate, toLocalTime, todayLocal } from "@/lib/dates";
 import { KCAL_FLOOR } from "@/lib/nutrition/targets";
 import type { CheckinResult } from "@/lib/nutrition/checkin";
 import { describeMissing } from "@/lib/nutrition/checkin-text";
@@ -14,7 +14,10 @@ import { best1RM } from "@/lib/training/summary";
 import { isAiMock, models, openai, reasoningOptions, reserveAiCall, AiLimitError } from "./client";
 import { analyzeMeal } from "./meal";
 import { GetMealsParams, MealDeleteParams, MealLogParams, MealUpdateParams, diffPlans, editMealItems, planShapeOf, type ItemValues, type PlanChange } from "./coach-edits";
-import { coachSystemPrompt, languageInstruction } from "./prompts";
+import { coachSystemPrompt, diabetesPrompt, languageInstruction } from "./prompts";
+import { HYPO_MMOL, classifyReading, summarize, toDisplay, unitLabel, type GlucoseUnit } from "@/lib/glucose";
+import { mealResponses, targetsOf, type GlucoseProfile } from "@/lib/glucose-queries";
+import type { CarbBudget } from "@/lib/nutrition/diabetes";
 import type { Locale } from "@/i18n/config";
 import { planDraftSchema } from "./schemas";
 import { resolvePlanDraft, type ResolvedPlanDraft } from "./plan";
@@ -63,6 +66,8 @@ export interface CoachContext {
   sex: "MALE" | "FEMALE";
   /** Interface language; the coach replies in it. */
   locale: Locale;
+  /** Set in diabetes mode: adds glucose rules and the get_glucose tool. */
+  diabetes: (GlucoseProfile & { type: "PREDIABETES" | "TYPE2"; hypoRiskMeds: boolean; glucoseUnit: GlucoseUnit; budget: CarbBudget }) | null;
 }
 
 // ---------- Tool schemas ----------
@@ -93,6 +98,16 @@ async function buildTools(ctx: CoachContext) {
     zodResponsesFunction({ name: "get_recent_workouts", parameters: Count, description: "Most recent finished workouts with exercises and sets." }),
     zodResponsesFunction({ name: "get_active_plan", parameters: Empty, description: "The user's active training plan." }),
     zodResponsesFunction({ name: "get_body_metrics", parameters: Days, description: "Body weight / body fat / waist entries." }),
+    ...(ctx.diabetes
+      ? [
+          zodResponsesFunction({
+            name: "get_glucose",
+            parameters: Days,
+            description:
+              "The user's glucose readings (in their unit) with their target status, the share in target, and how logged meals changed their glucose (highest after-meal reading first).",
+          }),
+        ]
+      : []),
     zodResponsesFunction({
       name: "get_weekly_checkin",
       parameters: Empty,
@@ -253,6 +268,48 @@ async function buildTools(ctx: CoachContext) {
             name: d.name,
             // Same keys as propose_plan_edit, so the model can copy unchanged exercises as they are.
             exercises: d.exercises.map((e) => ({ exerciseSlug: e.exercise.slug, name: e.exercise.name, sets: e.sets, repMin: e.repMin, repMax: e.repMax, restSec: e.restSec, targetRpe: e.targetRpe, notes: e.notes })),
+          })),
+        };
+      }
+      case "get_glucose": {
+        const d = ctx.diabetes;
+        if (!d) return { error: "Diabetes mode is off." };
+        const { days } = Days.parse(args);
+        const since = addDays(today, -(days - 1));
+        const [readings, responses] = await Promise.all([
+          db.glucoseReading.findMany({
+            where: { userId: ctx.userId, localDate: { gte: since } },
+            orderBy: { measuredAt: "asc" },
+            include: { meal: { select: { description: true, eatenAt: true } } },
+          }),
+          mealResponses(ctx.userId, since, d),
+        ]);
+        const v = (mmol: number) => toDisplay(mmol, d.glucoseUnit);
+        const rated = readings.map((r) => {
+          const minutesAfterMeal = r.meal ? Math.round((r.measuredAt.getTime() - r.meal.eatenAt.getTime()) / 60000) : null;
+          return {
+            date: r.localDate,
+            time: toLocalTime(r.measuredAt, ctx.timezone),
+            context: r.context,
+            value: v(r.mmol),
+            status: classifyReading({ mmol: r.mmol, context: r.context, minutesAfterMeal }, targetsOf(d)),
+            meal: r.meal?.description ?? null,
+            minutesAfterMeal,
+          };
+        });
+        return {
+          unit: unitLabel(d.glucoseUnit),
+          targets: { fastingAndBeforeMeals: [v(d.glucoseFastingMin), v(d.glucoseFastingMax)], afterMealsMax: v(d.glucosePostMealMax) },
+          summary: summarize(rated.map((r) => r.status)),
+          readings: rated,
+          mealResponses: responses.slice(0, 8).map((m) => ({
+            meal: m.description,
+            date: m.localDate,
+            carbsG: Math.round(m.carbsG),
+            before: m.beforeMmol === null ? null : v(m.beforeMmol),
+            after: v(m.afterMmol),
+            minutesAfter: m.minutesAfter,
+            status: m.status,
           })),
         };
       }
@@ -455,7 +512,22 @@ export async function runCoach(ctx: CoachContext, history: ChatTurn[], cb: Coach
 
   let input: ResponseInputItem[] = history.map((m) => ({ role: m.role, content: m.content }));
   let text = "";
-  const instructions = coachSystemPrompt(todayLocal(ctx.timezone), ctx.userName) + languageInstruction(ctx.locale);
+  const d = ctx.diabetes;
+  const instructions =
+    coachSystemPrompt(todayLocal(ctx.timezone), ctx.userName) +
+    (d
+      ? diabetesPrompt({
+          type: d.type,
+          hypoRiskMeds: d.hypoRiskMeds,
+          unit: unitLabel(d.glucoseUnit),
+          fasting: `${toDisplay(d.glucoseFastingMin, d.glucoseUnit)}-${toDisplay(d.glucoseFastingMax, d.glucoseUnit)}`,
+          postMealMax: String(toDisplay(d.glucosePostMealMax, d.glucoseUnit)),
+          low: String(toDisplay(HYPO_MMOL, d.glucoseUnit)),
+          mealCarbs: `${d.budget.meal.min}-${d.budget.meal.max}`,
+          snackCarbs: `${d.budget.snack.min}-${d.budget.snack.max}`,
+        })
+      : "") +
+    languageInstruction(ctx.locale);
 
   const started = Date.now();
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -545,6 +617,9 @@ async function runMockCoach(
             : `not enough data yet. Still needed: ${c.missing.map((m) => describeMissing(createT("en"), m)).join(", ")}.`;
       text += `\n\nWeekly check-in: ${verdict}`;
     }
+  } else if (ctx.diabetes && (question.includes("glucose") || question.includes("血糖"))) {
+    const g = (await execute("get_glucose", JSON.stringify({ days: 14 }), proposals)) as { summary: { inTarget: number; rated: number }; unit: string };
+    text += `\n\nGlucose: ${g.summary.inTarget} of ${g.summary.rated} readings in target (${g.unit}).`;
   } else if (question.includes("swap")) {
     // Swap day 1's first exercise for a chest press it doesn't already have.
     const plan = (await execute("get_active_plan", "{}", proposals)) as {

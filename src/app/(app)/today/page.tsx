@@ -10,6 +10,7 @@ import { MacroSummary } from "@/components/nutrition/MacroSummary";
 import { WeightQuickLog } from "@/components/body/WeightQuickLog";
 import { StartWorkoutButton } from "@/components/train/StartWorkoutButton";
 import { GlucoseToday } from "@/components/glucose/GlucoseToday";
+import { PreExerciseCheck } from "@/components/glucose/PreExerciseCheck";
 import { PageSkeleton, Section, buttonClass } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
@@ -89,6 +90,8 @@ async function Today() {
           <ChevronRight className="size-4 text-steel" aria-hidden />
         </Link>
       )}
+
+      {profile.diabetesMode && !active && <PreExerciseCheck userId={user.id} hypoRiskMeds={profile.hypoRiskMeds} unit={profile.glucoseUnit} />}
 
       {/* The one inverted panel: the next thing to do in the gym. */}
       <section className="rounded-[14px] bg-panel p-5 text-panel-fg">

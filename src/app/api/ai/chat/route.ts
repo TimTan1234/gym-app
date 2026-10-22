@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getUserForApi } from "@/lib/session";
 import { AiLimitError, reserveAiCall } from "@/lib/ai/client";
 import { describeProposals, runCoach, type ChatTurn, type Proposal } from "@/lib/ai/coach";
+import { carbBudget } from "@/lib/nutrition/diabetes";
 import { todayLocal } from "@/lib/dates";
 import { getLocale } from "@/i18n/server";
 import { createT } from "@/i18n/translate";
@@ -71,7 +72,20 @@ export async function POST(request: Request) {
       send({ type: "thread", threadId: threadId! });
       try {
         const result = await runCoach(
-          { userId: user.id, userName: user.name, timezone: profile.timezone, sex: profile.sex, locale },
+          {
+            userId: user.id,
+            userName: user.name,
+            timezone: profile.timezone,
+            sex: profile.sex,
+            locale,
+            diabetes: profile.diabetesMode
+              ? {
+                  ...profile,
+                  type: profile.diabetesType ?? "TYPE2",
+                  budget: carbBudget(profile.sex, profile.activityLevel),
+                }
+              : null,
+          },
           history,
           { onDelta: (text) => send({ type: "delta", text }), onProposal: (proposal) => send({ type: "proposal", proposal }) },
         );

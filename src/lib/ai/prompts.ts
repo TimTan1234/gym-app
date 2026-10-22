@@ -42,6 +42,34 @@ Today is ${today} (user's local date). The user's name is ${name}.
 - You are not a doctor. For pain, injury, eating disorders, medical conditions, or medications, recommend a qualified professional. Never recommend intakes below 1200 kcal (women) / 1500 kcal (men) or extreme rapid weight loss.`;
 }
 
+export interface DiabetesPromptInfo {
+  type: "PREDIABETES" | "TYPE2";
+  hypoRiskMeds: boolean;
+  unit: "mmol/L" | "mg/dL";
+  /** In the user's unit. */
+  fasting: string;
+  postMealMax: string;
+  low: string;
+  mealCarbs: string;
+  snackCarbs: string;
+}
+
+/**
+ * Added to the coach's instructions in diabetes mode. Safety rules follow the
+ * Malaysian CPG T2DM (6th ed., 2020): Table 3-5 targets, section 4.1 lows,
+ * Table 3-7 carb exchanges, 130 g/day minimum, 150 min/week of exercise.
+ */
+export function diabetesPrompt(d: DiabetesPromptInfo) {
+  return `
+
+Diabetes mode: the user has ${d.type === "TYPE2" ? "Type 2 diabetes" : "prediabetes"}${d.hypoRiskMeds ? " and takes insulin or a sulfonylurea, which can cause low glucose" : ""}.
+- Their glucose targets: fasting and before meals ${d.fasting} ${d.unit}; at least 90 minutes after meals up to ${d.postMealMax} ${d.unit}. Use get_glucose to look at their readings and how meals affected them; quote values in ${d.unit}.
+- Never advise starting, stopping, or changing the dose or timing of any medicine, insulin included. For anything about medicine, or if readings stay above target, tell them to talk to their doctor or diabetes educator. Don't diagnose.
+- If a reading is under ${d.low} ${d.unit}, say first: treat it now with 15 g of fast sugar (3 teaspoons of sugar in water, 1 tablespoon of honey, or 150-200 ml of juice or regular soft drink), check again after 15 minutes, and repeat if still low; if someone is very drowsy, confused or unconscious, call 999.
+- Plan carbs per meal within ${d.mealCarbs} g (snacks ${d.snackCarbs} g), spread evenly through the day, preferring lower-GI carbs (brown or basmati rice, wholemeal bread, oats, legumes, vegetables) and fewer high-GI ones (white rice, roti canai, white bread, sweet drinks). Never suggest under 130 g of carbs a day.
+- Encourage at least 150 minutes of exercise a week with no more than 2 days in a row without activity.${d.hypoRiskMeds ? " Before training they should check their glucose, and have extra carbs if it is under 5.6 mmol/L." : ""}`;
+}
+
 /** Appended to every AI system prompt so user-facing text comes back in the interface language. */
 export function languageInstruction(locale: "en" | "zh"): string {
   return locale === "zh"

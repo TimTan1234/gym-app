@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { toLocalTime } from "@/lib/dates";
 import { classifyReading } from "@/lib/glucose";
 import { Section, buttonClass } from "@/components/ui";
-import { GlucoseValue, SafetyCard, StatusTag } from "./GlucoseBits";
+import { AfterMealPrompt, GlucoseValue, SafetyCard, StatusTag } from "./GlucoseBits";
+import { mealDueForCheck } from "@/lib/glucose-queries";
 import { getT } from "@/i18n/server";
 
 interface GlucoseProfile {
@@ -17,12 +18,13 @@ interface GlucoseProfile {
 
 /** Today's latest glucose reading and a way to log the next, for diabetes mode. */
 export async function GlucoseToday({ userId, today, profile }: { userId: string; today: string; profile: GlucoseProfile }) {
-  const [latest, t] = await Promise.all([
+  const [latest, due, t] = await Promise.all([
     db.glucoseReading.findFirst({
       where: { userId, localDate: today },
       orderBy: [{ measuredAt: "desc" }, { createdAt: "desc" }],
       include: { meal: { select: { eatenAt: true } } },
     }),
+    mealDueForCheck(userId, today, profile),
     getT(),
   ]);
   const status = latest
@@ -61,6 +63,7 @@ export async function GlucoseToday({ userId, today, profile }: { userId: string;
       ) : (
         <p className="text-sm text-steel">{t("glucose.noneToday")}</p>
       )}
+      {due && <AfterMealPrompt meal={due} />}
     </Section>
   );
 }

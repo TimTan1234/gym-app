@@ -79,3 +79,68 @@ test("diabetes mode: carb cap, glucose log, low-glucose steps, units, carb floor
   await page.getByRole("button", { name: "Save targets" }).click();
   await expect(page.getByText("can't be set below 130 g a day")).toBeVisible();
 });
+
+test("diabetes mode: meal time, after-meal reminder, linked readings and meal responses", async ({ page }) => {
+  await signUpAndOnboard(page);
+  await enableDiabetesMode(page);
+
+  // Eaten two hours ago (needs today to have started at least ~2 h ago)
+  const { minutes, time } = await page.evaluate(() => {
+    const d = new Date(Date.now() - 120 * 60000);
+    const now = new Date();
+    return { minutes: now.getHours() * 60 + now.getMinutes(), time: d.toTimeString().slice(0, 5) };
+  });
+  test.skip(minutes < 130, "too early in the day for a meal two hours ago");
+
+  await page.goto("/nutrition/log?type=LUNCH");
+  await page.getByLabel("Meal description").fill("nasi lemak with fried chicken");
+  await page.getByRole("button", { name: "Analyse with AI" }).click();
+  await expect(page.getByText("Review & adjust")).toBeVisible();
+  // Set after the page is interactive, so hydration can't reset it
+  await page.getByLabel("Time eaten").fill(time);
+  await expect(page.getByLabel("Time eaten")).toHaveValue(time);
+  await page.getByRole("button", { name: "Save meal" }).click();
+  await expect(page).toHaveURL(/\/nutrition$/);
+
+  // Food page asks for the 2-hour check, and the link prefills the form
+  const prompt = page.getByTestId("after-meal-prompt");
+  await expect(prompt).toContainText(`Check your glucose about 2 hours after Nasi lemak with fried chicken (eaten at ${time})`);
+  await prompt.getByRole("link", { name: "Log after-meal reading" }).click();
+  await expect(page).toHaveURL(/context=AFTER_MEAL/);
+  const form = page.getByRole("form", { name: "Log a reading" });
+  await expect(form.getByRole("radio", { name: "After a meal" })).toHaveAttribute("aria-checked", "true");
+  await expect(form.getByLabel("Which meal?")).toHaveValue(/.+/);
+  await form.getByLabel(/^Reading/).fill("9.2");
+  await form.getByRole("button", { name: "Save reading" }).click();
+  const reading = page.getByTestId("glucose-reading").first();
+  await expect(reading).toContainText("after Nasi lemak with fried chicken");
+  await expect(reading).toContainText("Above target");
+  await expect(page.getByTestId("meal-responses")).toContainText("Nasi lemak with fried chicken");
+  await expect(page.getByTestId("meal-responses")).toContainText("9.2 mmol/L after");
+
+  // The meal card shows it; the reminder is gone
+  await page.goto("/nutrition");
+  await expect(page.getByTestId("after-meal-prompt")).toHaveCount(0);
+  await expect(page.getByTestId("meal-glucose")).toContainText("9.2 mmol/L");
+  await expect(page.getByTestId("meal-glucose")).toContainText("Above target");
+
+  // Editing keeps the meal's time
+  await page.getByRole("button", { name: /Nasi lemak/ }).first().click();
+  await page.getByRole("link", { name: /^Edit Nasi/ }).click();
+  await expect(page.getByLabel("Time eaten")).toHaveValue(time);
+
+  // A reading too soon after a meal isn't judged against the after-meal target
+  await page.goto("/nutrition/log?type=SNACK");
+  await page.getByRole("button", { name: "Add item manually" }).click();
+  await page.getByTestId("draft-item").last().getByLabel("Food name").fill("Kuih lapis");
+  await page.getByTestId("draft-item").last().getByLabel("Carbs").fill("30");
+  await page.getByRole("button", { name: "Save meal" }).click();
+  await expect(page).toHaveURL(/\/nutrition$/);
+  await page.goto("/glucose");
+  await form.getByRole("radio", { name: "After a meal" }).click();
+  const kuih = await form.getByLabel("Which meal?").locator("option", { hasText: "Kuih lapis" }).getAttribute("value");
+  await form.getByLabel("Which meal?").selectOption(kuih!);
+  await form.getByLabel(/^Reading/).fill("10.5");
+  await form.getByRole("button", { name: "Save reading" }).click();
+  await expect(page.getByTestId("glucose-reading").first()).toContainText("Too soon after eating to compare");
+});

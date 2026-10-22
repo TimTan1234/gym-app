@@ -9,6 +9,9 @@ import { Badge, Button, buttonClass, cn } from "@/components/ui";
 import { MacroLine } from "@/components/MacroLine";
 import { useT } from "@/i18n/client";
 import { HIGH_SUGAR_MEAL_G, SugarAmount, SugarTag } from "./Sugar";
+import { MealGlucose } from "@/components/glucose/GlucoseBits";
+import type { AfterMealReading } from "@/lib/glucose-queries";
+import type { GlucoseUnit } from "@/lib/glucose";
 
 export interface MealCardData {
   id: string;
@@ -38,7 +41,16 @@ export interface MealCardData {
   }[];
 }
 
-export function MealCard({ meal, canCopy }: { meal: MealCardData; canCopy: boolean }) {
+export function MealCard({
+  meal,
+  canCopy,
+  glucose,
+}: {
+  meal: MealCardData;
+  canCopy: boolean;
+  /** Diabetes mode: after-meal readings linked to this meal. */
+  glucose?: { readings: AfterMealReading[]; unit: GlucoseUnit };
+}) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -65,6 +77,7 @@ export function MealCard({ meal, canCopy }: { meal: MealCardData; canCopy: boole
             <SugarTag total={meal.sugarG} added={meal.addedSugarG} high={meal.addedSugarG >= HIGH_SUGAR_MEAL_G} />
             {meal.source !== "MANUAL" && <Sparkles className="size-3.5 text-steel" aria-label={t("nutrition.aiEstimated")} />}
           </p>
+          {glucose && glucose.readings.length > 0 && <MealGlucose readings={glucose.readings} unit={glucose.unit} />}
         </div>
         <span className="text-right">
           <span className="score text-[26px]">{Math.round(meal.kcal)}</span>

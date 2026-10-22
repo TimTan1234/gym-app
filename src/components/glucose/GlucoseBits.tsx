@@ -1,8 +1,9 @@
 "use client";
 
-import { AlertTriangle, ArrowDown, ArrowUp, Check, Clock } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, Clock, Droplet } from "lucide-react";
 import { HYPO_MMOL, toDisplay, unitLabel, type GlucoseStatus, type GlucoseUnit } from "@/lib/glucose";
-import { cn } from "@/components/ui";
+import { buttonClass, cn } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
 const STATUS_STYLE: Record<GlucoseStatus, { icon: typeof Check; className: string }> = {
@@ -78,4 +79,34 @@ export function SafetyCard({ status, unit }: { status: GlucoseStatus; unit: Gluc
   if (status === "low" || status === "severeLow") return <HypoCard severe={status === "severeLow"} unit={unit} />;
   if (status === "veryHigh") return <HighCard />;
   return null;
+}
+
+/** "Check your glucose about 2 hours after lunch", linking to a prefilled log form. */
+export function AfterMealPrompt({ meal }: { meal: { id: string; description: string; time: string } }) {
+  const t = useT();
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-line bg-paper px-3 py-2.5 text-sm" data-testid="after-meal-prompt">
+      <Clock className="size-4 shrink-0 text-steel" aria-hidden />
+      <p className="min-w-0 flex-1">{t("glucose.checkAfterMeal", { meal: meal.description, time: meal.time })}</p>
+      <Link href={`/glucose?context=AFTER_MEAL&meal=${meal.id}`} className={buttonClass("secondary", "sm")}>
+        {t("glucose.checkAfterMealAction")}
+      </Link>
+    </div>
+  );
+}
+
+/** A meal's after-meal readings, for its card. */
+export function MealGlucose({ readings, unit }: { readings: { mmol: number; minutesAfter: number; status: GlucoseStatus }[]; unit: GlucoseUnit }) {
+  const t = useT();
+  return (
+    <ul className="space-y-0.5" data-testid="meal-glucose">
+      {readings.map((r, i) => (
+        <li key={i} className="flex flex-wrap items-center gap-x-2 text-[13px]">
+          <Droplet className="size-3.5 text-steel" aria-hidden />
+          <span className="num">{t("glucose.mealBadge", { value: toDisplay(r.mmol, unit), unit: unitLabel(unit), minutes: r.minutesAfter })}</span>
+          <StatusTag status={r.status} />
+        </li>
+      ))}
+    </ul>
+  );
 }

@@ -123,6 +123,7 @@ export function MealLogger({
   savedFoods,
   recentMeals,
   editing = null,
+  eatenTime: initialTime = null,
 }: {
   date: string;
   isToday: boolean;
@@ -130,6 +131,8 @@ export function MealLogger({
   savedFoods: SavedFoodOption[];
   recentMeals: RecentMealOption[];
   editing?: EditableMeal | null;
+  /** Diabetes mode: ask when the meal was eaten ("HH:MM"), starting from this. */
+  eatenTime?: string | null;
 }) {
   const t = useT();
   const router = useRouter();
@@ -144,6 +147,7 @@ export function MealLogger({
   const [title, setTitle] = useState(editing?.description ?? "");
   const [notes, setNotes] = useState<string | null>(editing?.notes ?? null);
   const [source, setSource] = useState<Source>(editing?.source ?? "MANUAL");
+  const [eatenTime, setEatenTime] = useState(initialTime);
   const [saving, startSaving] = useTransition();
   const [editingSaved, setEditingSaved] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -247,7 +251,7 @@ export function MealLogger({
     const back = isToday ? "/nutrition" : `/nutrition?date=${date}`;
     if (editing) {
       startSaving(async () => {
-        const res = await updateMeal(editing.id, { mealType, description, items: cleanItems });
+        const res = await updateMeal(editing.id, { mealType, description, items: cleanItems, eatenTime: eatenTime ?? undefined });
         if (!res.ok) return void toast.error(res.error);
         const usedSaved = clean.flatMap((i) => (i.savedFoodId ? [i.savedFoodId] : []));
         if (usedSaved.length) await markSavedFoodsUsed(usedSaved);
@@ -263,6 +267,7 @@ export function MealLogger({
         source,
         notes,
         eatenAt: new Date().toISOString(),
+        eatenTime: eatenTime ?? undefined,
         localDate: date,
         items: cleanItems,
       });
@@ -280,6 +285,8 @@ export function MealLogger({
       setTitle("");
       setNotes(null);
       setSource("MANUAL");
+      // The next meal starts from "now" (device clock; the page sets the same default).
+      if (eatenTime !== null) setEatenTime(new Date().toTimeString().slice(0, 5));
       router.push(back);
     });
   }
@@ -451,6 +458,13 @@ export function MealLogger({
           </button>
         ))}
       </div>
+
+      {eatenTime !== null && (
+        <label className="flex items-center justify-between gap-3 text-sm font-medium">
+          {t("nutrition.timeEaten")}
+          <Input type="time" value={eatenTime} onChange={(e) => setEatenTime(e.target.value)} required className="num h-10 w-36" />
+        </label>
+      )}
 
       {editing ? (
         // Editing: the meal itself comes first, ways to add more food after it.

@@ -7,6 +7,8 @@ import { GLUCOSE_CONTEXTS, classifyReading, summarize, toDisplay, unitLabel, typ
 import { GlucoseLogger } from "@/components/glucose/GlucoseLogger";
 import { GlucoseValue, SafetyCard, StatusTag } from "@/components/glucose/GlucoseBits";
 import { DeleteReadingButton } from "@/components/glucose/DeleteReadingButton";
+import { mealResponses } from "@/lib/glucose-queries";
+import { highGiCarbShare } from "@/lib/nutrition/diabetes";
 import { Card, EmptyState, PageHeader, PageSkeleton, Section, buttonClass } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
@@ -43,7 +45,7 @@ async function Glucose({ searchParams }: { searchParams: PageProps<"/glucose">["
   const today = todayLocal(tz);
   const targets: GlucoseTargets = { fastingMin: profile.glucoseFastingMin, fastingMax: profile.glucoseFastingMax, postMealMax: profile.glucosePostMealMax };
 
-  const [readings, todaysMeals] = await Promise.all([
+  const [readings, todaysMeals, responses] = await Promise.all([
     db.glucoseReading.findMany({
       where: { userId: user.id, localDate: { gte: addDays(today, -(WINDOW_DAYS - 1)) } },
       // Ties (same minute) go to the reading logged last.
@@ -51,6 +53,7 @@ async function Glucose({ searchParams }: { searchParams: PageProps<"/glucose">["
       include: { meal: { select: { description: true, eatenAt: true } } },
     }),
     db.meal.findMany({ where: { userId: user.id, localDate: today }, orderBy: { eatenAt: "asc" }, select: { id: true, description: true, eatenAt: true } }),
+    mealResponses(user.id, addDays(today, -(WINDOW_DAYS - 1)), profile),
   ]);
 
   const rated = readings.map((r) => {
@@ -102,6 +105,48 @@ async function Glucose({ searchParams }: { searchParams: PageProps<"/glucose">["
             </p>
             {summary.low > 0 && <p className="text-sm font-semibold text-alert">{t("glucose.lows", { count: summary.low })}</p>}
           </section>
+
+          <Section title={t("glucose.responses.title")}>
+            {responses.length === 0 ? (
+              <p className="text-sm text-steel">{t("glucose.responses.empty")}</p>
+            ) : (
+              <ul className="divide-y divide-line border-y border-line" data-testid="meal-responses">
+                {responses.map((r) => {
+                  const highGi = highGiCarbShare(r.items);
+                  return (
+                    <li key={r.mealId} className="flex items-start gap-3 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{r.description}</p>
+                        <p className="text-[13px] text-steel">
+                          {[
+                            r.localDate === today ? t("glucose.today") : formatLocalDate(r.localDate, undefined, intl),
+                            t("glucose.responses.carbs", { carbs: Math.round(r.carbsG) }),
+                            highGi && highGi.share >= 0.5 ? t("glucose.highGiShare", { pct: Math.round(highGi.share * 100) }) : null,
+                          ]
+                            .filter(Boolean)
+                            .join(t.locale === "zh" ? "，" : ", ")}
+                        </p>
+                        <StatusTag status={r.status} />
+                      </div>
+                      <div className="text-right">
+                        <p className="num font-semibold">
+                          {r.beforeMmol !== null
+                            ? t("glucose.responses.row", { before: fmt(r.beforeMmol), after: fmt(r.afterMmol), unit: unitLabel(unit) })
+                            : t("glucose.responses.afterOnly", { after: fmt(r.afterMmol), unit: unitLabel(unit) })}
+                        </p>
+                        {r.beforeMmol !== null && (
+                          <p className="num text-[13px] text-steel">
+                            {t("glucose.responses.rise", { delta: `${r.afterMmol >= r.beforeMmol ? "+" : "−"}${fmt(Math.abs(r.afterMmol - r.beforeMmol))}` })}
+                          </p>
+                        )}
+                        <p className="text-xs text-steel">{t("glucose.responses.minutesAfter", { minutes: r.minutesAfter })}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Section>
 
           {[...byDay].map(([date, list]) => (
             <Section key={date} title={date === today ? t("glucose.today") : formatLocalDate(date, undefined, intl)}>

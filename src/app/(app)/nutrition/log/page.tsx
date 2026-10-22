@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
-import { addDays, isLocalDate, todayLocal, formatLocalDate } from "@/lib/dates";
+import { addDays, isLocalDate, todayLocal, formatLocalDate, toLocalTime } from "@/lib/dates";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
 import { MealLogger, type EditableMeal } from "@/components/nutrition/MealLogger";
@@ -41,6 +41,7 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
         select: {
           id: true,
           localDate: true,
+          eatenAt: true,
           mealType: true,
           description: true,
           source: true,
@@ -102,6 +103,15 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
         savedFoods={savedFoods}
         recentMeals={recentMeals.filter((m) => m.id !== editing?.id)}
         editing={editable}
+        eatenTime={
+          !profile.diabetesMode
+            ? null
+            : editing
+              ? toLocalTime(editing.eatenAt, profile.timezone)
+              : date === today
+                ? toLocalTime(new Date(), profile.timezone)
+                : "12:00"
+        }
       />
     </>
   );

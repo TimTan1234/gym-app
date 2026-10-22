@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
-import { addDays, isLocalDate, todayLocal, toLocalDate } from "@/lib/dates";
+import { addDays, fromLocalDateTime, isLocalDate, todayLocal, toLocalDate } from "@/lib/dates";
 import { sumNutrients, NUTRIENT_KEYS } from "@/lib/nutrition/totals";
 import { MealSaveSchema, type MealSave } from "@/lib/ai/schemas";
 import type { ActionResult } from "./profile";
@@ -15,8 +15,10 @@ export async function saveMeal(input: MealSave): Promise<ActionResult & { mealId
   if (!parsed.success) return { ok: false, error: (await getT())("nutrition.invalidMeal") };
   const m = parsed.data;
 
-  const eatenAt = new Date(m.eatenAt);
-  const localDate = m.localDate && isLocalDate(m.localDate) ? m.localDate : toLocalDate(eatenAt, profile.timezone);
+  const logged = new Date(m.eatenAt);
+  const localDate = m.localDate && isLocalDate(m.localDate) ? m.localDate : toLocalDate(logged, profile.timezone);
+  // Diabetes mode asks when the meal was eaten: after-meal glucose is timed from it.
+  const eatenAt = m.eatenTime ? fromLocalDateTime(localDate, m.eatenTime, profile.timezone) : logged;
   // Totals are always recomputed from items; never trust client/AI totals.
   const totals = sumNutrients(m.items);
 
@@ -63,13 +65,13 @@ export async function deleteMeal(mealId: string): Promise<ActionResult> {
 }
 
 /** Replace a meal's items (and optionally its type). Totals are recomputed from the items. */
-export async function updateMeal(mealId: string, input: Pick<MealSave, "mealType" | "description" | "items">): Promise<ActionResult> {
-  const { user } = await requireProfile();
+export async function updateMeal(mealId: string, input: Pick<MealSave, "mealType" | "description" | "items" | "eatenTime">): Promise<ActionResult> {
+  const { user, profile } = await requireProfile();
   const t = await getT();
-  const parsed = MealSaveSchema.pick({ mealType: true, description: true, items: true }).safeParse(input);
+  const parsed = MealSaveSchema.pick({ mealType: true, description: true, items: true, eatenTime: true }).safeParse(input);
   if (!parsed.success) return { ok: false, error: t("nutrition.invalidMeal") };
   const m = parsed.data;
-  const existing = await db.meal.findFirst({ where: { id: mealId, userId: user.id }, select: { id: true } });
+  const existing = await db.meal.findFirst({ where: { id: mealId, userId: user.id }, select: { id: true, localDate: true } });
   if (!existing) return { ok: false, error: t("nutrition.mealNotFound") };
   await db.$transaction([
     db.mealItem.deleteMany({ where: { mealId } }),
@@ -78,6 +80,7 @@ export async function updateMeal(mealId: string, input: Pick<MealSave, "mealType
       data: {
         mealType: m.mealType,
         description: m.description,
+        ...(m.eatenTime ? { eatenAt: fromLocalDateTime(existing.localDate, m.eatenTime, profile.timezone) } : {}),
         ...sumNutrients(m.items),
         items: { create: m.items },
       },

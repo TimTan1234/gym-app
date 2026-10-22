@@ -8,6 +8,8 @@ import { MacroSummary } from "@/components/nutrition/MacroSummary";
 import { MealCard } from "@/components/nutrition/MealCard";
 import { CopyDayBefore } from "@/components/nutrition/CopyDayBefore";
 import { DateNav } from "@/components/DateNav";
+import { AfterMealPrompt } from "@/components/glucose/GlucoseBits";
+import { afterMealReadings, mealDueForCheck } from "@/lib/glucose-queries";
 import { PageSkeleton, buttonClass, cn } from "@/components/ui";
 import { getT } from "@/i18n/server";
 
@@ -21,6 +23,10 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
   const raw = (await searchParams).date;
   const date = typeof raw === "string" && isLocalDate(raw) && raw <= today ? raw : today;
   const [{ meals, totals }, dayBefore, t] = await Promise.all([getDayNutrition(user.id, date), getDayNutrition(user.id, addDays(date, -1)), getT()]);
+  const diabetes = profile.diabetesMode;
+  const [glucoseByMeal, dueForCheck] = diabetes
+    ? await Promise.all([afterMealReadings(user.id, meals, profile), date === today ? mealDueForCheck(user.id, today, profile) : null])
+    : [null, null];
 
   return (
     <>
@@ -29,6 +35,11 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
         <DateNav date={date} today={today} basePath="/nutrition" />
       </header>
       <MacroSummary totals={totals} targets={profile} />
+      {dueForCheck && (
+        <div className="mt-6">
+          <AfterMealPrompt meal={dueForCheck} />
+        </div>
+      )}
       <div className="mb-20 mt-10 space-y-6">
         {ORDER.map((type) => {
           const group = meals.filter((m) => m.mealType === type);
@@ -51,7 +62,12 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
               </div>
               <div className={group.length > 0 ? "border-b border-line" : undefined}>
                 {group.map((meal) => (
-                  <MealCard key={meal.id} meal={meal} canCopy={date !== today} />
+                  <MealCard
+                    key={meal.id}
+                    meal={meal}
+                    canCopy={date !== today}
+                    glucose={glucoseByMeal ? { readings: glucoseByMeal.get(meal.id) ?? [], unit: profile.glucoseUnit } : undefined}
+                  />
                 ))}
               </div>
               {group.length === 0 && before.length > 0 && (

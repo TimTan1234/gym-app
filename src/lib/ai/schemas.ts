@@ -83,6 +83,8 @@ export const MealSaveSchema = z.object({
   description: z.string().min(1).max(300),
   source: z.enum(["AI_TEXT", "AI_PHOTO", "MANUAL"]),
   eatenAt: z.iso.datetime(),
+  /** Wall-clock time eaten ("HH:MM") on localDate, in the user's timezone; overrides eatenAt. */
+  eatenTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
   /** Optional explicit local date (when logging for a past day). */
   localDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   notes: z.string().max(400).nullable().optional(),

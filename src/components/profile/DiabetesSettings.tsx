@@ -138,6 +138,8 @@ export function DiabetesSettings({ initial, budget }: { initial: DiabetesSetting
           </fieldset>
           <p className="text-xs text-steel">
             {t("glucose.settings.carbHint", { meal: `${budget.meal.min}–${budget.meal.max}`, snack: `${budget.snack.min}–${budget.snack.max}` })}
+            {t.locale === "zh" ? "" : " "}
+            {t("glucose.settings.proteinHint")}
           </p>
         </>
       )}

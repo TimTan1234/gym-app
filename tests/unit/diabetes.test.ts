@@ -78,21 +78,26 @@ describe("carb budget (CPG Table 3-7) and GI bands (Appendix 4)", () => {
 describe("diabetes-mode targets", () => {
   const man = { sex: "MALE", age: 40, heightCm: 175, weightKg: 85, activityLevel: "MODERATE", goal: "MAINTAIN", rateKgPerWeek: 0 } as const;
 
-  it("caps daily carbs at the meal budget and moves the rest to fat (at most 35%)", () => {
+  const share = (g: number, kcalPerG: number, kcal: number) => (g * kcalPerG) / kcal;
+
+  it("follows the guideline split: protein at most 20%, fat at most 35%, carbs the rest", () => {
     const normal = computeTargets(man);
     const diabetes = computeTargets({ ...man, diabetes: true });
     expect(diabetes.kcal).toBe(normal.kcal);
-    expect(diabetes.proteinG).toBe(normal.proteinG);
+    expect(diabetes.proteinG).toBeLessThan(normal.proteinG);
+    expect(share(diabetes.proteinG, 4, diabetes.kcal)).toBeLessThanOrEqual(0.201);
     expect(diabetes.carbsG).toBeLessThan(normal.carbsG);
-    expect(diabetes.carbsG).toBeLessThanOrEqual(carbBudget("MALE", "MODERATE").dailyMax);
-    expect((diabetes.fatG * 9) / diabetes.kcal).toBeLessThanOrEqual(0.351);
+    // Protein and fat at their caps leave carbs a little over the meal budget, at 45% of kcal.
+    expect(diabetes.carbsG).toBeLessThanOrEqual(carbBudget("MALE", "MODERATE").dailyMax + 10);
+    expect(share(diabetes.carbsG, 4, diabetes.kcal)).toBeGreaterThanOrEqual(0.445);
+    expect(share(diabetes.fatG, 9, diabetes.kcal)).toBeLessThanOrEqual(0.351);
     // calories still add up (within rounding)
     expect(Math.abs(diabetes.proteinG * 4 + diabetes.carbsG * 4 + diabetes.fatG * 9 - diabetes.kcal)).toBeLessThan(10);
   });
 
   it("never goes under 130 g of carbs, and lets carbs exceed the cap rather than fat exceed 35%", () => {
-    expect(splitMacros(1400, 100, 120).carbsG).toBeGreaterThanOrEqual(130);
-    const big = splitMacros(4000, 180, 210);
+    expect(splitMacros(1400, 100, { carbCapG: 120, weightKg: 70 }).carbsG).toBeGreaterThanOrEqual(130);
+    const big = splitMacros(4000, 180, { carbCapG: 210, weightKg: 90 });
     expect(big.fatG).toBe(Math.round((4000 * 0.35) / 9));
     expect(big.carbsG).toBeGreaterThan(210);
   });
@@ -108,14 +113,28 @@ describe("diabetes-mode targets", () => {
     // Without diabetes mode protein stays at 2.2 g/kg.
     expect(computeTargets({ sex: "FEMALE", age: 50, heightCm: 160, weightKg: 80, activityLevel: "SEDENTARY", goal: "CUT", rateKgPerWeek: 0.5 }).proteinG).toBe(176);
 
-    const m = macrosFor(1200, 176, carbBudget("FEMALE", "SEDENTARY").dailyMax);
+    const m = macrosFor(1200, 176, { carbCapG: carbBudget("FEMALE", "SEDENTARY").dailyMax, weightKg: 80 });
     expect(m.carbsG).toBeGreaterThanOrEqual(130);
     expect(Math.abs(m.proteinG * 4 + m.carbsG * 4 + m.fatG * 9 - m.kcal)).toBeLessThan(10);
   });
 
-  it("applies the same cap to weekly check-in suggestions", () => {
-    expect(macrosFor(2800, 170, 300).carbsG).toBe(300);
-    expect(macrosFor(2800, 170).carbsG).toBeGreaterThan(300);
+  it("keeps protein to 20% of kcal, but never under 0.8 g/kg", () => {
+    // 20% of 2000 kcal is 100 g.
+    expect(splitMacros(2000, 160, { carbCapG: 300, weightKg: 75 }).proteinG).toBe(100);
+    // A usual target already under the cap is kept.
+    expect(splitMacros(2000, 90, { carbCapG: 300, weightKg: 75 }).proteinG).toBe(90);
+    // 120 kg at 1500 kcal: 20% would be 75 g, under 0.8 g/kg (96 g).
+    expect(splitMacros(1500, 220, { carbCapG: 300, weightKg: 120 }).proteinG).toBe(96);
+    // Without diabetes mode nothing is capped.
+    expect(splitMacros(2000, 160).proteinG).toBe(160);
+  });
+
+  it("applies the same rules to weekly check-in suggestions", () => {
+    const m = macrosFor(2800, 170, { carbCapG: 300, weightKg: 85 });
+    expect(share(m.proteinG, 4, 2800)).toBeLessThanOrEqual(0.201);
+    expect(share(m.fatG, 9, 2800)).toBeLessThanOrEqual(0.351);
+    expect(Math.abs(m.proteinG * 4 + m.carbsG * 4 + m.fatG * 9 - 2800)).toBeLessThan(10);
+    expect(macrosFor(2800, 170)).toMatchObject({ proteinG: 170 });
   });
 });
 

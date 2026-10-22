@@ -4,7 +4,8 @@
 //  - Table 3-7: carbohydrate exchanges per meal — inactive women 2-4, active
 //    women or inactive men 3-5, active men 4-6; snacks 1-2. One exchange is 15 g.
 //  - At least 130 g of carbohydrate a day; 45-60% of energy from carbohydrate,
-//    25-35% from fat.
+//    25-35% from fat, 15-20% from protein (with normal kidney function; 0.8-1.0
+//    g/kg when it is impaired).
 //  - Appendix 4: glycaemic index low (<55), intermediate (56-70), high (>70).
 
 import type { ActivityLevel, Sex } from "./targets";
@@ -12,6 +13,9 @@ import type { ActivityLevel, Sex } from "./targets";
 export const CARB_EXCHANGE_G = 15;
 export const MIN_DAILY_CARBS_G = 130;
 export const MAX_FAT_SHARE = 0.35;
+export const MAX_PROTEIN_SHARE = 0.2;
+/** The guideline's figure for impaired kidney function, and the usual adult minimum. */
+export const MIN_PROTEIN_G_PER_KG = 0.8;
 
 export interface CarbBudget {
   meal: { min: number; max: number };

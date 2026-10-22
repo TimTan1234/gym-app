@@ -2,7 +2,7 @@
 // BMR: Mifflin-St Jeor. TDEE: BMR × activity factor.
 // Goal adjustment: ~7700 kcal per kg of body weight, spread over 7 days.
 
-import { MAX_FAT_SHARE, MIN_DAILY_CARBS_G, carbBudget } from "./diabetes";
+import { MAX_FAT_SHARE, MAX_PROTEIN_SHARE, MIN_DAILY_CARBS_G, MIN_PROTEIN_G_PER_KG, carbBudget } from "./diabetes";
 
 export type Sex = "MALE" | "FEMALE";
 export type ActivityLevel = "SEDENTARY" | "LIGHT" | "MODERATE" | "ACTIVE" | "VERY_ACTIVE";
@@ -32,7 +32,7 @@ export interface TargetInput {
   goal: Goal;
   /** Desired weekly change in kg (positive number; direction comes from goal). */
   rateKgPerWeek: number;
-  /** Diabetes mode: carbs capped at the CPG meal budget (see splitMacros). */
+  /** Diabetes mode: carbs and protein follow the CPG (see splitMacros). */
   diabetes?: boolean;
 }
 
@@ -71,8 +71,8 @@ export function computeTargets(input: TargetInput): Targets {
   const floor = KCAL_FLOOR[input.sex];
   const kcal = Math.round(Math.max(desired, floor));
 
-  const carbCapG = input.diabetes ? carbBudget(input.sex, input.activityLevel).dailyMax : null;
-  const { proteinG, carbsG, fatG } = splitMacros(kcal, Math.round(input.weightKg * proteinPerKg(input.goal)), carbCapG);
+  const diabetes = input.diabetes ? { carbCapG: carbBudget(input.sex, input.activityLevel).dailyMax, weightKg: input.weightKg } : null;
+  const { proteinG, carbsG, fatG } = splitMacros(kcal, Math.round(input.weightKg * proteinPerKg(input.goal)), diabetes);
 
   return {
     bmr: Math.round(bmr),
@@ -88,29 +88,38 @@ export function computeTargets(input: TargetInput): Targets {
 /** Fat's usual share of kcal, and the guideline's minimum in diabetes mode. */
 const FAT_SHARE = 0.25;
 
+/** Diabetes mode's inputs to the macro split. */
+export interface DiabetesSplit {
+  /** Daily carb cap from the CPG meal budget. */
+  carbCapG: number;
+  weightKg: number;
+}
+
 /**
- * Fat 25% of kcal, carbs fill the rest. With a carb cap (diabetes mode), carbs
- * stop at the cap and fat takes the remainder up to 35% of kcal; past that,
- * carbs take the rest again so the calories still add up.
+ * Fat 25% of kcal, carbs fill the rest.
  *
- * Diabetes mode also keeps carbs at 130 g or more and fat at 25% or more (CPG
- * section 3.5). When the calories can't fit those and the protein too (a cut
- * near the calorie floor), protein gives way.
+ * Diabetes mode follows the CPG (section 3.5):
+ *  - protein at most 20% of kcal, but not under 0.8 g/kg;
+ *  - carbs stop at the cap and fat takes the remainder up to 35% of kcal; past
+ *    that, carbs take the rest again so the calories still add up;
+ *  - carbs never under 130 g and fat never under 25%. When the calories can't
+ *    fit those and the protein too (a cut near the calorie floor), protein gives way.
  */
 export function splitMacros(
   kcal: number,
   proteinG: number,
-  carbCapG: number | null = null,
+  diabetes: DiabetesSplit | null = null,
 ): { proteinG: number; carbsG: number; fatG: number } {
   let fatG = Math.round((kcal * FAT_SHARE) / 9);
-  if (carbCapG !== null) {
-    const maxProteinG = Math.floor((kcal - MIN_DAILY_CARBS_G * 4 - fatG * 9) / 4);
-    proteinG = Math.max(0, Math.min(proteinG, maxProteinG));
+  if (diabetes) {
+    const capG = Math.max(Math.round((kcal * MAX_PROTEIN_SHARE) / 4), Math.round(diabetes.weightKg * MIN_PROTEIN_G_PER_KG));
+    const roomG = Math.floor((kcal - MIN_DAILY_CARBS_G * 4 - fatG * 9) / 4);
+    proteinG = Math.max(0, Math.min(proteinG, capG, roomG));
   }
   const rest = Math.max(0, kcal - proteinG * 4);
   let carbsG = Math.max(0, Math.round((rest - fatG * 9) / 4));
-  if (carbCapG !== null && carbsG > carbCapG) {
-    carbsG = Math.max(carbCapG, MIN_DAILY_CARBS_G);
+  if (diabetes && carbsG > diabetes.carbCapG) {
+    carbsG = Math.max(diabetes.carbCapG, MIN_DAILY_CARBS_G);
     fatG = Math.round((rest - carbsG * 4) / 9);
     const maxFatG = Math.round((kcal * MAX_FAT_SHARE) / 9);
     if (fatG > maxFatG) {

@@ -3,7 +3,7 @@
 // matches their goal. Deterministic; the AI coach only explains the result.
 
 import { addDays, dateRange } from "@/lib/dates";
-import { KCAL_FLOOR, goalDelta, splitMacros, type Goal, type Sex } from "./targets";
+import { KCAL_FLOOR, goalDelta, splitMacros, type DiabetesSplit, type Goal, type Sex } from "./targets";
 
 export const CHECKIN_DAYS = 14;
 const KCAL_PER_KG = 7700;
@@ -31,7 +31,7 @@ export interface CheckinInput {
   sex: Sex;
   /** Local date the targets were last changed by the user, if known. */
   targetsSetOn?: string | null;
-  /** Diabetes mode's daily carb cap, applied to the suggested split. */
+  /** Diabetes mode's daily carb cap; with it the suggested split follows the CPG (see splitMacros). */
   carbCapG?: number | null;
 }
 
@@ -63,8 +63,8 @@ export interface CheckinResult {
 }
 
 /** Same split as the initial targets (protein kept), including diabetes mode's carb cap. */
-export function macrosFor(kcal: number, proteinG: number, carbCapG: number | null = null) {
-  return { kcal, ...splitMacros(kcal, proteinG, carbCapG) };
+export function macrosFor(kcal: number, proteinG: number, diabetes: DiabetesSplit | null = null) {
+  return { kcal, ...splitMacros(kcal, proteinG, diabetes) };
 }
 
 /** 7-day trailing average at each weigh-in (unrounded; 0.1 kg matters here). */
@@ -144,5 +144,7 @@ export function weeklyCheckin(input: CheckinInput): CheckinResult {
   if (kcal === input.targetKcal) {
     return { ...base, missing, weeklyChangeKg, estimatedTdee, status: "on_track", suggested: null };
   }
-  return { ...base, missing, weeklyChangeKg, estimatedTdee, status: "adjust", suggested: macrosFor(kcal, input.proteinG, input.carbCapG ?? null) };
+  const latestKg = trendWeights(input.weights).at(-1)?.avg;
+  const diabetes = input.carbCapG != null && latestKg ? { carbCapG: input.carbCapG, weightKg: latestKg } : null;
+  return { ...base, missing, weeklyChangeKg, estimatedTdee, status: "adjust", suggested: macrosFor(kcal, input.proteinG, diabetes) };
 }

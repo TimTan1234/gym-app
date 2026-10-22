@@ -113,7 +113,7 @@ test("diabetes mode: meal time, after-meal reminder, linked readings and meal re
   await form.getByLabel(/^Reading/).fill("9.2");
   await form.getByRole("button", { name: "Save reading" }).click();
   const reading = page.getByTestId("glucose-reading").first();
-  await expect(reading).toContainText("after Nasi lemak with fried chicken");
+  await expect(reading).toContainText("After Nasi lemak with fried chicken");
   await expect(reading).toContainText("Above target");
   await expect(page.getByTestId("meal-responses")).toContainText("Nasi lemak with fried chicken");
   await expect(page.getByTestId("meal-responses")).toContainText("9.2 mmol/L after");

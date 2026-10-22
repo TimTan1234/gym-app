@@ -64,6 +64,9 @@ export function rangeFor(context: GlucoseContext, targets: GlucoseTargets): { mi
  */
 export type GlucoseStatus = "severeLow" | "low" | "inTarget" | "above" | "veryHigh" | "early";
 
+/** Statuses that call for a safety card, and get the alert colour in charts. */
+export const isUrgent = (status: GlucoseStatus) => status === "low" || status === "severeLow" || status === "veryHigh";
+
 export function classifyReading(
   reading: { mmol: number; context: GlucoseContext; minutesAfterMeal?: number | null },
   targets: GlucoseTargets,

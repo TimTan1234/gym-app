@@ -7,6 +7,8 @@ import { SignOutButton } from "@/components/auth/SignOutButton";
 import { InstallApp } from "@/components/InstallApp";
 import { Card, CardTitle, PageHeader, PageSkeleton } from "@/components/ui";
 import { DisplaySettings } from "@/components/profile/DisplaySettings";
+import { DiabetesSettings } from "@/components/profile/DiabetesSettings";
+import { carbBudget } from "@/lib/nutrition/diabetes";
 import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Settings" };
@@ -24,7 +26,15 @@ async function Settings() {
       </Card>
       <Card className="space-y-3">
         <CardTitle>{t("settings.dailyTargets")}</CardTitle>
-        <TargetsEditor initial={profile} />
+        {/* Keyed on the values: saving diabetes settings can recompute them. */}
+        <TargetsEditor
+          key={`${profile.targetKcal}:${profile.targetProteinG}:${profile.targetCarbsG}:${profile.targetFatG}:${profile.targetsManual}`}
+          initial={profile}
+        />
+      </Card>
+      <Card className="space-y-3" id="diabetes">
+        <CardTitle>{t("glucose.settings.title")}</CardTitle>
+        <DiabetesSettings initial={profile} budget={carbBudget(profile.sex, profile.activityLevel)} />
       </Card>
       <Card className="space-y-3">
         <CardTitle>{t("settings.profile")}</CardTitle>

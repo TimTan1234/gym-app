@@ -3,7 +3,7 @@
 // matches their goal. Deterministic; the AI coach only explains the result.
 
 import { addDays, dateRange } from "@/lib/dates";
-import { KCAL_FLOOR, goalDelta, type Goal, type Sex } from "./targets";
+import { KCAL_FLOOR, goalDelta, splitMacros, type Goal, type Sex } from "./targets";
 
 export const CHECKIN_DAYS = 14;
 const KCAL_PER_KG = 7700;
@@ -31,6 +31,8 @@ export interface CheckinInput {
   sex: Sex;
   /** Local date the targets were last changed by the user, if known. */
   targetsSetOn?: string | null;
+  /** Diabetes mode's daily carb cap, applied to the suggested split. */
+  carbCapG?: number | null;
 }
 
 /** Something the check-in still needs, as a code + values so it can be shown in any language. */
@@ -60,11 +62,9 @@ export interface CheckinResult {
   nextOn: string | null;
 }
 
-/** Same split as the initial targets: protein kept, fat 25% of kcal, carbs fill the rest. */
-export function macrosFor(kcal: number, proteinG: number) {
-  const fatG = Math.round((kcal * 0.25) / 9);
-  const carbsG = Math.max(0, Math.round((kcal - proteinG * 4 - fatG * 9) / 4));
-  return { kcal, proteinG, carbsG, fatG };
+/** Same split as the initial targets (protein kept), including diabetes mode's carb cap. */
+export function macrosFor(kcal: number, proteinG: number, carbCapG: number | null = null) {
+  return { kcal, proteinG, ...splitMacros(kcal, proteinG, carbCapG) };
 }
 
 /** 7-day trailing average at each weigh-in (unrounded; 0.1 kg matters here). */
@@ -144,5 +144,5 @@ export function weeklyCheckin(input: CheckinInput): CheckinResult {
   if (kcal === input.targetKcal) {
     return { ...base, missing, weeklyChangeKg, estimatedTdee, status: "on_track", suggested: null };
   }
-  return { ...base, missing, weeklyChangeKg, estimatedTdee, status: "adjust", suggested: macrosFor(kcal, input.proteinG) };
+  return { ...base, missing, weeklyChangeKg, estimatedTdee, status: "adjust", suggested: macrosFor(kcal, input.proteinG, input.carbCapG ?? null) };
 }

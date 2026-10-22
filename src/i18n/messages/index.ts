@@ -2,6 +2,7 @@
 import * as auth from "./auth";
 import * as coach from "./coach";
 import * as common from "./common";
+import * as glucose from "./glucose";
 import * as labels from "./labels";
 import * as landing from "./landing";
 import * as nav from "./nav";
@@ -12,7 +13,7 @@ import * as settings from "./settings";
 import * as today from "./today";
 import * as train from "./train";
 
-const areas = { auth, coach, common, labels, landing, nav, nutrition, plans, progress, settings, today, train };
+const areas = { auth, coach, common, glucose, labels, landing, nav, nutrition, plans, progress, settings, today, train };
 type Areas = typeof areas;
 
 export type Messages = { [K in keyof Areas]: Areas[K]["en"] };

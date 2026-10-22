@@ -26,6 +26,7 @@ model User {
   profile         Profile?
   bodyMetrics     BodyMetric[]
   meals           Meal[]
+  glucoseReadings GlucoseReading[]
   savedFoods      SavedFood[]
   customExercises Exercise[]
   plans           TrainingPlan[]
@@ -140,8 +141,57 @@ model Profile {
   /// Local date targets were last changed by the user (settings, coach or check-in).
   targetsSetOn   String?
 
+  // Diabetes mode (Type 2 or prediabetes). Glucose values are stored in mmol/L;
+  // the defaults are the Malaysian CPG T2DM (6th ed., 2020) Table 3-5 targets.
+  diabetesMode       Boolean       @default(false)
+  diabetesType       DiabetesType?
+  /// Takes insulin or an insulin secretagogue (e.g. a sulfonylurea), which can cause lows.
+  hypoRiskMeds       Boolean       @default(false)
+  glucoseUnit        GlucoseUnit   @default(MMOL_L)
+  glucoseFastingMin  Float         @default(4.4)
+  glucoseFastingMax  Float         @default(7.0)
+  glucosePostMealMax Float         @default(8.5)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum DiabetesType {
+  PREDIABETES
+  TYPE2
+}
+
+enum GlucoseUnit {
+  MMOL_L
+  MG_DL
+}
+
+enum GlucoseContext {
+  FASTING
+  BEFORE_MEAL
+  AFTER_MEAL
+  BEDTIME
+  BEFORE_EXERCISE
+  OTHER
+}
+
+/// A finger-prick (or meter) glucose reading, always stored in mmol/L.
+model GlucoseReading {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  measuredAt DateTime
+  localDate  String // YYYY-MM-DD in the user's timezone
+  mmol       Float
+  context    GlucoseContext
+  /// The meal an after-meal reading belongs to; kept if the meal is deleted.
+  mealId     String?
+  meal       Meal?          @relation(fields: [mealId], references: [id], onDelete: SetNull)
+  note       String?
+  createdAt  DateTime       @default(now())
+
+  @@index([userId, localDate])
+  @@index([mealId])
 }
 
 model BodyMetric {
@@ -193,8 +243,9 @@ model Meal {
   addedSugarG Float @default(0) // free sugars (WHO): sugar, syrups, honey, juice; not fruit or milk
   sodiumMg    Float
 
-  items     MealItem[]
-  createdAt DateTime   @default(now())
+  items           MealItem[]
+  glucoseReadings GlucoseReading[]
+  createdAt       DateTime         @default(now())
 
   @@index([userId, localDate])
 }
@@ -215,6 +266,8 @@ model MealItem {
   sugarG      Float
   addedSugarG Float   @default(0) // free sugars (WHO): sugar, syrups, honey, juice; not fruit or milk
   sodiumMg    Float
+  /// Estimated glycaemic index of the food (0-100); null when unknown or negligible carbs.
+  gi          Int?
   confidence  Float?
   assumptions String?
 }
@@ -235,6 +288,7 @@ model SavedFood {
   sugarG      Float
   addedSugarG Float    @default(0) // free sugars (WHO): sugar, syrups, honey, juice; not fruit or milk
   sodiumMg    Float
+  gi          Int?
   useCount    Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

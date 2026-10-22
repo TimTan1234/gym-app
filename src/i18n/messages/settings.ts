@@ -58,6 +58,8 @@ export const en = {
     noProfile: "Set up your profile first",
     kcalFloor: "Calories can't be set below {floor} kcal a day",
     noChange: "No change is suggested right now",
+    carbFloor: "In diabetes mode, carbs can't be set below {min} g a day (the guideline minimum).",
+    glucoseRange: "Check the glucose targets: the fasting range must be low to high, and the after-meal limit at least the fasting maximum.",
   },
   /** Field names used in "Check the {field}." */
   fields: {
@@ -137,6 +139,8 @@ export const zh: typeof en = {
     noProfile: "请先设置个人资料",
     kcalFloor: "热量不能低于每天 {floor} 千卡",
     noChange: "目前没有需要调整的建议",
+    carbFloor: "糖尿病模式下，每日碳水不能低于 {min} g（指南的最低量）。",
+    glucoseRange: "请检查血糖目标：空腹范围需从低到高，餐后上限不能低于空腹上限。",
   },
   fields: {
     name: "姓名",

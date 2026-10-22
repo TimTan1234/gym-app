@@ -9,6 +9,7 @@ import { formatWeight } from "@/lib/units";
 import { MacroSummary } from "@/components/nutrition/MacroSummary";
 import { WeightQuickLog } from "@/components/body/WeightQuickLog";
 import { StartWorkoutButton } from "@/components/train/StartWorkoutButton";
+import { GlucoseToday } from "@/components/glucose/GlucoseToday";
 import { PageSkeleton, Section, buttonClass } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
@@ -75,6 +76,8 @@ async function Today() {
           <Sparkles className="size-5" /> {t("today.mealIdeas")}
         </Link>
       </div>
+
+      {profile.diabetesMode && <GlucoseToday userId={user.id} today={today} profile={profile} />}
 
       {checkin.status === "adjust" && checkin.suggested && (
         <Link href="/progress" className="flex items-center gap-3 border-y border-line py-3 text-sm hover:bg-wash">

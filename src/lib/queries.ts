@@ -3,7 +3,8 @@ import { db } from "./db";
 import { sumNutrients } from "./nutrition/totals";
 import { addDays, todayLocal } from "./dates";
 import { CHECKIN_DAYS, weeklyCheckin } from "./nutrition/checkin";
-import type { Goal, Sex } from "./nutrition/targets";
+import type { ActivityLevel, Goal, Sex } from "./nutrition/targets";
+import { carbBudget } from "./nutrition/diabetes";
 
 export async function getDayNutrition(userId: string, localDate: string) {
   const meals = await db.meal.findMany({
@@ -97,6 +98,8 @@ export async function getCheckin(
     rateKgPerWeek: number;
     sex: Sex;
     targetsSetOn: string | null;
+    activityLevel: ActivityLevel;
+    diabetesMode: boolean;
   },
 ) {
   const today = todayLocal(profile.timezone);
@@ -115,5 +118,6 @@ export async function getCheckin(
     rateKgPerWeek: profile.rateKgPerWeek,
     sex: profile.sex,
     targetsSetOn: profile.targetsSetOn,
+    carbCapG: profile.diabetesMode ? carbBudget(profile.sex, profile.activityLevel).dailyMax : null,
   });
 }

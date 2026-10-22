@@ -74,3 +74,22 @@ export function formatLocalDate(localDate: string, opts?: Intl.DateTimeFormatOpt
     ...opts,
   });
 }
+
+/** Wall-clock time ("HH:MM") of `date` in `timezone`. */
+export function toLocalTime(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
+}
+
+/**
+ * The instant at which it is `time` ("HH:MM") on `localDate` in `timezone`.
+ * Two passes cover a DST change between the guess and the answer.
+ */
+export function fromLocalDateTime(localDate: string, time: string, timezone: string): Date {
+  const wall = Date.parse(`${localDate}T${time}:00Z`);
+  let guess = wall;
+  for (let i = 0; i < 2; i++) {
+    const shown = Date.parse(`${toLocalDate(new Date(guess), timezone)}T${toLocalTime(new Date(guess), timezone)}:00Z`);
+    guess += wall - shown;
+  }
+  return new Date(guess);
+}

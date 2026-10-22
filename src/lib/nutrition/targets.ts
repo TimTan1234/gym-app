@@ -2,6 +2,8 @@
 // BMR: Mifflin-St Jeor. TDEE: BMR × activity factor.
 // Goal adjustment: ~7700 kcal per kg of body weight, spread over 7 days.
 
+import { MAX_FAT_SHARE, MIN_DAILY_CARBS_G, carbBudget } from "./diabetes";
+
 export type Sex = "MALE" | "FEMALE";
 export type ActivityLevel = "SEDENTARY" | "LIGHT" | "MODERATE" | "ACTIVE" | "VERY_ACTIVE";
 export type Goal = "CUT" | "MAINTAIN" | "BULK";
@@ -30,6 +32,8 @@ export interface TargetInput {
   goal: Goal;
   /** Desired weekly change in kg (positive number; direction comes from goal). */
   rateKgPerWeek: number;
+  /** Diabetes mode: carbs capped at the CPG meal budget (see splitMacros). */
+  diabetes?: boolean;
 }
 
 export interface Targets {
@@ -68,9 +72,8 @@ export function computeTargets(input: TargetInput): Targets {
   const kcal = Math.round(Math.max(desired, floor));
 
   const proteinG = Math.round(input.weightKg * proteinPerKg(input.goal));
-  const fatG = Math.round((kcal * 0.25) / 9);
-  const carbKcal = kcal - proteinG * 4 - fatG * 9;
-  const carbsG = Math.max(0, Math.round(carbKcal / 4));
+  const carbCapG = input.diabetes ? carbBudget(input.sex, input.activityLevel).dailyMax : null;
+  const { carbsG, fatG } = splitMacros(kcal, proteinG, carbCapG);
 
   return {
     bmr: Math.round(bmr),
@@ -81,4 +84,25 @@ export function computeTargets(input: TargetInput): Targets {
     fatG,
     clampedToFloor: desired < floor,
   };
+}
+
+/**
+ * Fat 25% of kcal, carbs fill the rest. With a carb cap (diabetes mode), carbs
+ * stop at the cap (never under 130 g) and fat takes the remainder up to 35% of
+ * kcal; past that, carbs take the rest again so the calories still add up.
+ */
+export function splitMacros(kcal: number, proteinG: number, carbCapG: number | null = null): { carbsG: number; fatG: number } {
+  const rest = Math.max(0, kcal - proteinG * 4);
+  let fatG = Math.round((kcal * 0.25) / 9);
+  let carbsG = Math.max(0, Math.round((rest - fatG * 9) / 4));
+  if (carbCapG !== null && carbsG > carbCapG) {
+    carbsG = Math.max(carbCapG, MIN_DAILY_CARBS_G);
+    fatG = Math.round((rest - carbsG * 4) / 9);
+    const maxFatG = Math.round((kcal * MAX_FAT_SHARE) / 9);
+    if (fatG > maxFatG) {
+      fatG = maxFatG;
+      carbsG = Math.round((rest - fatG * 9) / 4);
+    }
+  }
+  return { carbsG, fatG };
 }

@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { requireProfile, requireUser } from "@/lib/session";
 import { getCheckin } from "@/lib/queries";
 import { KCAL_FLOOR, computeTargets } from "@/lib/nutrition/targets";
+import { MIN_DAILY_CARBS_G } from "@/lib/nutrition/diabetes";
+import { DEFAULT_GLUCOSE_TARGETS } from "@/lib/glucose";
 import { ageOn, isLocalDate, isValidTimezone, todayLocal } from "@/lib/dates";
 import { getT } from "@/i18n/server";
 import type { MessageKey } from "@/i18n/translate";
@@ -40,7 +42,10 @@ const ProfileSchema = z.object({
 });
 export type ProfileInput = z.infer<typeof ProfileSchema>;
 
-function targetsFor(p: Omit<ProfileInput, "name" | "timezone" | "unitSystem" | "experience" | "equipment">, today: string) {
+function targetsFor(
+  p: Omit<ProfileInput, "name" | "timezone" | "unitSystem" | "experience" | "equipment"> & { diabetes: boolean },
+  today: string,
+) {
   const age = ageOn(new Date(`${p.birthDate}T00:00:00Z`), today);
   const t = computeTargets({ ...p, age });
   return { targetKcal: t.kcal, targetProteinG: t.proteinG, targetCarbsG: t.carbsG, targetFatG: t.fatG };
@@ -80,7 +85,7 @@ export async function saveProfile(input: ProfileInput): Promise<ActionResult> {
           targetCarbsG: existing.targetCarbsG,
           targetFatG: existing.targetFatG,
         }
-      : targetsFor({ ...p, weightKg }, today)),
+      : targetsFor({ ...p, weightKg, diabetes: existing?.diabetesMode ?? false }, today)),
   };
   // A goal or activity change that moves calories restarts the weekly check-in clock;
   // small drifts from weigh-ins don't.
@@ -120,6 +125,7 @@ async function recomputeTargets(userId: string) {
       activityLevel: profile.activityLevel,
       goal: profile.goal,
       rateKgPerWeek: profile.rateKgPerWeek,
+      diabetes: profile.diabetesMode,
     },
     today,
   );
@@ -169,8 +175,12 @@ export async function setTargets(input: z.infer<typeof TargetsSchema>): Promise<
   const parsed = TargetsSchema.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { manual, ...targets } = parsed.data;
-  const profile = await db.profile.findUnique({ where: { userId: user.id }, select: { sex: true, timezone: true } });
+  const profile = await db.profile.findUnique({ where: { userId: user.id }, select: { sex: true, timezone: true, diabetesMode: true } });
   if (!profile) return { ok: false, error: (await getT())("settings.errors.noProfile") };
+  // The CPG minimum; this also covers targets proposed by the coach or a check-in.
+  if (profile.diabetesMode && targets.targetCarbsG < MIN_DAILY_CARBS_G) {
+    return { ok: false, error: (await getT())("settings.errors.carbFloor", { min: MIN_DAILY_CARBS_G }) };
+  }
   // Lets the weekly check-in wait for a week of data on the new targets.
   const targetsSetOn = todayLocal(profile.timezone);
   if (manual) {
@@ -195,4 +205,60 @@ export async function applyCheckin(): Promise<ActionResult> {
   if (checkin.status !== "adjust" || !checkin.suggested) return { ok: false, error: (await getT())("settings.errors.noChange") };
   const s = checkin.suggested;
   return setTargets({ manual: true, targetKcal: s.kcal, targetProteinG: s.proteinG, targetCarbsG: s.carbsG, targetFatG: s.fatG });
+}
+
+const DiabetesSchema = z
+  .object({
+    enabled: z.boolean(),
+    type: z.enum(["PREDIABETES", "TYPE2"]),
+    hypoRiskMeds: z.boolean(),
+    unit: z.enum(["MMOL_L", "MG_DL"]),
+    // mmol/L; the client converts from mg/dL.
+    fastingMin: z.number().min(3).max(10),
+    fastingMax: z.number().min(4).max(15),
+    postMealMax: z.number().min(5).max(20),
+  })
+  .refine((d) => d.fastingMin < d.fastingMax && d.fastingMax <= d.postMealMax, { message: "glucoseRange", path: ["fastingMax"] });
+
+export type DiabetesSettingsInput = z.infer<typeof DiabetesSchema>;
+
+/**
+ * Turn diabetes mode on or off and save its settings. Automatic targets are
+ * recomputed so the carb cap applies (or is lifted) straight away.
+ */
+export async function saveDiabetesSettings(input: DiabetesSettingsInput): Promise<ActionResult> {
+  const user = await requireUser();
+  const parsed = DiabetesSchema.safeParse(input);
+  if (!parsed.success) {
+    if (parsed.error.issues[0]?.message === "glucoseRange") return { ok: false, error: (await getT())("settings.errors.glucoseRange") };
+    return invalidInput(parsed.error);
+  }
+  const d = parsed.data;
+  await db.profile.update({
+    where: { userId: user.id },
+    data: {
+      diabetesMode: d.enabled,
+      diabetesType: d.type,
+      hypoRiskMeds: d.hypoRiskMeds,
+      glucoseUnit: d.unit,
+      glucoseFastingMin: d.fastingMin,
+      glucoseFastingMax: d.fastingMax,
+      glucosePostMealMax: d.postMealMax,
+    },
+  });
+  await recomputeTargets(user.id);
+  refresh();
+  return { ok: true };
+}
+
+/** Back to the CPG Table 3-5 targets. */
+export async function resetGlucoseTargets(): Promise<ActionResult> {
+  const user = await requireUser();
+  const t = DEFAULT_GLUCOSE_TARGETS;
+  await db.profile.update({
+    where: { userId: user.id },
+    data: { glucoseFastingMin: t.fastingMin, glucoseFastingMax: t.fastingMax, glucosePostMealMax: t.postMealMax },
+  });
+  refresh();
+  return { ok: true };
 }

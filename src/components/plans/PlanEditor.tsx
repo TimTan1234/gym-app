@@ -7,7 +7,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { createPlan, updatePlan } from "@/server/plans";
 import type { PlanInput } from "@/lib/plan-input";
 import { ExercisePicker, type PickerExercise } from "@/components/train/ExercisePicker";
-import { Button, Input, Label, Textarea, cn } from "@/components/ui";
+import { Button, IconButton, Input, Label, Textarea, cn } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { exerciseName } from "@/i18n/labels";
 
@@ -52,7 +52,7 @@ const FIELDS = [
   ["plans.editor.rest", "restSec", 90],
 ] as const;
 // Sets | min | max | rest | RPE: shared by the header row and every exercise row.
-const FIELD_COLS = "grid grid-cols-5 gap-1.5";
+const FIELD_COLS = "grid grid-cols-5 gap-2";
 
 export function PlanEditor({
   initial,
@@ -142,12 +142,12 @@ export function PlanEditor({
               className="display h-10 border-transparent bg-transparent px-2 text-[22px] hover:border-line focus:border-iron"
               maxLength={60}
             />
-            <Button variant="ghost" size="sm" aria-label={t("plans.editor.moveDayUp")} onClick={() => setPlan((p) => ({ ...p, days: move(p.days, di, -1) }))}>
+            <IconButton aria-label={t("plans.editor.moveDayUp")} onClick={() => setPlan((p) => ({ ...p, days: move(p.days, di, -1) }))}>
               <ArrowUp className="size-4" />
-            </Button>
-            <Button variant="ghost" size="sm" aria-label={t("plans.editor.removeDay")} onClick={() => setPlan((p) => ({ ...p, days: p.days.filter((d) => d.key !== day.key) }))}>
+            </IconButton>
+            <IconButton tone="danger" edge="end" aria-label={t("plans.editor.removeDay")} onClick={() => setPlan((p) => ({ ...p, days: p.days.filter((d) => d.key !== day.key) }))}>
               <Trash2 className="size-4" />
-            </Button>
+            </IconButton>
           </div>
 
           {day.exercises.length > 0 && (
@@ -163,17 +163,17 @@ export function PlanEditor({
               const name = exerciseName(t, { slug: ex.exerciseSlug, name: ex.exerciseName });
               return (
                 <li key={ex.key} className="space-y-1.5 py-2.5">
-                  <div className="flex items-center gap-0.5">
+                  <div className="flex items-center">
                     <span className="flex-1 font-semibold">{name}</span>
-                    <button type="button" aria-label={t("plans.editor.moveUp")} className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-iron" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, -1) }))}>
+                    <IconButton aria-label={t("plans.editor.moveUp")} onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, -1) }))}>
                       <ArrowUp className="size-4" />
-                    </button>
-                    <button type="button" aria-label={t("plans.editor.moveDown")} className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-iron" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, 1) }))}>
+                    </IconButton>
+                    <IconButton aria-label={t("plans.editor.moveDown")} onClick={() => setDay(day.key, (d) => ({ ...d, exercises: move(d.exercises, ei, 1) }))}>
                       <ArrowDown className="size-4" />
-                    </button>
-                    <button type="button" aria-label={t("plans.editor.remove", { name })} className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-alert" onClick={() => setDay(day.key, (d) => ({ ...d, exercises: d.exercises.filter((e) => e.key !== ex.key) }))}>
+                    </IconButton>
+                    <IconButton tone="danger" edge="end" aria-label={t("plans.editor.remove", { name })} onClick={() => setDay(day.key, (d) => ({ ...d, exercises: d.exercises.filter((e) => e.key !== ex.key) }))}>
                       <Trash2 className="size-4" />
-                    </button>
+                    </IconButton>
                   </div>
                   <div className={FIELD_COLS}>
                     {FIELDS.map(([lbl, field, fb]) => (
@@ -204,7 +204,7 @@ export function PlanEditor({
               );
             })}
           </ul>
-          <Button variant="ghost" size="sm" onClick={() => setPickerFor(day.key)}>
+          <Button variant="ghost" size="sm" edge="start" onClick={() => setPickerFor(day.key)}>
             <Plus className="size-4" /> {t("plans.editor.addExercise")}
           </Button>
         </section>

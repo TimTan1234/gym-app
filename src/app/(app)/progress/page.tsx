@@ -115,7 +115,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
     <div className="space-y-10">
       <PageHeader title={t("progress.title")} />
       <WeeklyCheckin checkin={checkin} targetKcal={profile.targetKcal} units={units} />
-      <nav aria-label={t("progress.range")} className="flex gap-1.5">
+      <nav aria-label={t("progress.range")} className="flex gap-2">
         {RANGES.map((r) => (
           <Link
             key={r.days}

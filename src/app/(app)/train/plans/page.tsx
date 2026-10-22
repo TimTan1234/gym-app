@@ -49,7 +49,8 @@ async function Plans() {
       {header}
       <ul className="divide-y divide-line border-y border-line">
         {plans.map((p) => (
-          <li key={p.id} className={cn("py-4", p.isActive && "border-l-[3px] border-iron pl-3")}>
+          // The active plan's bar hangs in the margin, so every plan's text keeps the same left edge.
+          <li key={p.id} className={cn("relative py-4", p.isActive && "before:absolute before:inset-y-4 before:-left-2.5 before:w-[3px] before:rounded-full before:bg-iron")}>
             <div className="flex items-start justify-between gap-2">
               <Link href={`/train/plans/${p.id}`} className="min-w-0 hover:underline">
                 <p className="display text-[20px]">{p.name}</p>

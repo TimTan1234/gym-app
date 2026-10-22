@@ -60,7 +60,7 @@ async function Today() {
           <p className="text-sm text-steel">{formatLocalDate(today, { weekday: "long", month: "long" }, intl)}</p>
           <h1 className="display mt-0.5 text-[28px]">{t(greetingKey(hour), { name: user.name.split(" ")[0] })}</h1>
         </div>
-        <Link href="/settings" aria-label={t("today.settings")} className={buttonClass("ghost", "sm")}>
+        <Link href="/settings" aria-label={t("today.settings")} className={buttonClass("ghost", "sm", "end")}>
           <Settings className="size-5" />
         </Link>
       </header>
@@ -91,7 +91,7 @@ async function Today() {
         </Link>
       )}
 
-      {profile.diabetesMode && !active && <PreExerciseCheck userId={user.id} hypoRiskMeds={profile.hypoRiskMeds} unit={profile.glucoseUnit} />}
+      {profile.diabetesMode && !active && <PreExerciseCheck userId={user.id} hypoRiskMeds={profile.hypoRiskMeds} unit={profile.glucoseUnit} showOk={false} />}
 
       {/* The one inverted panel: the next thing to do in the gym. */}
       <section className="rounded-[14px] bg-panel p-5 text-panel-fg">

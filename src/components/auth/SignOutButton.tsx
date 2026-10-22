@@ -10,6 +10,7 @@ export function SignOutButton() {
   return (
     <Button
       variant="ghost"
+      edge="end"
       onClick={async () => {
         await signOut();
         // Hard navigation: previously visited routes stay mounted client-side,

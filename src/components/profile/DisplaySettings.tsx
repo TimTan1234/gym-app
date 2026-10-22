@@ -22,7 +22,7 @@ function Segmented<V extends string>({
   disabled?: boolean;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1.5">
+    <div role="radiogroup" aria-label={label} className="grid auto-cols-fr grid-flow-col gap-2">
       {options.map((o) => (
         <button
           key={o.value}

@@ -15,6 +15,7 @@ export function DeleteWorkoutButton({ sessionId }: { sessionId: string }) {
     <Button
       variant="ghost"
       size="sm"
+      edge="end"
       aria-label={t("train.deleteWorkout")}
       disabled={pending}
       onClick={() => {

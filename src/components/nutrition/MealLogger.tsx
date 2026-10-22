@@ -8,7 +8,7 @@ import dynamic from "next/dynamic";
 import { deleteSavedFood, saveMeal, markSavedFoodsUsed, updateMeal } from "@/server/nutrition";
 import { scaleItem, sumNutrients } from "@/lib/nutrition/totals";
 import type { MealAnalysis } from "@/lib/ai/schemas";
-import { Button, Card, Input, Textarea, cn } from "@/components/ui";
+import { Button, Card, IconButton, Input, Textarea, cn } from "@/components/ui";
 import { MacroLine } from "@/components/MacroLine";
 import { HIGH_SUGAR_MEAL_G, SugarTag } from "./Sugar";
 import { CarbBudgetLine, GiTag } from "./CarbBudget";
@@ -448,7 +448,7 @@ export function MealLogger({
         </section>
       )}
 
-      <Button type="button" variant="ghost" onClick={() => setItems((cur) => [...cur, emptyItem()])}>
+      <Button type="button" variant="ghost" edge="start" onClick={() => setItems((cur) => [...cur, emptyItem()])}>
         <Plus className="size-4" /> {t("nutrition.addManually")}
       </Button>
     </>
@@ -456,7 +456,7 @@ export function MealLogger({
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label={t("nutrition.mealType")}>
+      <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label={t("nutrition.mealType")}>
         {MEAL_TYPES.map((type) => (
           <button
             key={type}
@@ -555,20 +555,19 @@ function DraftRow({
 }) {
   const t = useT();
   return (
-    <div className="space-y-2 border-t border-line py-4" data-testid="draft-item">
-      <div className="flex items-center gap-2">
-        <Input
-          value={item.name}
-          onChange={(e) => onChange(item.key, { name: e.target.value })}
-          placeholder={t("nutrition.foodName")}
-          aria-label={t("nutrition.foodName")}
-          className="font-medium"
-        />
-        <button type="button" aria-label={t("nutrition.removeNamed", { name: item.name || t("nutrition.item") })} onClick={() => onRemove(item.key)} className="rounded-[8px] p-2 text-steel hover:text-alert">
-          <Trash2 className="size-4" />
-        </button>
-      </div>
-      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
+    // Two columns: the name, numbers and notes share one edge; delete has its own column.
+    <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-2 border-t border-line py-4" data-testid="draft-item">
+      <Input
+        value={item.name}
+        onChange={(e) => onChange(item.key, { name: e.target.value })}
+        placeholder={t("nutrition.foodName")}
+        aria-label={t("nutrition.foodName")}
+        className="font-medium"
+      />
+      <IconButton tone="danger" edge="end" aria-label={t("nutrition.removeNamed", { name: item.name || t("nutrition.item") })} onClick={() => onRemove(item.key)} className="self-center">
+        <Trash2 className="size-4" />
+      </IconButton>
+      <div className="col-start-1 grid grid-cols-4 gap-2 sm:grid-cols-7">
         <NumField label={t("nutrition.gramsField")} value={item.grams} onChange={(v) => onGrams(item.key, v)} className="[&_input]:border-iron/60" />
         <NumField label={t("common.kcal")} value={item.kcal} onChange={(v) => onChange(item.key, { kcal: v })} />
         <NumField label={t("common.protein")} value={item.proteinG} onChange={(v) => onChange(item.key, { proteinG: v })} />
@@ -578,7 +577,7 @@ function DraftRow({
         <NumField label={t("nutrition.addedSugar")} value={item.addedSugarG} onChange={(v) => onChange(item.key, { addedSugarG: v })} />
       </div>
       {(item.assumptions || item.confidence !== null || (showGi && item.gi !== null)) && (
-        <p className="text-xs text-steel">
+        <p className="col-start-1 text-xs text-steel">
           {showGi && <GiTag gi={item.gi} />}{" "}
           {item.confidence !== null && (
             <span className={cn("mr-1.5", item.confidence < 0.6 ? "font-semibold text-iron" : "")}>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteThread } from "@/server/coach";
+import { IconButton } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
 export function DeleteThreadButton({ threadId, title, current }: { threadId: string; title: string; current: boolean }) {
@@ -12,11 +13,11 @@ export function DeleteThreadButton({ threadId, title, current }: { threadId: str
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
-    <button
-      type="button"
+    <IconButton
+      tone="danger"
+      edge="end"
       aria-label={t("coach.deleteConversation", { title })}
       disabled={pending}
-      className="grid size-8 shrink-0 place-items-center rounded-[8px] text-steel hover:bg-alert/10 hover:text-alert disabled:opacity-50"
       onClick={() => {
         if (!confirm(t("coach.confirmDeleteConversation"))) return;
         startTransition(async () => {
@@ -28,6 +29,6 @@ export function DeleteThreadButton({ threadId, title, current }: { threadId: str
       }}
     >
       <Trash2 className="size-4" />
-    </button>
+    </IconButton>
   );
 }

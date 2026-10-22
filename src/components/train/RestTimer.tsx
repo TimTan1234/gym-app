@@ -90,7 +90,8 @@ export function RestTimerBar({ timer }: { timer: ReturnType<typeof useRestTimer>
     <div
       role="timer"
       aria-live="polite"
-      className="fixed inset-x-3 bottom-20 z-40 mx-auto flex max-w-md items-center gap-3 rounded-[14px] bg-panel px-4 py-3 text-panel-fg md:bottom-6"
+      // Same side offsets as the page (see the app layout), so it lines up with the content column.
+      className="fixed inset-x-4 bottom-20 z-40 mx-auto flex max-w-md items-center gap-3 rounded-[14px] bg-panel px-4 py-3 text-panel-fg md:bottom-6 md:left-60 lg:right-[max(1rem,calc((100vw-56rem)/2))]"
     >
       <Timer className="size-5" />
       <span className="sr-only">{t("train.rest")}</span>

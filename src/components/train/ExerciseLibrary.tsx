@@ -65,16 +65,16 @@ export function ExerciseLibrary({ exercises, muscles, equipment }: { exercises: 
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        <div className="relative min-w-40 flex-1">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[2fr_1fr_1fr]">
+        <div className="relative col-span-2 sm:col-span-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-steel" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("train.searchExercises")} className="pl-9" aria-label={t("train.searchExercises")} />
         </div>
-        <Select value={muscle} onChange={(e) => setMuscle(e.target.value)} className="w-auto" aria-label={t("train.muscle")}>
+        <Select value={muscle} onChange={(e) => setMuscle(e.target.value)} aria-label={t("train.muscle")}>
           <option value="">{t("train.allMuscles")}</option>
           {muscles.map((m) => <option key={m} value={m}>{muscleLabel(m)}</option>)}
         </Select>
-        <Select value={equip} onChange={(e) => setEquip(e.target.value)} className="w-auto" aria-label={t("train.equipment")}>
+        <Select value={equip} onChange={(e) => setEquip(e.target.value)} aria-label={t("train.equipment")}>
           <option value="">{t("train.allEquipment")}</option>
           {equipment.map((m) => <option key={m} value={m}>{equipmentLabel(m)}</option>)}
         </Select>
@@ -110,10 +110,10 @@ export function ExerciseLibrary({ exercises, muscles, equipment }: { exercises: 
       )}
 
       <p className="text-xs text-steel">{t.plural("train.exercisesCount", filtered.length)}</p>
-      <ul className="divide-y divide-line rounded-[14px] border border-line bg-paper">
+      <ul className="divide-y divide-line border-y border-line">
         {filtered.map((e) => (
           <li key={e.id}>
-            <Link href={`/train/exercises/${e.id}`} className="flex items-center justify-between gap-2 px-4 py-3 hover:bg-wash">
+            <Link href={`/train/exercises/${e.id}`} className="flex items-center justify-between gap-2 py-3 hover:text-steel">
               <span className="font-medium">
                 {nameOf(e)} {e.custom && <Badge className="ml-1">{t("train.customBadge")}</Badge>}
               </span>

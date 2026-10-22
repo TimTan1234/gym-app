@@ -85,7 +85,7 @@ export function GlucoseLogger({
     <div className="space-y-4">
       {result && <SafetyCard status={result} unit={unit} />}
       <form onSubmit={save} className="space-y-3" aria-label={t("glucose.log.title")}>
-        <div className="grid grid-cols-[1fr_auto] gap-2">
+        <div className="grid grid-cols-[1fr_auto] gap-3">
           <Label>
             {t("glucose.log.value", { unit: unitLabel(unit) })}
             <Input
@@ -104,7 +104,7 @@ export function GlucoseLogger({
         </div>
         <div className="space-y-1.5">
           <p className="text-sm font-medium">{t("glucose.log.when")}</p>
-          <div role="radiogroup" aria-label={t("glucose.log.when")} className="grid grid-cols-3 gap-1.5">
+          <div role="radiogroup" aria-label={t("glucose.log.when")} className="grid grid-cols-3 gap-2">
             {GLUCOSE_CONTEXTS.map((c) => (
               <button
                 key={c}

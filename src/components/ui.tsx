@@ -19,23 +19,65 @@ const buttonVariants: Record<ButtonVariant, string> = {
   "inverse-ghost": "border border-panel-fg/30 text-panel-fg hover:border-panel-fg",
 };
 
-export function buttonClass(variant: ButtonVariant = "primary", size: "sm" | "md" | "lg" = "md") {
+type ButtonSize = "sm" | "md" | "lg";
+
+/**
+ * Which edge of its row a borderless button sits on. It is pulled out by its own
+ * padding there, so its text or icon lines up with the content around it.
+ */
+export type Edge = "start" | "end";
+
+const EDGE_PULL: Record<ButtonSize, Record<Edge, string>> = {
+  sm: { start: "-ml-3", end: "-mr-3" },
+  md: { start: "-ml-4", end: "-mr-4" },
+  lg: { start: "-ml-5", end: "-mr-5" },
+};
+
+export function buttonClass(variant: ButtonVariant = "primary", size: ButtonSize = "md", edge?: Edge) {
   return cn(
     "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40",
     size === "sm" && "h-9 px-3 text-sm",
     size === "md" && "h-11 px-4 text-[15px]",
     size === "lg" && "h-13 px-5 text-base",
     buttonVariants[variant],
+    edge && EDGE_PULL[size][edge],
   );
 }
 
 export function Button({
   variant = "primary",
   size = "md",
+  edge,
   className,
   ...props
-}: ComponentProps<"button"> & { variant?: ButtonVariant; size?: "sm" | "md" | "lg" }) {
-  return <button className={cn(buttonClass(variant, size), className)} {...props} />;
+}: ComponentProps<"button"> & { variant?: ButtonVariant; size?: ButtonSize; edge?: Edge }) {
+  return <button className={cn(buttonClass(variant, size, edge), className)} {...props} />;
+}
+
+/**
+ * A square, icon-only button with a 36px tap target. With `edge`, the icon (not
+ * the tap target) lines up with that edge of the row.
+ */
+export function IconButton({
+  tone = "default",
+  edge,
+  className,
+  type = "button",
+  ...props
+}: ComponentProps<"button"> & { tone?: "default" | "danger"; edge?: Edge }) {
+  return (
+    <button
+      type={type}
+      className={cn(
+        "grid size-9 shrink-0 place-items-center rounded-[8px] text-steel transition-colors disabled:opacity-50",
+        tone === "danger" ? "hover:bg-alert/10 hover:text-alert" : "hover:bg-wash hover:text-iron",
+        edge === "start" && "-ml-2.5",
+        edge === "end" && "-mr-2.5",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 /** A raised surface. Use sparingly: most content sits in rows on the chalk background. */
@@ -81,8 +123,9 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return <textarea className={cn(fieldClass, "h-auto min-h-20 py-2.5", className)} {...props} />;
 }
 
+/** The browser's own arrow is replaced (see .select), so the text lines up with an Input's. */
 export function Select({ className, ...props }: ComponentProps<"select">) {
-  return <select className={cn(fieldClass, "pr-8", className)} {...props} />;
+  return <select className={cn(fieldClass, "select pr-9", className)} {...props} />;
 }
 
 export function Label({ className, children, hint, ...props }: ComponentProps<"label"> & { hint?: string }) {

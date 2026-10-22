@@ -13,6 +13,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  type YAxisTickContentProps,
 } from "recharts";
 import { Table2 } from "lucide-react";
 import { formatLocalDate } from "@/lib/dates";
@@ -271,7 +272,8 @@ export function CategoryBars({
 }) {
   const [table, setTable] = useState(false);
   const { t } = useChartText();
-  const h = height ?? Math.max(120, data.length * 30 + 20);
+  // One 30px row per category, so a short list doesn't float in empty space.
+  const h = height ?? data.length * 30 + 8;
   return (
     <figure className="space-y-2">
       <figcaption className="flex items-center justify-between">
@@ -285,7 +287,19 @@ export function CategoryBars({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={{ top: 0, right: 32, bottom: 0, left: 0 }} barCategoryGap={4}>
               <XAxis type="number" hide />
-              <YAxis type="category" dataKey="label" tick={AXIS} tickLine={false} axisLine={false} width={88} />
+              {/* Labels start at the page edge, like a table's first column. */}
+              <YAxis
+                type="category"
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                width={88}
+                tick={({ y, payload }: YAxisTickContentProps) => (
+                  <text x={0} y={y} dy={4} textAnchor="start" fontSize={AXIS.fontSize} fill={AXIS.fill}>
+                    {String(payload.value)}
+                  </text>
+                )}
+              />
               <Tooltip
                 cursor={{ fill: "var(--wash)" }}
                 content={({ active, payload }) => {

@@ -38,7 +38,7 @@ async function Landing() {
     <>
       <header className="flex items-center justify-between py-6">
         <span className="score text-[30px]">GymPal</span>
-        <Link href="/sign-in" className={buttonClass("ghost", "sm")}>
+        <Link href="/sign-in" className={buttonClass("ghost", "sm", "end")}>
           {t("landing.signIn")}
         </Link>
       </header>

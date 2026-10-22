@@ -19,10 +19,11 @@ export function MacroLine({ p, c, f, className }: { p: number; c: number; f: num
       ].map(([v, color], i) => (
         <span key={i} aria-hidden className="inline-flex items-center gap-1">
           <Plate color={color as string} className="h-3 w-[5px]" />
+          {/* One unit for all three, in the same text run as the last number. */}
           {r(v as number)}
+          {i === 2 ? " g" : ""}
         </span>
       ))}
-      <span aria-hidden>g</span>
     </span>
   );
 }

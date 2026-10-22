@@ -59,7 +59,7 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
                     </span>
                   )}
                 </h2>
-                <Link href={`/nutrition/log?type=${type}&date=${date}`} className={buttonClass("ghost", "sm")} aria-label={t("nutrition.addMealType", { type: t(`labels.mealType.${type}`) })}>
+                <Link href={`/nutrition/log?type=${type}&date=${date}`} className={buttonClass("ghost", "sm", "end")} aria-label={t("nutrition.addMealType", { type: t(`labels.mealType.${type}`) })}>
                   <Plus className="size-4" /> {t("common.add")}
                 </Link>
               </div>

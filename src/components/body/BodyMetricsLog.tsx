@@ -6,7 +6,7 @@ import { Trash2 } from "lucide-react";
 import { deleteBodyMetric, logBodyMetric } from "@/server/profile";
 import { formatLocalDate } from "@/lib/dates";
 import { cmToIn, displayWeight, inToCm, inputWeightToKg, round, weightUnit, type UnitSystem } from "@/lib/units";
-import { Button, Input } from "@/components/ui";
+import { Button, IconButton, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { INTL_LOCALE } from "@/i18n/config";
 
@@ -44,7 +44,7 @@ export function BodyMetricsLog({ today, units, entries }: { today: string; units
 
   return (
     <div className="space-y-3">
-      <form onSubmit={submit} className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <form onSubmit={submit} className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <label className="text-[11px] font-medium text-steel sm:col-span-1">
           {t("progress.log.date")}
           <Input name="date" type="date" defaultValue={today} max={today} required className="mt-0.5" />
@@ -68,7 +68,7 @@ export function BodyMetricsLog({ today, units, entries }: { today: string; units
       {entries.length > 0 && (
         <ul className="num max-h-56 divide-y divide-line overflow-y-auto text-sm">
           {entries.map((e) => (
-            <li key={e.id} className="flex items-center gap-3 py-1.5">
+            <li key={e.id} className="flex items-center gap-3 py-0.5">
               <span className="w-24 text-steel">{formatLocalDate(e.localDate, undefined, INTL_LOCALE[t.locale])}</span>
               <span className="flex-1 font-semibold">
                 {displayWeight(e.weightKg, units)} {weightUnit(units)}
@@ -79,15 +79,15 @@ export function BodyMetricsLog({ today, units, entries }: { today: string; units
                   {round(units === "IMPERIAL" ? cmToIn(e.waistCm) : e.waistCm, 1)} {lenUnit}
                 </span>
               )}
-              <button
-                type="button"
+              <IconButton
+                tone="danger"
+                edge="end"
                 aria-label={t("progress.log.deleteEntry", { date: e.localDate })}
                 disabled={pending}
                 onClick={() => startTransition(async () => void (await deleteBodyMetric(e.id)))}
-                className="p-1 text-steel hover:text-alert"
               >
-                <Trash2 className="size-3.5" />
-              </button>
+                <Trash2 className="size-4" />
+              </IconButton>
             </li>
           ))}
         </ul>

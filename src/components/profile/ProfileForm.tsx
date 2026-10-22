@@ -69,7 +69,7 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 items-end gap-3">
         <Label className="col-span-2">
           {t("settings.form.name")}
           <Input name="name" required defaultValue={initial?.name ?? ""} maxLength={60} />

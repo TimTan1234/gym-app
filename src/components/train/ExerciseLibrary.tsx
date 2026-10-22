@@ -82,7 +82,7 @@ export function ExerciseLibrary({ exercises, muscles, equipment }: { exercises: 
 
       {adding ? (
         <Card>
-          <form onSubmit={create} className="grid grid-cols-2 gap-3">
+          <form onSubmit={create} className="grid grid-cols-2 items-end gap-3">
             <Label className="col-span-2">{t("train.name")}<Input name="name" required minLength={2} maxLength={60} /></Label>
             <Label>{t("train.primaryMuscle")}
               <Select name="muscle">{muscles.map((m) => <option key={m} value={m}>{muscleLabel(m)}</option>)}</Select>

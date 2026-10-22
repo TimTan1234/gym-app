@@ -567,7 +567,7 @@ function DraftRow({
       <IconButton tone="danger" edge="end" aria-label={t("nutrition.removeNamed", { name: item.name || t("nutrition.item") })} onClick={() => onRemove(item.key)} className="self-center">
         <Trash2 className="size-4" />
       </IconButton>
-      <div className="col-start-1 grid grid-cols-4 gap-2 sm:grid-cols-7">
+      <div className="col-start-1 grid grid-cols-4 items-end gap-2 sm:grid-cols-7">
         <NumField label={t("nutrition.gramsField")} value={item.grams} onChange={(v) => onGrams(item.key, v)} className="[&_input]:border-iron/60" />
         <NumField label={t("common.kcal")} value={item.kcal} onChange={(v) => onChange(item.key, { kcal: v })} />
         <NumField label={t("common.protein")} value={item.proteinG} onChange={(v) => onChange(item.key, { proteinG: v })} />

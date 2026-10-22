@@ -127,7 +127,7 @@ export function DiabetesSettings({ initial, budget }: { initial: DiabetesSetting
             </legend>
             <p className="text-xs text-steel">{t("glucose.settings.targetsHint")}</p>
             <p className="text-[13px] font-medium">{t("glucose.settings.fasting")}</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 items-end gap-3">
               {field("fastingMin", t("glucose.settings.min"))}
               {field("fastingMax", t("glucose.settings.max"))}
             </div>

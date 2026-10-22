@@ -115,7 +115,7 @@ export function PlanEditor({
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-[1fr_6rem] gap-3">
+      <div className="grid grid-cols-[1fr_6rem] items-end gap-3">
         <Label>
           {t("plans.editor.planName")}
           <Input value={plan.name} onChange={(e) => setPlan({ ...plan, name: e.target.value })} maxLength={80} />

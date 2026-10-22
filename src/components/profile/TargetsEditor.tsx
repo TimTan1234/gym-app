@@ -54,7 +54,8 @@ export function TargetsEditor({ initial }: { initial: Targets }) {
       <p className="text-xs text-steel">
         {manual ? t("settings.targets.customHint") : t("settings.targets.autoHint")}
       </p>
-      <div className="grid grid-cols-4 gap-2">
+      {/* Fields sit on one baseline even when a label wraps; 2×2 where four don't fit. */}
+      <div className="grid grid-cols-2 items-end gap-x-2 gap-y-3 min-[22.5rem]:grid-cols-4">
         <Label>{t("settings.targets.kcal")}<Input name="kcal" type="number" defaultValue={initial.targetKcal} disabled={!manual} className="num" /></Label>
         <Label>{t("settings.targets.protein")}<Input name="protein" type="number" defaultValue={initial.targetProteinG} disabled={!manual} className="num" /></Label>
         <Label>{t("settings.targets.carbs")}<Input name="carbs" type="number" defaultValue={initial.targetCarbsG} disabled={!manual} className="num" /></Label>

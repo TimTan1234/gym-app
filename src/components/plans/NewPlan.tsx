@@ -124,7 +124,7 @@ export function NewPlan({
               ))}
             </div>
           </fieldset>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 items-end gap-3">
             <Label>
               {t("plans.generator.daysPerWeek")}
               <Select value={days} onChange={(e) => setDays(Number(e.target.value))}>

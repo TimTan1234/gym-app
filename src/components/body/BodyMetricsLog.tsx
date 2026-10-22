@@ -44,7 +44,7 @@ export function BodyMetricsLog({ today, units, entries }: { today: string; units
 
   return (
     <div className="space-y-3">
-      <form onSubmit={submit} className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <form onSubmit={submit} className="grid grid-cols-2 items-end gap-3 sm:grid-cols-5">
         <label className="text-[11px] font-medium text-steel sm:col-span-1">
           {t("progress.log.date")}
           <Input name="date" type="date" defaultValue={today} max={today} required className="mt-0.5" />

@@ -1,0 +1,26 @@
+{
+  "isPlan": true,
+  "title": "Weekly groceries",
+  "days": 7,
+  "people": 1,
+  "budget": 120,
+  "currency": "MYR",
+  "items": [
+    { "name": "Brown rice", "quantity": 2, "unit": "kg", "category": "GRAINS_BREAD", "estPrice": 11.5, "store": null, "consumedGrams": 700, "kcal": 2590, "proteinG": 55, "carbsG": 539, "fatG": 19.6, "fiberG": 24.5, "sugarG": 6, "addedSugarG": 0, "sodiumMg": 35, "gi": 55 },
+    { "name": "Chicken breast", "quantity": 1.5, "unit": "kg", "category": "MEAT_SEAFOOD", "estPrice": 24, "store": null, "consumedGrams": 1400, "kcal": 2310, "proteinG": 434, "carbsG": 0, "fatG": 50, "fiberG": 0, "sugarG": 0, "addedSugarG": 0, "sodiumMg": 1036, "gi": null },
+    { "name": "Eggs", "quantity": 1, "unit": "tray (30)", "category": "DAIRY_EGGS", "estPrice": 13.9, "store": null, "consumedGrams": 700, "kcal": 1001, "proteinG": 88, "carbsG": 5, "fatG": 67, "fiberG": 0, "sugarG": 2.6, "addedSugarG": 0, "sodiumMg": 994, "gi": null },
+    { "name": "Broccoli", "quantity": 1, "unit": "kg", "category": "PRODUCE", "estPrice": 9, "store": null, "consumedGrams": 900, "kcal": 306, "proteinG": 25, "carbsG": 60, "fatG": 3.4, "fiberG": 23, "sugarG": 15, "addedSugarG": 0, "sodiumMg": 297, "gi": 15 },
+    { "name": "Bananas", "quantity": 1, "unit": "bunch", "category": "PRODUCE", "estPrice": 5.5, "store": null, "consumedGrams": 700, "kcal": 623, "proteinG": 7.6, "carbsG": 160, "fatG": 2.3, "fiberG": 18, "sugarG": 86, "addedSugarG": 0, "sodiumMg": 7, "gi": 51 },
+    { "name": "Rolled oats", "quantity": 800, "unit": "g", "category": "GRAINS_BREAD", "estPrice": 8.9, "store": null, "consumedGrams": 420, "kcal": 1596, "proteinG": 56, "carbsG": 271, "fatG": 29, "fiberG": 42, "sugarG": 4, "addedSugarG": 0, "sodiumMg": 8, "gi": 55 },
+    { "name": "Low-fat milk", "quantity": 2, "unit": "L", "category": "DAIRY_EGGS", "estPrice": 13.8, "store": null, "consumedGrams": 1750, "kcal": 788, "proteinG": 59.5, "carbsG": 87.5, "fatG": 17.5, "fiberG": 0, "sugarG": 87.5, "addedSugarG": 0, "sodiumMg": 770, "gi": 32 },
+    { "name": "Cooking oil", "quantity": 1, "unit": "bottle", "category": "PANTRY", "estPrice": 7.5, "store": null, "consumedGrams": 105, "kcal": 928, "proteinG": 0, "carbsG": 0, "fatG": 105, "fiberG": 0, "sugarG": 0, "addedSugarG": 0, "sodiumMg": 0, "gi": null },
+    { "name": "Dishwashing liquid", "quantity": 1, "unit": "bottle", "category": "OTHER", "estPrice": 4.5, "store": null, "consumedGrams": 0, "kcal": 0, "proteinG": 0, "carbsG": 0, "fatG": 0, "fiberG": 0, "sugarG": 0, "addedSugarG": 0, "sodiumMg": 0, "gi": null }
+  ],
+  "meals": [
+    { "day": 1, "mealType": "BREAKFAST", "description": "Oats with banana and milk" },
+    { "day": 1, "mealType": "LUNCH", "description": "Brown rice with grilled chicken and broccoli" },
+    { "day": 1, "mealType": "DINNER", "description": "Egg and broccoli fried brown rice" },
+    { "day": 2, "mealType": "BREAKFAST", "description": "Two boiled eggs and a banana" }
+  ],
+  "notes": null
+}

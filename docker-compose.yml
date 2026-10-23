@@ -53,6 +53,7 @@ services:
       AI_LIMIT_MEAL_PER_DAY: ${AI_LIMIT_MEAL_PER_DAY:-30}
       AI_LIMIT_PLAN_PER_DAY: ${AI_LIMIT_PLAN_PER_DAY:-5}
       AI_LIMIT_CHAT_PER_DAY: ${AI_LIMIT_CHAT_PER_DAY:-50}
+      AI_LIMIT_PROCUREMENT_PER_DAY: ${AI_LIMIT_PROCUREMENT_PER_DAY:-10}
     depends_on:
       migrate:
         condition: service_completed_successfully

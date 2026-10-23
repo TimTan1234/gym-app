@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, ShoppingBasket } from "lucide-react";
 import { requireProfile } from "@/lib/session";
 import { getDayNutrition } from "@/lib/queries";
 import { addDays, isLocalDate, todayLocal } from "@/lib/dates";
@@ -35,7 +35,13 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
     <>
       <header className="mb-6 flex items-center justify-between gap-2">
         <h1 className="display text-[32px]">{t("nutrition.title")}</h1>
-        <DateNav date={date} today={today} basePath="/nutrition" />
+        <div className="flex items-center gap-1">
+          <Link href="/nutrition/procurement" className={buttonClass("ghost", "sm")} aria-label={t("procurement.title")}>
+            <ShoppingBasket className="size-4" />
+            <span className="hidden sm:inline">{t("procurement.title")}</span>
+          </Link>
+          <DateNav date={date} today={today} basePath="/nutrition" />
+        </div>
       </header>
       <MacroSummary totals={totals} targets={profile} />
       {dueForCheck && (

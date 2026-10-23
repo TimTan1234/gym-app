@@ -18,6 +18,8 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
   const sp = await searchParams;
   const today = todayLocal(profile.timezone);
   const type = TYPES.find((t) => t === sp.type) ?? null;
+  // ?text= prefills the description, e.g. "Log" on a grocery plan's meal.
+  const initialText = typeof sp.text === "string" ? sp.text.slice(0, 1000) : "";
 
   const itemSelect = {
     name: true,
@@ -98,7 +100,7 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
       />
       <MealLogger
         // Saving an edit recreates the items, so the key changes and a later edit starts from fresh data.
-        key={editing ? `${editing.id}:${editing.items.map((i) => i.id).join(",")}` : "new"}
+        key={editing ? `${editing.id}:${editing.items.map((i) => i.id).join(",")}` : `new:${initialText}`}
         date={date}
         isToday={date === today}
         initialType={type}
@@ -106,6 +108,7 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
         recentMeals={recentMeals.filter((m) => m.id !== editing?.id)}
         editing={editable}
         carbBudget={profile.diabetesMode ? carbBudget(profile.sex, profile.activityLevel) : null}
+        initialText={initialText}
         eatenTime={
           !profile.diabetesMode
             ? null

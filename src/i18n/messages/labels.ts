@@ -2,6 +2,17 @@
 // Muscles, equipment and exercise names are looked up through labelOf()/exerciseName() in i18n/labels.ts.
 export const en = {
   mealType: { BREAKFAST: "Breakfast", LUNCH: "Lunch", DINNER: "Dinner", SNACK: "Snack" },
+  groceryCategory: {
+    PRODUCE: "Fruit & veg",
+    MEAT_SEAFOOD: "Meat & seafood",
+    DAIRY_EGGS: "Dairy & eggs",
+    GRAINS_BREAD: "Rice, grains & bread",
+    PANTRY: "Pantry",
+    FROZEN: "Frozen",
+    DRINKS: "Drinks",
+    SNACKS: "Snacks",
+    OTHER: "Other",
+  },
   goal: { CUT: "Lose fat", MAINTAIN: "Maintain", BULK: "Build muscle" },
   experience: { BEGINNER: "Under 1 year", INTERMEDIATE: "1–3 years", ADVANCED: "3+ years" },
   activity: {
@@ -169,6 +180,17 @@ export const en = {
 
 export const zh: typeof en = {
   mealType: { BREAKFAST: "早餐", LUNCH: "午餐", DINNER: "晚餐", SNACK: "加餐" },
+  groceryCategory: {
+    PRODUCE: "蔬果",
+    MEAT_SEAFOOD: "肉类海鲜",
+    DAIRY_EGGS: "奶制品和蛋",
+    GRAINS_BREAD: "米面谷物",
+    PANTRY: "干货调料",
+    FROZEN: "冷冻食品",
+    DRINKS: "饮料",
+    SNACKS: "零食",
+    OTHER: "其他",
+  },
   goal: { CUT: "减脂", MAINTAIN: "保持", BULK: "增肌" },
   experience: { BEGINNER: "不到 1 年", INTERMEDIATE: "1–3 年", ADVANCED: "3 年以上" },
   activity: {

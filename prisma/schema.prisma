@@ -23,17 +23,18 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
-  profile         Profile?
-  bodyMetrics     BodyMetric[]
-  meals           Meal[]
-  glucoseReadings GlucoseReading[]
-  savedFoods      SavedFood[]
-  customExercises Exercise[]
-  plans           TrainingPlan[]
-  workouts        WorkoutSession[]
-  records         PersonalRecord[]
-  chatThreads     ChatThread[]
-  aiUsage         AiUsage[]
+  profile          Profile?
+  bodyMetrics      BodyMetric[]
+  meals            Meal[]
+  glucoseReadings  GlucoseReading[]
+  savedFoods       SavedFood[]
+  customExercises  Exercise[]
+  plans            TrainingPlan[]
+  workouts         WorkoutSession[]
+  records          PersonalRecord[]
+  chatThreads      ChatThread[]
+  aiUsage          AiUsage[]
+  procurementPlans ProcurementPlan[]
 
   @@map("user")
 }
@@ -296,6 +297,106 @@ model SavedFood {
   @@unique([userId, name])
 }
 
+// ---------- Procurement (groceries) ----------
+
+enum ProcurementSource {
+  IMAGE
+  MARKDOWN
+  DOCX
+  PDF
+  TEXT
+  MIXED
+  AI
+  MANUAL
+}
+
+enum ProcurementStatus {
+  ACTIVE
+  DONE
+  ARCHIVED
+}
+
+enum GroceryCategory {
+  PRODUCE
+  MEAT_SEAFOOD
+  DAIRY_EGGS
+  GRAINS_BREAD
+  PANTRY
+  FROZEN
+  DRINKS
+  SNACKS
+  OTHER
+}
+
+model ProcurementPlan {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  source    ProcurementSource
+  status    ProcurementStatus @default(ACTIVE)
+  /// Days the food should cover and how many people it feeds.
+  days      Int               @default(7)
+  people    Int               @default(1)
+  startDate String? // YYYY-MM-DD
+  budget    Float?
+  currency  String            @default("MYR")
+  notes     String?
+
+  items     ProcurementItem[]
+  meals     ProcurementMeal[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([userId, status])
+}
+
+model ProcurementItem {
+  id          String          @id @default(cuid())
+  planId      String
+  plan        ProcurementPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  // What to buy.
+  name        String
+  quantity    Float
+  unit        String
+  category    GroceryCategory @default(OTHER)
+  estPrice    Float?
+  actualPrice Float?
+  store       String?
+  note        String?
+  checked     Boolean         @default(false)
+  sortOrder   Int             @default(0)
+
+  // Nutrients of the share this user eats during the plan period (not the
+  // whole purchase: a 5 kg rice bag for a family is only partly theirs).
+  // Null until estimated.
+  consumedGrams Float?
+  kcal          Float?
+  proteinG      Float?
+  carbsG        Float?
+  fatG          Float?
+  fiberG        Float?
+  sugarG        Float?
+  addedSugarG   Float?
+  sodiumMg      Float?
+  gi            Int?
+  savedFoodId   String?
+
+  @@index([planId])
+}
+
+model ProcurementMeal {
+  id          String          @id @default(cuid())
+  planId      String
+  plan        ProcurementPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  day         Int // 1-based day of the plan
+  mealType    MealType
+  description String
+  sortOrder   Int             @default(0)
+
+  @@index([planId])
+}
+
 // ---------- Training ----------
 
 enum ExerciseCategory {
@@ -461,6 +562,7 @@ enum AiKind {
   MEAL
   PLAN
   CHAT
+  PROCUREMENT
 }
 
 model AiUsage {

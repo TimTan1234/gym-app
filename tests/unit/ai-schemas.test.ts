@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { MealAnalysisSchema, MealSaveSchema, planDraftSchema } from "@/lib/ai/schemas";
+import { GeneratedPlanSchema, MealAnalysisSchema, MealSaveSchema, ProcurementDraftSchema, ProcurementSaveSchema, planDraftSchema } from "@/lib/ai/schemas";
 import { filterByEquipment, resolvePlanDraft } from "@/lib/ai/plan";
 import mealFixture from "@/lib/ai/fixtures/meal.json";
 import planFixture from "@/lib/ai/fixtures/plan.json";
+import procurementFixture from "@/lib/ai/fixtures/procurement.json";
 import { EXERCISES } from "../../prisma/seed/exercises";
 
 const slugs = EXERCISES.map((e) => e.slug) as [string, ...string[]];
@@ -76,5 +77,41 @@ describe("maxWorkingSets", () => {
     expect(maxWorkingSets(45)).toBe(18);
     expect(maxWorkingSets(60)).toBe(24);
     expect(maxWorkingSets(10)).toBe(6);
+  });
+});
+
+describe("procurement schemas", () => {
+  it("accepts the fixture and rejects negative prices", () => {
+    expect(ProcurementDraftSchema.parse(procurementFixture).items.length).toBeGreaterThan(0);
+    const bad = structuredClone(procurementFixture);
+    bad.items[0].estPrice = -1;
+    expect(ProcurementDraftSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("asks a generated plan for no per-item nutrition", () => {
+    const item = GeneratedPlanSchema.parse(procurementFixture).items[0];
+    expect(Object.keys(item).sort()).toEqual(["category", "estPrice", "name", "quantity", "store", "unit"]);
+  });
+
+  it("saves items typed in by hand without nutrition", () => {
+    const parsed = ProcurementSaveSchema.parse({
+      title: " Week ",
+      source: "MANUAL",
+      days: 7,
+      people: 2,
+      budget: null,
+      currency: "MYR",
+      notes: null,
+      items: [{ name: "Rice", quantity: 5, unit: "kg", category: "GRAINS_BREAD" }],
+      meals: [],
+    });
+    expect(parsed.title).toBe("Week");
+    expect(parsed.items[0]).toMatchObject({ estPrice: null, kcal: null, consumedGrams: null, gi: null });
+  });
+
+  it("rejects bad currencies and periods", () => {
+    const base = { title: "W", source: "AI", days: 7, people: 1, budget: null, currency: "MYR", notes: null, items: [], meals: [] };
+    expect(ProcurementSaveSchema.safeParse({ ...base, currency: "rm" }).success).toBe(false);
+    expect(ProcurementSaveSchema.safeParse({ ...base, days: 0 }).success).toBe(false);
   });
 });

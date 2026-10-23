@@ -14,6 +14,7 @@ import { HIGH_SUGAR_MEAL_G, SugarTag } from "./Sugar";
 import { CarbBudgetLine, GiTag } from "./CarbBudget";
 import { budgetFor, type CarbBudget } from "@/lib/nutrition/diabetes";
 import { useClientValue } from "@/lib/use-client";
+import { resizeImage } from "@/lib/image";
 import type { BarcodeItem } from "@/lib/nutrition/barcode";
 import { useT } from "@/i18n/client";
 
@@ -78,19 +79,6 @@ export interface RecentMealOption {
   items: ItemValues[];
 }
 
-const MAX_DIM = 1024;
-
-async function resizeImage(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_DIM / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  return canvas.toDataURL("image/jpeg", 0.82);
-}
-
 function guessMealType(): MealType {
   const h = new Date().getHours() + new Date().getMinutes() / 60;
   if (h < 10.5) return "BREAKFAST";
@@ -130,6 +118,7 @@ export function MealLogger({
   editing = null,
   eatenTime: initialTime = null,
   carbBudget = null,
+  initialText = "",
 }: {
   date: string;
   isToday: boolean;
@@ -141,6 +130,8 @@ export function MealLogger({
   eatenTime?: string | null;
   /** Diabetes mode: the CPG carb budget, shown against the draft, and GI per item. */
   carbBudget?: CarbBudget | null;
+  /** Description to start from, e.g. a meal from a grocery plan. */
+  initialText?: string;
 }) {
   const t = useT();
   const router = useRouter();
@@ -148,7 +139,7 @@ export function MealLogger({
   const guessedType = useClientValue(guessMealType, "LUNCH");
   const [chosenType, setMealType] = useState<MealType | null>(editing?.mealType ?? initialType);
   const mealType = chosenType ?? guessedType;
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const [image, setImage] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [items, setItems] = useState<DraftItem[]>(() => editing?.items.map((i) => ({ ...i, key: newKey() })) ?? []);

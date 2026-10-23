@@ -34,9 +34,9 @@ export function reasoningOptions(): { reasoning?: { effort: (typeof EFFORTS)[num
   return effort && EFFORTS.includes(effort) ? { reasoning: { effort } } : {};
 }
 
-export type AiKind = "MEAL" | "PLAN" | "CHAT";
+export type AiKind = "MEAL" | "PLAN" | "CHAT" | "PROCUREMENT";
 
-const DEFAULT_LIMITS: Record<AiKind, number> = { MEAL: 30, PLAN: 5, CHAT: 50 };
+const DEFAULT_LIMITS: Record<AiKind, number> = { MEAL: 30, PLAN: 5, CHAT: 50, PROCUREMENT: 10 };
 
 export function dailyLimit(kind: AiKind): number {
   const raw = Number(process.env[`AI_LIMIT_${kind}_PER_DAY`]);

@@ -71,6 +71,43 @@ Diabetes mode: the user has ${d.type === "TYPE2" ? "Type 2 diabetes" : "prediabe
 - Encourage at least 150 minutes of exercise a week with no more than 2 days in a row without activity.${d.hypoRiskMeds ? " Before exercise (only exercise, not meals) they should check their glucose, and have extra carbs if it is under 5.6 mmol/L." : ""}`;
 }
 
+export const PROCUREMENT_NUTRITION_RULES = `Nutrition for each item (consumedGrams and the nutrients) is for the share ONE person eats during the plan period, not the whole purchase:
+- Divide what is bought between the people it feeds, and count only what will realistically be eaten in the period. A 5 kg bag of rice for 3 people over 7 days is about 600 g of dry rice each; a 2 L bottle of cooking oil is used up over months, so a week's share for one person is about 100 g; condiments and spices are small amounts.
+- grams are edible weight; nutrients are for consumedGrams, not per 100 g. kcal should match protein*4 + carbs*4 + fat*9.
+- sugarG is total sugars and addedSugarG the added (free) sugars within it (never more than sugarG). gi is the glycaemic index (glucose = 100), or null for items under 5 g carbs per serving.
+- Non-food items (detergent, tissue, etc.) get category OTHER, estPrice as usual, and all nutrients 0 with gi null.`;
+
+export const PROCUREMENT_IMPORT_PROMPT = `You turn a person's grocery shopping list or meal plan into a structured procurement (shopping) plan. The input may be photos of a handwritten or printed list, a document, or a chat message.
+
+Rules:
+- items: everything to buy. Keep the names, quantities and units as written; fix obvious spelling. Merge duplicates. Pick the closest category.
+- If the input lists meals (a meal plan), copy them into meals with their day (1-based) and meal type. If it lists only meals, derive the ingredients to buy for them, with sensible quantities, and add them to items.
+- If it has both a list and meals, keep the list as written and add only ingredients the meals need that the list is missing; never add one that is already on the list.
+- estPrice: use the stated price. Otherwise estimate a typical current supermarket price in the plan's currency (Malaysia and MYR unless the input says otherwise); use null for non-standard items you cannot price.
+- days, people, budget and currency: only from the input; null if not stated (do not guess).
+- If the input is not a shopping list or meal plan, set isPlan=false with empty items and meals.
+- notes: anything important you could not fit (illegible lines, assumptions), briefly; else null.
+
+${PROCUREMENT_NUTRITION_RULES}`;
+
+export const PROCUREMENT_GENERATE_PROMPT = `You are a practical dietitian writing a weekly grocery shopping plan with meals for someone who tracks their nutrition.
+
+Rules:
+- Plan meals for every day of the period (breakfast, lunch, dinner, and a snack when it helps hit the targets). Meals should be simple, home-cooked and realistic, using foods common where the user lives (Malaysia unless the preferences say otherwise), and reuse ingredients across days to keep the list short and waste low.
+- Fit the user's daily calorie and macro targets on average across the period (within about 10%).
+- items: the groceries to buy for those meals, for all the people it feeds, in sensible shop units (kg, pack, bottle, bunch). Merge duplicates. Pick the closest category.
+- estPrice: typical current supermarket prices in the plan currency. If a budget is given, keep the total of estPrice within it, choosing cheaper staples when needed, and say in notes what you traded off.
+- Respect the preferences (diet, dislikes, allergies, cooking time) exactly. Never include an allergen they name.
+- isPlan is true. days and people repeat the request. budget repeats the request or null. currency is the plan currency.
+- notes: 1-3 sentences on how the plan fits the targets.`;
+
+/** Diabetes guidance for procurement plans (Malaysian CPG T2DM, 6th ed., 2020). */
+export function procurementDiabetesPrompt(mealCarbs: string, snackCarbs: string) {
+  return `
+
+Diabetes mode: the user has Type 2 diabetes or prediabetes. Keep carbs per meal within ${mealCarbs} g (snacks ${snackCarbs} g) and never under 130 g a day. Prefer lower-GI carbs (brown or basmati rice, wholemeal bread, oats, legumes, vegetables) over high-GI ones (white rice, roti canai, white bread), lean proteins at 15-20% of calories, and no sweetened drinks.`;
+}
+
 /** Appended to every AI system prompt so user-facing text comes back in the interface language. */
 export function languageInstruction(locale: "en" | "zh"): string {
   return locale === "zh"

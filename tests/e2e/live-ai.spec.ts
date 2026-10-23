@@ -124,3 +124,127 @@ test("live AI: text meal, photo meal, plan, coach tools + proposal", async ({ pa
   await page.goto("/settings");
   await expect(page.getByLabel("kcal")).toHaveValue(String(kcalTarget - 200));
 });
+
+async function readGroceryDraft(page: Page) {
+  const rows = page.getByTestId("draft-grocery");
+  const n = await rows.count();
+  const items = [];
+  for (let i = 0; i < n; i++) {
+    const row = rows.nth(i);
+    const price = await row.getByLabel("Price (MYR)").inputValue();
+    items.push({
+      name: await row.getByLabel("Item").inputValue(),
+      quantity: await row.getByLabel("Qty").inputValue(),
+      unit: await row.getByLabel("Unit").inputValue(),
+      price: price === "" ? null : Number(price),
+    });
+  }
+  const cost = await page.getByTestId("draft-total-cost").textContent();
+  const check = page.locator('[data-testid="nutrition-check"]:visible');
+  const perDay = (await check.count()) > 0 ? (await check.innerText()).replace(/\s+/g, " ") : null;
+  return { items, cost, perDay };
+}
+
+test("live AI: grocery list photo, Word and PDF imports, generated plan", async ({ page }) => {
+  test.setTimeout(12 * 60_000);
+  await signUpAndOnboard(page, "Live Shopper");
+  const pick = (path: string, name: string) =>
+    expect(async () => {
+      const chooser = page.waitForEvent("filechooser", { timeout: 2_000 });
+      await page.getByRole("button", { name: "Choose files" }).click();
+      await (await chooser).setFiles(path);
+      await expect(page.getByText(name)).toBeVisible({ timeout: 2_000 });
+    }).toPass();
+  const review = page.getByRole("heading", { name: "Check the plan" });
+
+  // 1) Photo of a list (vision): items, the prices written on it, a sensible share of nutrition.
+  await page.goto("/nutrition/procurement/new?mode=import");
+  await pick("tests/fixtures/grocery-list.jpg", "grocery-list.jpg");
+  await page.getByRole("button", { name: "Read plan" }).click();
+  await expect(review).toBeVisible({ timeout: AI_TIMEOUT });
+  const photo = await readGroceryDraft(page);
+  console.log("GROCERY PHOTO", JSON.stringify(photo, null, 1));
+  const names = photo.items.map((i) => i.name.toLowerCase()).join(" | ");
+  expect(photo.items.length).toBeGreaterThanOrEqual(8);
+  for (const word of ["chicken", "egg", "rice", "broccoli", "banana", "milk", "oat", "tofu", "kicap"]) expect(names).toContain(word);
+  expect(photo.items.find((i) => /chicken/i.test(i.name))?.price).toBe(24);
+  expect(photo.items.find((i) => /milk/i.test(i.name))?.price).toBeCloseTo(13.8);
+  await page.getByRole("button", { name: "Save plan" }).click();
+  await expect(page).toHaveURL(/\/nutrition\/procurement\/[^/?]+$/, { timeout: 20_000 });
+  await page.getByRole("link", { name: "Nutrition" }).click();
+  await expect(page).toHaveURL(/view=nutrition/);
+  // Visited pages stay mounted (hidden), so read the visible check, not the draft editor's.
+  const check = page.locator('[data-testid="nutrition-check"]:visible');
+  const kcalPerDay = Number((await check.innerText()).match(/kcal\s+(\d+)/)?.[1]);
+  console.log("PHOTO PLAN kcal/day", kcalPerDay);
+  // One person's share of a week's basic groceries: not all their food, but not absurd either.
+  expect(kcalPerDay).toBeGreaterThan(300);
+  expect(kcalPerDay).toBeLessThan(3500);
+
+  // 2) Word and PDF documents.
+  for (const file of ["groceries.docx", "groceries.pdf"]) {
+    await page.goto("/nutrition/procurement/new?mode=import");
+    await pick(`tests/fixtures/${file}`, file);
+    await page.getByRole("button", { name: "Read plan" }).click();
+    await expect(review).toBeVisible({ timeout: AI_TIMEOUT });
+    const doc = await readGroceryDraft(page);
+    console.log(file.toUpperCase(), JSON.stringify(doc, null, 1));
+    const docNames = doc.items.map((i) => i.name.toLowerCase()).join(" | ");
+    expect(docNames).toContain("chicken");
+    expect(docNames).toContain("egg");
+  }
+
+  // 3) Generated plan within a budget, with meals.
+  await page.goto("/nutrition/procurement/new?mode=generate");
+  await page.getByLabel("Days").fill("3");
+  await page.getByLabel("Budget (MYR)").fill("80");
+  await page.getByLabel("Preferences").fill("halal, simple Malaysian home cooking");
+  await page.getByRole("button", { name: "Generate plan" }).click();
+  // Plans are long outputs; allow extra time on slow providers.
+  const started = Date.now();
+  await expect(review).toBeVisible({ timeout: 2 * AI_TIMEOUT });
+  console.log("GENERATED in", Math.round((Date.now() - started) / 1000), "s");
+  const generated = await readGroceryDraft(page);
+  console.log("GENERATED", JSON.stringify(generated, null, 1));
+  expect(generated.items.length).toBeGreaterThanOrEqual(5);
+  await expect(page.getByText(/^Meals \(\d+\)$/)).toBeVisible();
+  const total = generated.items.reduce((s, i) => s + (i.price ?? 0), 0);
+  expect(total).toBeGreaterThan(20);
+  expect(total).toBeLessThan(80 * 1.25);
+  await expect(page.getByTestId("estimate-after-save")).toBeVisible();
+  await page.getByRole("button", { name: "Save plan" }).click();
+  await expect(page).toHaveURL(/\/nutrition\/procurement\/[^/?]+$/, { timeout: 20_000 });
+
+  // 4) Its nutrition is estimated on demand, for every item in one go.
+  await page.getByRole("link", { name: "Nutrition" }).click();
+  await page.getByRole("button", { name: /^Estimate \(\d+\)$/ }).click();
+  await expect(page.getByText(/^Nutrition estimated for \d+ items$/)).toBeVisible({ timeout: AI_TIMEOUT });
+  const genCheck = page.locator('[data-testid="nutrition-check"]:visible');
+  const genText = (await genCheck.innerText()).replace(/\s+/g, " ");
+  const genKcal = Number(genText.match(/kcal (\d+)/)?.[1]);
+  console.log("GENERATED PLAN estimated per day:", genText);
+  // Planned around the targets; estimates are rough, so allow a wide band.
+  expect(genKcal).toBeGreaterThan(800);
+  expect(genKcal).toBeLessThan(4000);
+});
+
+test("live AI: grocery item typed in by hand gets its nutrition estimated", async ({ page }) => {
+  await signUpAndOnboard(page, "Live Estimator");
+  await page.goto("/nutrition/procurement/new?mode=blank");
+  const row = page.getByTestId("draft-grocery");
+  await row.getByLabel("Item", { exact: true }).fill("Greek yogurt");
+  await row.getByLabel("Qty", { exact: true }).fill("500");
+  await row.getByLabel("Unit", { exact: true }).fill("g");
+  await page.getByRole("button", { name: "Save plan" }).click();
+  await expect(page).toHaveURL(/\/nutrition\/procurement\/[^/?]+$/, { timeout: 20_000 });
+  await page.getByRole("link", { name: "Nutrition" }).click();
+  await page.getByRole("button", { name: "Estimate (1)" }).click();
+  await expect(page.getByText("Nutrition estimated for 1 items")).toBeVisible({ timeout: AI_TIMEOUT });
+  await expect(page.getByRole("button", { name: "Estimate (1)" })).toHaveCount(0);
+  const check = page.locator('[data-testid="nutrition-check"]:visible');
+  const kcal = Number((await check.innerText()).match(/kcal\s+(\d+)/)?.[1]);
+  console.log("ESTIMATED yogurt kcal/day", kcal);
+  // 500 g of Greek yogurt over 7 days: roughly 50-100 kcal a day.
+  expect(kcal).toBeGreaterThan(20);
+  expect(kcal).toBeLessThan(250);
+});

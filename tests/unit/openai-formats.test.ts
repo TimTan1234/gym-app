@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { zodResponsesFunction, zodTextFormat } from "openai/helpers/zod";
-import { MealAnalysisSchema, planDraftSchema } from "@/lib/ai/schemas";
+import { GeneratedPlanSchema, GroceryNutritionSchema, MealAnalysisSchema, ProcurementDraftSchema, planDraftSchema } from "@/lib/ai/schemas";
 import { EXERCISES } from "../../prisma/seed/exercises";
 import { GetMealsParams, MealDeleteParams, MealLogParams, MealUpdateParams } from "@/lib/ai/coach-edits";
 
@@ -33,6 +33,18 @@ describe("OpenAI request formats", () => {
     const format = zodTextFormat(MealAnalysisSchema, "meal_analysis");
     expect(format.strict).toBe(true);
     assertStrict(format.schema as JsonSchema);
+  });
+
+  it("procurement schemas are strict-compatible", () => {
+    for (const [name, schema] of [
+      ["procurement_plan", ProcurementDraftSchema],
+      ["generated_plan", GeneratedPlanSchema],
+      ["grocery_nutrition", GroceryNutritionSchema],
+    ] as const) {
+      const format = zodTextFormat(schema, name);
+      expect(format.strict, name).toBe(true);
+      assertStrict(format.schema as JsonSchema, name);
+    }
   });
 
   it("plan schema with the full exercise enum is strict-compatible", () => {

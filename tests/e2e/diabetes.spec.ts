@@ -23,12 +23,12 @@ async function logReading(page: Page, value: string, context: string) {
 test("diabetes mode: carb cap, glucose log, low-glucose steps, units, carb floor", async ({ page }) => {
   await signUpAndOnboard(page);
   await page.goto("/settings");
-  const carbsBefore = Number(await page.getByLabel("Carbs (g)").inputValue());
+  const carbsBefore = Number(await page.getByLabel("Carbs", { exact: true }).inputValue());
 
   await enableDiabetesMode(page);
   // Automatic targets now keep carbs within the guideline's per-meal budget
-  await expect(page.getByLabel("Carbs (g)")).not.toHaveValue(String(carbsBefore));
-  const carbsAfter = Number(await page.getByLabel("Carbs (g)").inputValue());
+  await expect(page.getByLabel("Carbs", { exact: true })).not.toHaveValue(String(carbsBefore));
+  const carbsAfter = Number(await page.getByLabel("Carbs", { exact: true }).inputValue());
   expect(carbsAfter).toBeLessThan(carbsBefore);
   expect(carbsAfter).toBeGreaterThanOrEqual(130);
 
@@ -75,7 +75,7 @@ test("diabetes mode: carb cap, glucose log, low-glucose steps, units, carb floor
   // Manual targets can't go under 130 g of carbs in diabetes mode
   await page.goto("/settings");
   await page.getByRole("button", { name: "Custom" }).click();
-  await page.getByLabel("Carbs (g)").fill("100");
+  await page.getByLabel("Carbs", { exact: true }).fill("100");
   await page.getByRole("button", { name: "Save targets" }).click();
   await expect(page.getByText("can't be set below 130 g a day")).toBeVisible();
 });

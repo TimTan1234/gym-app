@@ -40,15 +40,19 @@ test("import a pasted list → edit the draft → shop → budget → nutrition 
   await page.getByRole("checkbox", { name: /Chicken breast/ }).click();
   await expect(progress).toContainText("1 of 8 bought");
   await saved;
+  // A bought item's price is tapped to note what it cost; the expected total follows (94.10 - 24 + 20).
+  const paid = page.getByRole("button", { name: "Enter what you paid for Chicken breast" });
+  await expect(paid).toContainText("≈ 24.00");
+  await paid.click();
   await page.getByLabel("Paid for Chicken breast (MYR)").fill("20");
   saved = actionDone();
   await page.getByLabel("Paid for Chicken breast (MYR)").blur();
-  await expect(progress).toContainText("20.00");
+  await expect(progress).toContainText("90.10");
   await saved;
   await page.reload();
   await expect(page.getByTestId("shop-progress")).toContainText("1 of 8 bought");
   await expect(page.getByRole("checkbox", { name: /Chicken breast/ })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByLabel("Paid for Chicken breast (MYR)")).toHaveValue("20");
+  await expect(paid).toHaveText("20.00");
 
   // Budget: paid price replaces the estimate (94.10 - 24 + 20).
   await page.getByRole("link", { name: "Budget" }).click();
@@ -93,7 +97,7 @@ test("generate a plan, import a Markdown file, reject a scanned PDF, finish a pl
   await expect(page.getByTestId("nutrition-check")).toHaveCount(0);
   await page.getByRole("button", { name: "Save plan" }).click();
   await expect(page).toHaveURL(/\/nutrition\/procurement\/[^/?]+$/);
-  await expect(page.getByText("5 days · 3 people")).toBeVisible();
+  await expect(page.getByText("5 days for 3 people")).toBeVisible();
   await page.getByRole("link", { name: "Nutrition" }).click();
   await page.getByRole("button", { name: "Estimate (9)" }).click();
   await expect(page.getByText("Nutrition estimated for 9 items")).toBeVisible();

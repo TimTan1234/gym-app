@@ -33,7 +33,8 @@ export function NutritionCheck({ perDay, profile, compact = false }: { perDay: N
               </span>
             </div>
             <ProgressBar value={r.value} max={r.target} color={COLORS[r.key]} />
-            {!compact && <p className={cn("text-xs", r.status === "ok" ? "text-steel" : "font-semibold text-iron")}>{statusText(r.status)}</p>}
+            {/* A list rarely covers every meal, so being under is expected: only "over" is called out. */}
+            {!compact && r.status === "over" && <p className="text-xs font-semibold text-iron">{statusText(r.status)}</p>}
           </li>
         ))}
       </ul>

@@ -131,12 +131,12 @@ async function readGroceryDraft(page: Page) {
   const items = [];
   for (let i = 0; i < n; i++) {
     const row = rows.nth(i);
-    const price = await row.getByLabel("Price (MYR)").inputValue();
+    const price = await row.getAttribute("data-price");
     items.push({
-      name: await row.getByLabel("Item").inputValue(),
-      quantity: await row.getByLabel("Qty").inputValue(),
-      unit: await row.getByLabel("Unit").inputValue(),
-      price: price === "" ? null : Number(price),
+      name: (await row.getAttribute("data-name")) ?? "",
+      quantity: await row.getAttribute("data-quantity"),
+      unit: await row.getAttribute("data-unit"),
+      price: price ? Number(price) : null,
     });
   }
   const cost = await page.getByTestId("draft-total-cost").textContent();

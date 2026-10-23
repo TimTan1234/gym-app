@@ -32,7 +32,7 @@ async function PlanDetail({ params, searchParams }: PageProps<"/nutrition/procur
         title={plan.title}
         subtitle={
           <>
-            {`${t.plural("procurement.days", plan.days)} · ${t.plural("procurement.people", plan.people)}`}
+            {t("procurement.periodFor", { days: t.plural("procurement.days", plan.days), people: t.plural("procurement.people", plan.people) })}
             {plan.status !== "ACTIVE" && <Badge className="ml-2">{t(`procurement.status.${plan.status}`)}</Badge>}
           </>
         }

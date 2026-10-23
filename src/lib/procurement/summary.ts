@@ -130,6 +130,11 @@ export function formatMoney(amount: number, currency: string, locale: "en" | "zh
   }
 }
 
+/** An amount for a price column, without the currency (it is shown once, in the total). */
+export function formatAmount(amount: number, locale: "en" | "zh") {
+  return new Intl.NumberFormat(locale === "zh" ? "zh-CN" : "en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+}
+
 /** A shareable checklist, e.g. for a chat message. */
 export function planToMarkdown(
   plan: {

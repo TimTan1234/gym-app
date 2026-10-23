@@ -3,19 +3,19 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { createProcurementPlan } from "@/server/procurement";
 import {
-  GROCERY_CATEGORIES,
   type GroceryCategory,
   type PlannedMeal,
   type DraftPlan,
   type ProcurementSource,
 } from "@/lib/ai/schemas";
-import { formatMoney, planCost, planNutrition, type CheckProfile } from "@/lib/procurement/summary";
+import { formatMoney, groupByCategory, planCost, planNutrition, type CheckProfile } from "@/lib/procurement/summary";
 import { NUTRIENT_KEYS } from "@/lib/nutrition/totals";
-import { Button, Card, IconButton, Input, Label, Select, cn } from "@/components/ui";
-import { NumField } from "./fields";
+import { Button, IconButton, Input, Label, cn } from "@/components/ui";
+import { ItemFields, NumField } from "./fields";
+import { AisleHeading, PriceText, Slip, Tally } from "./Slip";
 import { NutritionCheck } from "./NutritionCheck";
 import { useT } from "@/i18n/client";
 
@@ -117,6 +117,8 @@ export function DraftEditor({
   const [items, setItems] = useState(initial.items);
   const [meals, setMeals] = useState(initial.meals);
   const [saving, startSaving] = useTransition();
+  // A blank list starts with its empty row open.
+  const [openKey, setOpenKey] = useState<string | null>(() => initial.items.find((i) => !i.name)?.key ?? null);
   const { currency, notes } = initial;
 
   function update(key: string, patch: Partial<EditorItem>) {
@@ -155,10 +157,19 @@ export function DraftEditor({
     });
   }
 
+  const groups = groupByCategory(items);
+  const mealDays = [...new Set(meals.map((m) => m.day))].sort((a, b) => a - b);
+
+  function addItem() {
+    const item = emptyItem();
+    setItems((cur) => [...cur, item]);
+    setOpenKey(item.key);
+  }
+
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-7 pb-36">
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-baseline justify-between gap-3">
           <h2 className="display text-[22px]">{t("procurement.reviewTitle")}</h2>
           {source !== "MANUAL" && <span className="text-[13px] text-steel">{t("procurement.aiEstimateHint")}</span>}
         </div>
@@ -177,46 +188,62 @@ export function DraftEditor({
             onChange={setBudget}
           />
         </div>
-        {notes && <p className="text-xs text-steel">{notes}</p>}
+        {notes && <p className="text-[13px] text-steel">{notes}</p>}
       </section>
 
       <section>
-        <h3 className="mb-1 text-sm font-semibold text-steel">{t("procurement.itemsCount", { count: items.length })}</h3>
-        {items.map((item) => (
-          <ItemRow
-            key={item.key}
-            item={item}
-            currency={currency}
-            onChange={update}
-            onRemove={(k) => setItems((cur) => cur.filter((i) => i.key !== k))}
-          />
-        ))}
-        <Button type="button" variant="ghost" edge="start" className="mt-2" onClick={() => setItems((cur) => [...cur, emptyItem()])}>
-          <Plus className="size-4" /> {t("procurement.addItem")}
-        </Button>
+        <h3 className="mb-2 text-sm font-semibold text-steel">{t("procurement.itemsCount", { count: items.length })}</h3>
+        <Slip>
+          {groups.map((group) => (
+            <section key={group.category}>
+              <AisleHeading category={group.category} subtotal={group.items.reduce((sum, i) => sum + (i.estPrice ?? 0), 0)} />
+              <ul>
+                {group.items.map((item) => (
+                  <DraftRow
+                    key={item.key}
+                    item={item}
+                    currency={currency}
+                    open={openKey === item.key}
+                    onOpen={(open) => setOpenKey(open ? item.key : null)}
+                    onChange={update}
+                    onRemove={(k) => setItems((cur) => cur.filter((i) => i.key !== k))}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
+          <Button type="button" variant="ghost" edge="start" className="mt-2" onClick={addItem}>
+            <Plus className="size-4" /> {t("procurement.addItem")}
+          </Button>
+        </Slip>
       </section>
 
       {meals.length > 0 && (
         <section>
           <h3 className="mb-1 text-sm font-semibold text-steel">{t("procurement.mealsCount", { count: meals.length })}</h3>
-          <ul className="divide-y divide-line border-y border-line">
-            {meals.map((m) => (
-              <li key={m.key} className="flex items-center gap-3 py-2 text-sm">
-                <span className="w-24 shrink-0 text-steel">
-                  {t("procurement.dayN", { day: m.day })} · {t(`labels.mealType.${m.mealType}`)}
-                </span>
-                <span className="min-w-0 flex-1">{m.description}</span>
-                <IconButton
-                  edge="end"
-                  tone="danger"
-                  aria-label={t("procurement.removeNamed", { name: m.description })}
-                  onClick={() => setMeals((cur) => cur.filter((x) => x.key !== m.key))}
-                >
-                  <X className="size-4" />
-                </IconButton>
-              </li>
-            ))}
-          </ul>
+          {mealDays.map((day) => (
+            <div key={day} className="border-t border-line py-2">
+              <p className="display text-[15px]">{t("procurement.dayN", { day })}</p>
+              <ul>
+                {meals
+                  .filter((m) => m.day === day)
+                  .map((m) => (
+                    <li key={m.key} className="flex items-center gap-3 text-sm">
+                      <span className="w-20 shrink-0 text-steel">{t(`labels.mealType.${m.mealType}`)}</span>
+                      <span className="min-w-0 flex-1">{m.description}</span>
+                      <IconButton
+                        edge="end"
+                        tone="danger"
+                        aria-label={t("procurement.removeNamed", { name: m.description })}
+                        onClick={() => setMeals((cur) => cur.filter((x) => x.key !== m.key))}
+                      >
+                        <X className="size-4" />
+                      </IconButton>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ))}
         </section>
       )}
 
@@ -235,85 +262,123 @@ export function DraftEditor({
         )}
       </section>
 
-      <div className="sticky bottom-20 z-20 md:bottom-4">
-        <Card className="flex items-center gap-3 border border-line shadow-[0_8px_24px_-12px_rgba(31,34,38,0.45)]">
-          <div className="min-w-0 flex-1">
-            <p className="num text-[20px] font-semibold" data-testid="draft-total-cost">
-              {money(cost.estimated)}
-            </p>
-            <p className={cn("text-[13px]", cost.overBudget ? "font-semibold text-alert" : "text-steel")}>
-              {budget == null
-                ? t("procurement.budget.noBudget")
-                : cost.overBudget
-                  ? t("procurement.budget.over", { amount: money(-(cost.remaining ?? 0)) })
-                  : t("procurement.budget.left", { amount: money(cost.remaining ?? 0) })}
-            </p>
-          </div>
-          <Button type="button" variant="ghost" onClick={onDiscard} disabled={saving}>
-            {t("procurement.discard")}
-          </Button>
-          <Button type="button" size="lg" onClick={save} disabled={saving}>
-            {saving ? t("common.saving") : t("procurement.savePlan")}
-          </Button>
-        </Card>
-      </div>
+      <Tally className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="score text-[30px]" data-testid="draft-total-cost">
+            {money(cost.estimated)}
+          </p>
+          <p className={cn("text-[12px]", cost.overBudget ? "font-semibold underline decoration-2 underline-offset-2" : "opacity-75")}>
+            {budget == null
+              ? t("procurement.budget.noBudget")
+              : cost.overBudget
+                ? t("procurement.budget.over", { amount: money(-(cost.remaining ?? 0)) })
+                : t("procurement.budget.left", { amount: money(cost.remaining ?? 0) })}
+          </p>
+        </div>
+        <Button type="button" variant="inverse-ghost" size="sm" onClick={onDiscard} disabled={saving}>
+          {t("procurement.discard")}
+        </Button>
+        <Button type="button" variant="inverse" onClick={save} disabled={saving}>
+          {saving ? t("common.saving") : t("procurement.savePlan")}
+        </Button>
+      </Tally>
     </div>
   );
 }
 
-function ItemRow({
+/** One item on the draft slip: a printed line that opens into its fields when tapped. */
+function DraftRow({
   item,
   currency,
+  open,
+  onOpen,
   onChange,
   onRemove,
 }: {
   item: EditorItem;
   currency: string;
+  open: boolean;
+  onOpen: (open: boolean) => void;
   onChange: (key: string, patch: Partial<EditorItem>) => void;
   onRemove: (key: string) => void;
 }) {
   const t = useT();
+  const name = item.name || t("procurement.fields.item");
+  const remove = (
+    <IconButton tone="danger" edge="end" aria-label={t("procurement.removeNamed", { name })} onClick={() => onRemove(item.key)}>
+      <X className="size-4" />
+    </IconButton>
+  );
+  const showsShare =
+    item.kcal !== null && item.consumedGrams !== null && item.consumedGrams > 0 && item.estimatedFor?.trim().toLowerCase() === item.name.trim().toLowerCase();
+
   return (
-    <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-2 border-t border-line py-3" data-testid="draft-grocery">
-      <Input
-        value={item.name}
-        onChange={(e) => onChange(item.key, { name: e.target.value })}
-        placeholder={t("procurement.fields.item")}
-        aria-label={t("procurement.fields.item")}
-        maxLength={120}
-        className="font-medium"
-      />
-      <IconButton tone="danger" edge="end" className="self-center" aria-label={t("procurement.removeNamed", { name: item.name || t("procurement.fields.item") })} onClick={() => onRemove(item.key)}>
-        <Trash2 className="size-4" />
-      </IconButton>
-      <div className="col-start-1 grid grid-cols-2 items-end gap-2 sm:grid-cols-4">
-        <NumField label={t("procurement.fields.quantity")} value={item.quantity} onChange={(v) => onChange(item.key, { quantity: v ?? 0 })} />
-        <label className="flex min-w-0 flex-col gap-0.5 text-[11px] font-medium text-steel">
-          {t("procurement.fields.unit")}
-          <Input value={item.unit} onChange={(e) => onChange(item.key, { unit: e.target.value })} maxLength={30} className="h-9 px-2" />
-        </label>
-        <label className="flex min-w-0 flex-col gap-0.5 text-[11px] font-medium text-steel">
-          {t("procurement.fields.category")}
-          <Select value={item.category} onChange={(e) => onChange(item.key, { category: e.target.value as GroceryCategory })} className="h-9 px-2 text-sm">
-            {GROCERY_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {t(`labels.groceryCategory.${c}`)}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <NumField
-          label={t("procurement.fields.price", { currency })}
-          value={item.estPrice}
-          nullable
-          onChange={(v) => onChange(item.key, { estPrice: v })}
-        />
-      </div>
-      {item.kcal !== null && item.consumedGrams !== null && item.consumedGrams > 0 && item.estimatedFor?.trim().toLowerCase() === item.name.trim().toLowerCase() && (
-        <p className="col-start-1 text-xs text-steel">
-          {t("procurement.youEat", { grams: Math.round(item.consumedGrams), kcal: Math.round(item.kcal) })}
-        </p>
+    <li
+      data-testid="draft-grocery"
+      data-name={item.name}
+      data-quantity={item.quantity}
+      data-unit={item.unit}
+      data-price={item.estPrice ?? ""}
+      className={open ? "border-b border-dashed border-line py-3" : undefined}
+    >
+      {open ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Input
+              value={item.name}
+              onChange={(e) => onChange(item.key, { name: e.target.value })}
+              placeholder={t("procurement.fields.item")}
+              aria-label={t("procurement.fields.item")}
+              maxLength={120}
+              autoFocus={!item.name}
+              className="font-medium"
+            />
+            {remove}
+          </div>
+          <ItemFields
+            quantity={item.quantity}
+            unit={item.unit}
+            category={item.category}
+            estPrice={item.estPrice}
+            currency={currency}
+            set={{
+              setQuantity: (quantity) => onChange(item.key, { quantity }),
+              setUnit: (unit) => onChange(item.key, { unit }),
+              setCategory: (category) => onChange(item.key, { category }),
+              setEstPrice: (estPrice) => onChange(item.key, { estPrice }),
+            }}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-steel">{showsShare && t("procurement.youEat", { grams: Math.round(item.consumedGrams!), kcal: Math.round(item.kcal!) })}</p>
+            <Button type="button" variant="ghost" size="sm" edge="end" onClick={() => onOpen(false)}>
+              {t("common.done")}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onOpen(true)}
+            aria-label={t("procurement.editNamed", { name })}
+            className="flex min-h-13 min-w-0 flex-1 items-start py-2 text-left"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="flex items-baseline">
+                <span className={cn("truncate font-medium", !item.name && "text-steel")}>{name}</span>
+                <span aria-hidden className="leader" />
+              </span>
+              <span className="num block text-[13px] text-steel">
+                {item.quantity} {item.unit}
+              </span>
+            </span>
+            <span className="shrink-0 pl-1.5 text-[15px] leading-normal">
+              <PriceText paid={null} estimate={item.estPrice} />
+            </span>
+          </button>
+          {remove}
+        </div>
       )}
-    </div>
+    </li>
   );
 }

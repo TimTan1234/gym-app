@@ -4,10 +4,11 @@ import { useOptimistic, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { addProcurementItem, deleteProcurementItem, setItemChecked, updateProcurementItem } from "@/server/procurement";
-import { GROCERY_CATEGORIES, type GroceryCategory } from "@/lib/ai/schemas";
+import type { GroceryCategory } from "@/lib/ai/schemas";
 import { formatMoney, groupByCategory, planCost } from "@/lib/procurement/summary";
-import { Button, IconButton, Input, ProgressBar, Select, cn } from "@/components/ui";
-import { NumField } from "./fields";
+import { Button, IconButton, Input, cn } from "@/components/ui";
+import { ItemFields, NumField } from "./fields";
+import { AisleHeading, PriceText, Slip, Tally, TallyBar } from "./Slip";
 import { useT } from "@/i18n/client";
 
 export interface ShopItem {
@@ -24,7 +25,11 @@ export interface ShopItem {
 
 type Change = { id: string; patch: Partial<ShopItem> } | { id: string; remove: true };
 
-/** Shopping mode: tick items off by aisle, note what they cost, add what was forgotten. */
+/**
+ * Shopping mode: the list as a till slip, by aisle. Tap an item to put it in
+ * the basket, tap its price to note what it cost. Editing is behind "Edit list"
+ * so the rows stay clean in the shop.
+ */
 export function ShoppingList({ planId, items, currency, budget }: { planId: string; items: ShopItem[]; currency: string; budget: number | null }) {
   const t = useT();
   const [shown, apply] = useOptimistic(items, (cur: ShopItem[], change: Change) =>
@@ -32,6 +37,7 @@ export function ShoppingList({ planId, items, currency, budget }: { planId: stri
   );
   const [, startTransition] = useTransition();
   const [hideBought, setHideBought] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
 
   const money = (n: number) => formatMoney(n, currency, t.locale);
@@ -55,104 +61,189 @@ export function ShoppingList({ planId, items, currency, budget }: { planId: stri
   const setPaid = (item: ShopItem, actualPrice: number | null) =>
     run({ id: item.id, patch: { actualPrice } }, () => updateProcurementItem(item.id, { actualPrice }));
 
+  // Aisle subtotals count every item, so hiding bought ones doesn't change them.
+  const subtotals = new Map(cost.byCategory.map((c) => [c.category, c.amount]));
   const groups = groupByCategory(hideBought ? shown.filter((i) => !i.checked) : shown);
 
   return (
-    <div className="space-y-5">
-      <div className="sticky top-0 z-20 space-y-2 bg-chalk py-3" data-testid="shop-progress">
-        <div className="flex items-baseline justify-between gap-3 text-sm">
-          <span className="font-semibold">{t("procurement.shop.progress", { done, total: shown.length })}</span>
-          <span className={cn("num", cost.overBudget ? "font-semibold text-alert" : "text-steel")}>
-            {budget == null ? money(cost.spent) : t("procurement.shop.spentOf", { spent: money(cost.spent), budget: money(budget) })}
-          </span>
-        </div>
-        <ProgressBar value={done} max={shown.length} />
+    <div className="pb-32">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <label className="flex items-center gap-2 text-[13px] text-steel">
           <input type="checkbox" checked={hideBought} onChange={(e) => setHideBought(e.target.checked)} className="size-4 accent-[var(--iron)]" />
           {t("procurement.shop.hideBought")}
         </label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          edge="end"
+          aria-pressed={editMode}
+          onClick={() => {
+            setEditMode((m) => !m);
+            setEditing(null);
+          }}
+        >
+          {editMode ? t("common.done") : t("procurement.shop.editList")}
+        </Button>
       </div>
 
-      {groups.length === 0 && <p className="text-sm text-steel">{shown.length === 0 ? t("procurement.shop.empty") : t("procurement.shop.allBought")}</p>}
-
-      {groups.map((group) => (
-        <section key={group.category}>
-          <h2 className="mb-1 text-sm font-semibold text-steel">{t(`labels.groceryCategory.${group.category}`)}</h2>
-          <ul className="divide-y divide-line border-y border-line">
-            {group.items.map((item) =>
-              editing === item.id ? (
-                <li key={item.id}>
-                  <ItemEditor
+      <Slip>
+        {groups.length === 0 && (
+          <p className="py-6 text-sm text-steel">{shown.length === 0 ? t("procurement.shop.empty") : t("procurement.shop.allBought")}</p>
+        )}
+        {groups.map((group) => (
+          <section key={group.category}>
+            <AisleHeading category={group.category} subtotal={subtotals.get(group.category) ?? 0} />
+            <ul>
+              {group.items.map((item) =>
+                editing === item.id ? (
+                  <li key={item.id}>
+                    <ItemEditor
+                      item={item}
+                      currency={currency}
+                      onDone={() => setEditing(null)}
+                      onSave={(patch) => {
+                        setEditing(null);
+                        run({ id: item.id, patch }, () => updateProcurementItem(item.id, patch));
+                      }}
+                      onDelete={() => {
+                        setEditing(null);
+                        run({ id: item.id, remove: true }, () => deleteProcurementItem(item.id));
+                      }}
+                    />
+                  </li>
+                ) : (
+                  <ShopRow
+                    key={item.id}
                     item={item}
                     currency={currency}
-                    onDone={() => setEditing(null)}
-                    onSave={(patch) => {
-                      setEditing(null);
-                      run({ id: item.id, patch }, () => updateProcurementItem(item.id, patch));
-                    }}
-                    onDelete={() => {
-                      setEditing(null);
-                      run({ id: item.id, remove: true }, () => deleteProcurementItem(item.id));
-                    }}
+                    editMode={editMode}
+                    onToggle={() => toggle(item)}
+                    onPaid={(v) => setPaid(item, v)}
+                    onEdit={() => setEditing(item.id)}
                   />
-                </li>
-              ) : (
-                <li key={item.id} className="flex items-center gap-1" data-testid="shop-item">
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={item.checked}
-                    onClick={() => toggle(item)}
-                    className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 text-left"
-                  >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "grid size-6 shrink-0 place-items-center rounded-[6px] border-2",
-                        item.checked ? "border-iron bg-iron text-iron-fg" : "border-line",
-                      )}
-                    >
-                      {item.checked && <Check className="size-4" strokeWidth={3} />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={cn("block font-medium", item.checked && "text-steel line-through")}>{item.name}</span>
-                      <span className="num block text-[13px] text-steel">
-                        {item.quantity} {item.unit}
-                        {item.estPrice != null && ` · ${money(item.estPrice)}`}
-                      </span>
-                    </span>
-                  </button>
-                  {item.checked && <PaidField item={item} currency={currency} onSave={(v) => setPaid(item, v)} />}
-                  <IconButton edge="end" aria-label={t("procurement.editNamed", { name: item.name })} onClick={() => setEditing(item.id)}>
-                    <Pencil className="size-4" />
-                  </IconButton>
-                </li>
-              ),
-            )}
-          </ul>
-        </section>
-      ))}
+                ),
+              )}
+            </ul>
+          </section>
+        ))}
+        <AddItem planId={planId} currency={currency} />
+      </Slip>
 
-      <AddItem planId={planId} currency={currency} />
+      <Tally testId="shop-progress">
+        <span className="sr-only">{t("procurement.shop.progress", { done, total: shown.length })}</span>
+        <div className="flex items-end justify-between gap-4">
+          <p className="flex items-baseline gap-1.5" aria-hidden>
+            <span className="score text-[34px]">
+              {done}
+              <span className="opacity-50">/{shown.length}</span>
+            </span>
+            <span className="text-[13px] opacity-75">{t("procurement.shop.inBasket")}</span>
+          </p>
+          <p className="text-right">
+            <span className="score block text-[34px]">{money(cost.projected)}</span>
+            <span className={cn("block text-[12px]", cost.overBudget ? "font-semibold underline decoration-2 underline-offset-2" : "opacity-75")}>
+              {budget == null
+                ? t("procurement.shop.expectedTotal")
+                : cost.overBudget
+                  ? t("procurement.budget.over", { amount: money(-(cost.remaining ?? 0)) })
+                  : t("procurement.shop.ofBudget", { budget: money(budget) })}
+            </span>
+          </p>
+        </div>
+        <TallyBar value={done} max={shown.length} />
+      </Tally>
     </div>
   );
 }
 
-/** What was actually paid, saved when the field loses focus. */
-function PaidField({ item, currency, onSave }: { item: ShopItem; currency: string; onSave: (v: number | null) => void }) {
+function ShopRow({
+  item,
+  currency,
+  editMode,
+  onToggle,
+  onPaid,
+  onEdit,
+}: {
+  item: ShopItem;
+  currency: string;
+  editMode: boolean;
+  onToggle: () => void;
+  onPaid: (v: number | null) => void;
+  onEdit: () => void;
+}) {
   const t = useT();
-  const [value, setValue] = useState(item.actualPrice);
+  const [paying, setPaying] = useState(false);
+
   return (
-    <NumField
-      label={t("procurement.shop.paid", { currency })}
-      value={value}
-      nullable
-      placeholder={item.estPrice != null ? String(item.estPrice) : undefined}
-      onChange={setValue}
-      ariaLabel={t("procurement.shop.paidFor", { name: item.name, currency })}
-      className="w-24 shrink-0 [&_input]:h-8"
-      onBlur={(v) => v !== item.actualPrice && onSave(v)}
-    />
+    // Top-aligned so the price sits on the item's name line, where its leader points.
+    <li className="flex items-start" data-testid="shop-item">
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={item.checked}
+        onClick={onToggle}
+        className="stamp flex min-h-14 min-w-0 flex-1 items-start gap-3 py-2 text-left"
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "stamp-box mt-px grid size-6 shrink-0 place-items-center rounded-[6px] border-2 transition-colors",
+            item.checked ? "border-iron bg-iron text-iron-fg" : "border-steel/50",
+          )}
+        >
+          {item.checked && <Check className="size-4" strokeWidth={3} />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-baseline">
+            <span className={cn("truncate font-medium", item.checked && "text-steel line-through decoration-iron/60")}>{item.name}</span>
+            <span aria-hidden className="leader" />
+          </span>
+          <span className="num block text-[13px] text-steel">
+            {item.quantity} {item.unit}
+          </span>
+        </span>
+      </button>
+
+      {paying ? (
+        <NumField
+          label=""
+          ariaLabel={t("procurement.shop.paidFor", { name: item.name, currency })}
+          value={item.actualPrice}
+          nullable
+          autoFocus
+          placeholder={item.estPrice != null ? String(item.estPrice) : undefined}
+          onChange={() => {}}
+          onBlur={(v) => {
+            setPaying(false);
+            if (v !== item.actualPrice) onPaid(v);
+          }}
+          className="w-20 shrink-0 self-center [&_input]:text-right"
+        />
+      ) : item.checked ? (
+        // Bought: the price is a button to note what it really cost.
+        <button
+          type="button"
+          onClick={() => setPaying(true)}
+          aria-label={t("procurement.shop.enterPaid", { name: item.name })}
+          className="-mr-1 flex min-h-14 shrink-0 items-start justify-end rounded-[8px] px-1 pt-2 text-[15px] leading-normal hover:bg-wash"
+        >
+          <span className="underline decoration-steel/50 decoration-dotted underline-offset-4">
+            <PriceText paid={item.actualPrice} estimate={item.estPrice} />
+          </span>
+        </button>
+      ) : (
+        <span className="shrink-0 pl-1.5 pt-2 text-right text-[15px] leading-normal">
+          <PriceText paid={item.actualPrice} estimate={item.estPrice} />
+        </span>
+      )}
+
+      {editMode && (
+        <IconButton edge="end" className="ml-2 mt-2.5" aria-label={t("procurement.editNamed", { name: item.name })} onClick={onEdit}>
+          <Pencil className="size-4" />
+        </IconButton>
+      )}
+    </li>
   );
 }
 
@@ -178,7 +269,7 @@ function ItemEditor({
 
   return (
     <form
-      className="space-y-2 py-3"
+      className="space-y-2 border-b border-line py-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim()) return;
@@ -204,49 +295,6 @@ function ItemEditor({
   );
 }
 
-function ItemFields({
-  quantity,
-  unit,
-  category,
-  estPrice,
-  currency,
-  set,
-}: {
-  quantity: number;
-  unit: string;
-  category: GroceryCategory;
-  estPrice: number | null;
-  currency: string;
-  set: {
-    setQuantity: (v: number) => void;
-    setUnit: (v: string) => void;
-    setCategory: (v: GroceryCategory) => void;
-    setEstPrice: (v: number | null) => void;
-  };
-}) {
-  const t = useT();
-  return (
-    <div className="grid grid-cols-2 items-end gap-2 sm:grid-cols-4">
-      <NumField label={t("procurement.fields.quantity")} value={quantity} onChange={(v) => set.setQuantity(v ?? 0)} />
-      <label className="flex min-w-0 flex-col gap-0.5 text-[11px] font-medium text-steel">
-        {t("procurement.fields.unit")}
-        <Input value={unit} onChange={(e) => set.setUnit(e.target.value)} maxLength={30} className="h-9 px-2" />
-      </label>
-      <label className="flex min-w-0 flex-col gap-0.5 text-[11px] font-medium text-steel">
-        {t("procurement.fields.category")}
-        <Select value={category} onChange={(e) => set.setCategory(e.target.value as GroceryCategory)} className="h-9 px-2 text-sm">
-          {GROCERY_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {t(`labels.groceryCategory.${c}`)}
-            </option>
-          ))}
-        </Select>
-      </label>
-      <NumField label={t("procurement.fields.price", { currency })} value={estPrice} nullable onChange={set.setEstPrice} />
-    </div>
-  );
-}
-
 function AddItem({ planId, currency }: { planId: string; currency: string }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -259,7 +307,7 @@ function AddItem({ planId, currency }: { planId: string; currency: string }) {
 
   if (!open) {
     return (
-      <Button type="button" variant="ghost" edge="start" onClick={() => setOpen(true)}>
+      <Button type="button" variant="ghost" edge="start" className="mt-2" onClick={() => setOpen(true)}>
         <Plus className="size-4" /> {t("procurement.addItem")}
       </Button>
     );
@@ -267,7 +315,7 @@ function AddItem({ planId, currency }: { planId: string; currency: string }) {
 
   return (
     <form
-      className="space-y-2 border-t border-line pt-3"
+      className="space-y-2 border-t border-dashed border-line pt-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim()) return;

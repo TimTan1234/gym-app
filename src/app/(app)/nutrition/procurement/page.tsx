@@ -12,24 +12,34 @@ export const metadata = { title: "Groceries" };
 
 type PlanSummary = Awaited<ReturnType<typeof listProcurementPlans>>[number];
 
+/** A plan as a small slip: what it will cost against the budget, and how much is in the basket. */
 function PlanRow({ plan, t }: { plan: PlanSummary; t: T }) {
   const done = plan.items.filter((i) => i.checked).length;
   const cost = planCost(plan.items, plan.budget);
   const money = (n: number) => formatMoney(n, plan.currency, t.locale);
   return (
     <li>
-      <Link href={`/nutrition/procurement/${plan.id}`} className="block space-y-1.5 py-3 hover:bg-wash" data-testid="procurement-plan">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="min-w-0 truncate font-semibold">{plan.title}</span>
-          <span className={cn("num shrink-0 text-sm", cost.overBudget ? "font-semibold text-alert" : "text-steel")}>
-            {money(cost.projected)}
-            {plan.budget != null && ` / ${money(plan.budget)}`}
-          </span>
+      <Link href={`/nutrition/procurement/${plan.id}`} className="slip block space-y-2 px-4 pt-3 transition-opacity hover:opacity-90" data-testid="procurement-plan">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="display truncate text-[19px]">{plan.title}</p>
+            <p className="text-[13px] text-steel">
+              {t("procurement.periodFor", { days: t.plural("procurement.days", plan.days), people: t.plural("procurement.people", plan.people) })}
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="score text-[26px]">{money(cost.projected)}</p>
+            {plan.budget != null && (
+              <p className={cn("text-[12px]", cost.overBudget ? "font-semibold text-alert" : "text-steel")}>
+                {cost.overBudget
+                  ? t("procurement.budget.over", { amount: money(-(cost.remaining ?? 0)) })
+                  : t("procurement.shop.ofBudget", { budget: money(plan.budget) })}
+              </p>
+            )}
+          </div>
         </div>
         <ProgressBar value={done} max={plan.items.length} />
-        <p className="text-[13px] text-steel">
-          {t("procurement.shop.progress", { done, total: plan.items.length })} · {`${t.plural("procurement.days", plan.days)} · ${t.plural("procurement.people", plan.people)}`}
-        </p>
+        <p className="text-[13px] text-steel">{t("procurement.shop.progress", { done, total: plan.items.length })}</p>
       </Link>
     </li>
   );
@@ -63,8 +73,8 @@ async function Plans() {
         <EmptyState title={t("procurement.emptyTitle")}>{t("procurement.emptyBody")}</EmptyState>
       ) : (
         <section>
-          <h2 className="display mb-1 text-[20px]">{t("procurement.activePlans")}</h2>
-          <ul className="divide-y divide-line border-y border-line">
+          <h2 className="display mb-3 text-[20px]">{t("procurement.activePlans")}</h2>
+          <ul className="space-y-4">
             {active.map((p) => (
               <PlanRow key={p.id} plan={p} t={t} />
             ))}
@@ -75,7 +85,7 @@ async function Plans() {
       {past.length > 0 && (
         <details className="mt-8">
           <summary className="cursor-pointer text-sm font-semibold text-steel">{t("procurement.pastPlans", { count: past.length })}</summary>
-          <ul className="mt-2 divide-y divide-line border-y border-line">
+          <ul className="mt-3 space-y-4">
             {past.map((p) => (
               <PlanRow key={p.id} plan={p} t={t} />
             ))}

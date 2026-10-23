@@ -161,6 +161,40 @@ body {
   }
 }
 
+/*
+ * Groceries: the list is a till slip. Paper on chalk, torn along its foot;
+ * aisles are separated by dashed tear lines, and a dotted leader runs from
+ * each item to its price.
+ */
+.slip {
+  --tooth: 7px;
+  background: var(--paper);
+  border-radius: 10px 10px 0 0;
+  padding-bottom: calc(var(--tooth) + 12px);
+  -webkit-mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(2 * var(--tooth)) var(--tooth) repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--tooth) + 1px) no-repeat;
+  mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(2 * var(--tooth)) var(--tooth) repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--tooth) + 1px) no-repeat;
+}
+.leader {
+  flex: 1 1 1.5rem;
+  min-width: 1.5rem;
+  margin: 0 0 0 0.4rem;
+  border-bottom: 2px dotted var(--line);
+  transform: translateY(-0.3em);
+}
+/* Ticking an item stamps its box. */
+@keyframes stamp {
+  from {
+    transform: scale(1.4) rotate(-8deg);
+  }
+}
+.stamp[aria-checked="true"] .stamp-box {
+  animation: stamp 0.16s ease-out;
+}
+
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;

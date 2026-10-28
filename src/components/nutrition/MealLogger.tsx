@@ -1,16 +1,17 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, History, Loader2, Plus, ScanBarcode, Sparkles, Star, Trash2, X } from "lucide-react";
+import { History, Loader2, Plus, ScanBarcode, Sparkles, Star, Trash2, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { deleteSavedFood, saveMeal, markSavedFoodsUsed, updateMeal } from "@/server/nutrition";
 import { scaleItem, sumNutrients } from "@/lib/nutrition/totals";
-import type { MealAnalysis } from "@/lib/ai/schemas";
+import { MAX_MEAL_PHOTOS, type MealAnalysis } from "@/lib/ai/schemas";
 import { Button, Card, IconButton, Input, Textarea, cn } from "@/components/ui";
 import { MacroLine } from "@/components/MacroLine";
 import { HIGH_SUGAR_MEAL_G, SugarTag } from "./Sugar";
+import { MealPhotos } from "./MealPhotos";
 import { CarbBudgetLine, GiTag } from "./CarbBudget";
 import { budgetFor, type CarbBudget } from "@/lib/nutrition/diabetes";
 import { useClientValue } from "@/lib/use-client";
@@ -135,12 +136,11 @@ export function MealLogger({
 }) {
   const t = useT();
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
   const guessedType = useClientValue(guessMealType, "LUNCH");
   const [chosenType, setMealType] = useState<MealType | null>(editing?.mealType ?? initialType);
   const mealType = chosenType ?? guessedType;
   const [text, setText] = useState(initialText);
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [items, setItems] = useState<DraftItem[]>(() => editing?.items.map((i) => ({ ...i, key: newKey() })) ?? []);
   const [title, setTitle] = useState(editing?.description ?? "");
@@ -152,19 +152,25 @@ export function MealLogger({
   const [scanning, setScanning] = useState(false);
   const [removing, startRemoving] = useTransition();
 
-  async function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  /** Adds the picked photos (camera: one; gallery: several), up to MAX_MEAL_PHOTOS in all. */
+  async function onPickImages(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = [...(e.target.files ?? [])];
     e.target.value = "";
-    if (!file) return;
-    try {
-      setImage(await resizeImage(file));
-    } catch {
-      toast.error(t("nutrition.imageReadError"));
+    const room = MAX_MEAL_PHOTOS - images.length;
+    if (files.length > room) toast.error(t("nutrition.tooManyPhotos", { max: MAX_MEAL_PHOTOS }));
+    const added: string[] = [];
+    for (const file of files.slice(0, Math.max(0, room))) {
+      try {
+        added.push(await resizeImage(file));
+      } catch {
+        toast.error(t("nutrition.imageReadError"));
+      }
     }
+    if (added.length) setImages((cur) => [...cur, ...added].slice(0, MAX_MEAL_PHOTOS));
   }
 
   async function analyze() {
-    if (!text.trim() && !image) {
+    if (!text.trim() && images.length === 0) {
       toast.error(t("nutrition.describeFirst"));
       return;
     }
@@ -173,7 +179,7 @@ export function MealLogger({
       const res = await fetch("/api/ai/meal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.trim() || undefined, image: image ?? undefined }),
+        body: JSON.stringify({ text: text.trim() || undefined, images: images.length ? images : undefined }),
       });
       const data = (await res.json()) as { analysis?: MealAnalysis; error?: string };
       if (!res.ok || !data.analysis) throw new Error(data.error ?? t("nutrition.analysisFailed"));
@@ -181,7 +187,7 @@ export function MealLogger({
       setItems((cur) => [...cur, ...a.items.map((i) => ({ ...i, key: newKey() }))]);
       setTitle((cur) => cur || a.title);
       setNotes(a.notes);
-      setSource(image ? "AI_PHOTO" : "AI_TEXT");
+      setSource(images.length ? "AI_PHOTO" : "AI_TEXT");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("nutrition.analysisFailed"));
     } finally {
@@ -280,7 +286,7 @@ export function MealLogger({
       // Routes stay mounted (hidden) after navigation, so clear the draft.
       setItems([]);
       setText("");
-      setImage(null);
+      setImages([]);
       setTitle("");
       setNotes(null);
       setSource("MANUAL");
@@ -299,37 +305,22 @@ export function MealLogger({
         <div className="flex items-center gap-2 text-sm font-semibold">
           <Sparkles className="size-4 text-iron" /> {editing ? t("nutrition.describeToAdd") : t("nutrition.describeTitle")}
         </div>
+        {/* Photos first: the quickest way to log what's on the table. */}
+        <MealPhotos images={images} onPick={onPickImages} onRemove={(i) => setImages((cur) => cur.filter((_, j) => j !== i))} />
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={t("nutrition.describePlaceholder")}
+          // With photos, ask for what the camera can't see.
+          placeholder={images.length ? t("nutrition.photoDetailsPlaceholder") : t("nutrition.describePlaceholder")}
           maxLength={1000}
           aria-label={t("nutrition.mealDescription")}
+          className="min-h-16"
         />
-        {image && (
-          <div className="relative w-fit">
-            {/* eslint-disable-next-line @next/next/no-img-element -- local data URL preview */}
-            <img src={image} alt={t("nutrition.photoPreview")} className="max-h-48 rounded-[10px]" />
-            <button
-              type="button"
-              aria-label={t("nutrition.removePhoto")}
-              onClick={() => setImage(null)}
-              className="absolute right-1.5 top-1.5 rounded-full bg-black/60 p-1 text-white"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-        )}
-        <div className="flex gap-2">
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPickImage} />
-          <Button type="button" variant="secondary" onClick={() => fileRef.current?.click()}>
-            <Camera className="size-4" /> {image ? t("nutrition.changePhoto") : t("nutrition.photo")}
-          </Button>
-          <Button type="button" className="flex-1" onClick={analyze} disabled={analyzing}>
-            {analyzing ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-            {analyzing ? t("nutrition.analysing") : t("nutrition.analyse")}
-          </Button>
-        </div>
+        {/* Secondary until there's a photo or words to analyse, so the camera leads when the card is empty. */}
+        <Button type="button" variant={images.length || text.trim() ? "primary" : "secondary"} className="w-full" onClick={analyze} disabled={analyzing}>
+          {analyzing ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+          {analyzing ? t("nutrition.analysing") : t("nutrition.analyse")}
+        </Button>
       </Card>
 
       <Button type="button" variant="secondary" className="w-full" onClick={() => setScanning(true)}>

@@ -48,8 +48,8 @@ test("live AI: text meal, photo meal, plan, coach tools + proposal", async ({ pa
   // 2) Photo meal (CC0 nasi lemak photo)
   await page.goto("/nutrition/log");
   await page.getByRole("radio", { name: "Lunch" }).click();
-  await page.locator('input[type="file"]').setInputFiles("tests/fixtures/nasi-lemak.jpg");
-  await expect(page.getByAltText("Meal photo preview")).toBeVisible();
+  await page.getByTestId("meal-camera-input").setInputFiles("tests/fixtures/nasi-lemak.jpg");
+  await expect(page.getByAltText("Meal photo 1")).toBeVisible();
   await page.getByRole("button", { name: "Analyse with AI" }).click();
   await expect(page.getByTestId("draft-item").first()).toBeVisible({ timeout: AI_TIMEOUT });
   const photo = await readDraft(page);
@@ -247,4 +247,21 @@ test("live AI: grocery item typed in by hand gets its nutrition estimated", asyn
   // 500 g of Greek yogurt over 7 days: roughly 50-100 kcal a day.
   expect(kcal).toBeGreaterThan(20);
   expect(kcal).toBeLessThan(250);
+});
+
+test("live AI: two photos of one meal count its food once", async ({ page }) => {
+  await signUpAndOnboard(page, "Live Photographer");
+  const analyse = async (copies: number) => {
+    await page.goto("/nutrition/log");
+    await page.getByTestId("meal-photos-input").setInputFiles(Array(copies).fill("tests/fixtures/nasi-lemak.jpg"));
+    await expect(page.getByAltText(`Meal photo ${copies}`)).toBeVisible();
+    await page.getByRole("button", { name: "Analyse with AI" }).click();
+    await expect(page.getByTestId("draft-item").first()).toBeVisible({ timeout: AI_TIMEOUT });
+    return readDraft(page);
+  };
+  const one = await analyse(1);
+  const two = await analyse(2);
+  console.log("ONE PHOTO", one.total, "| TWO PHOTOS", two.total, JSON.stringify(two.items.map((i) => i.name)));
+  // The same plate twice is still one plate.
+  expect(two.total).toBeLessThan(one.total * 1.4);
 });

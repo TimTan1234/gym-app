@@ -29,6 +29,9 @@ export const MealAnalysisSchema = z.object({
   notes: z.string().max(400).nullable(),
 });
 
+/** Photos one meal analysis can take: several dishes, or one dish from different angles. */
+export const MAX_MEAL_PHOTOS = 4;
+
 export type MealItemDraft = z.infer<typeof MealItemDraftSchema>;
 export type MealAnalysis = z.infer<typeof MealAnalysisSchema>;
 

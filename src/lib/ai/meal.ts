@@ -9,8 +9,8 @@ import mockMeal from "./fixtures/meal.json";
 
 export interface MealInput {
   text?: string;
-  /** data:image/jpeg;base64,... (already resized client-side) */
-  imageDataUrl?: string;
+  /** data:image/jpeg;base64,... (already resized client-side); several dishes, or one from different angles. */
+  imageDataUrls?: string[];
   /** Language for item names, assumptions, notes and title. */
   locale?: Locale;
 }
@@ -19,13 +19,15 @@ export async function analyzeMeal(input: MealInput): Promise<MealAnalysis> {
   if (isAiMock()) return normalize(MealAnalysisSchema.parse(mockMeal));
 
   const content: ResponseInputContent[] = [];
-  content.push({
-    type: "input_text",
-    text: input.text?.trim() ? `Meal description: ${input.text.trim()}` : "Estimate the nutrition of the meal in this photo.",
-  });
-  if (input.imageDataUrl) {
-    content.push({ type: "input_image", image_url: input.imageDataUrl, detail: "auto" });
+  const photos = input.imageDataUrls ?? [];
+  const lines = [input.text?.trim() ? `Meal description: ${input.text.trim()}` : `Estimate the nutrition of the meal in ${photos.length > 1 ? "these photos" : "this photo"}.`];
+  if (photos.length > 1) {
+    lines.push(
+      `There are ${photos.length} photos of one meal. They may show different dishes, or the same food from other angles or closer up: count each food once, never twice because it appears in two photos.`,
+    );
   }
+  content.push({ type: "input_text", text: lines.join("\n") });
+  for (const url of photos) content.push({ type: "input_image", image_url: url, detail: "auto" });
 
   const response = await openai().responses.parse({
     model: models.fast(),

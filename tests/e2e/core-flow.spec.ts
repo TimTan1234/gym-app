@@ -44,15 +44,40 @@ test("sign up → onboarding → log meal → log workout → history", async ({
   await expect(page.getByRole("button", { name: /Nasi lemak with fried chicken/ })).toBeVisible();
   await expect(page.getByText("719", { exact: true }).first()).toBeVisible();
 
-  // Photo path: client resize → data URL → route validation → draft
+  // Photo path: several photos (gallery + camera) → client resize → data URLs → route validation → draft
   await page.getByRole("link", { name: "Log meal" }).click();
-  await page.locator('input[type="file"]').setInputFiles("public/icons/icon-512.png");
-  await expect(page.getByAltText("Meal photo preview")).toBeVisible();
+  await page.getByTestId("meal-photos-input").setInputFiles(["public/icons/icon-512.png", "public/icons/icon-192.png"]);
+  await expect(page.getByAltText("Meal photo 2")).toBeVisible();
+  await page.getByTestId("meal-camera-input").setInputFiles("public/icons/maskable-512.png");
+  await expect(page.getByAltText("Meal photo 3")).toBeVisible();
+  await page.getByRole("button", { name: "Remove photo 1" }).click();
+  await expect(page.getByRole("list", { name: "Meal photos" }).getByRole("img")).toHaveCount(2);
+  // Only one more fits under the limit of 4.
+  await page.getByTestId("meal-photos-input").setInputFiles(["public/icons/icon-512.png", "public/icons/icon-192.png", "public/icons/apple-touch-icon.png"]);
+  await expect(page.getByText("Add up to 4 photos per meal")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Meal photos" }).getByRole("img")).toHaveCount(4);
+  await expect(page.getByRole("button", { name: "Add photo" })).toBeDisabled();
   await page.getByRole("button", { name: "Analyse with AI" }).click();
   await expect(page.getByTestId("draft-item")).toHaveCount(5);
   await page.getByRole("button", { name: "Save meal" }).click();
   await expect(page).toHaveURL(/\/nutrition$/);
   await expect(page.getByRole("button", { name: /Nasi lemak with fried chicken/ })).toHaveCount(2);
+
+  // The route enforces the photo limit itself and still takes the single `image` older clients send.
+  const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+  const analyse = (data: object) => page.request.post("/api/ai/meal", { data });
+  const tooMany = await analyse({ images: Array(5).fill(png) });
+  expect(tooMany.status()).toBe(400);
+  expect((await tooMany.json()).error).toBe("Add up to 4 photos per meal");
+  const badFormat = await analyse({ images: [png, "data:image/gif;base64,R0lGOD"] });
+  expect(badFormat.status()).toBe(400);
+  expect((await badFormat.json()).error).toBe("Unsupported image format");
+  const nothing = await analyse({ images: [] });
+  expect(nothing.status()).toBe(400);
+  expect((await nothing.json()).error).toBe("Describe the meal or add a photo");
+  const legacy = await analyse({ image: png });
+  expect(legacy.status()).toBe(200);
+  expect((await legacy.json()).analysis.items.length).toBeGreaterThan(0);
 
   // Start an empty workout and log sets
   await page.getByRole("link", { name: "Train" }).click();

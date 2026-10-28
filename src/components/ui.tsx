@@ -120,7 +120,8 @@ export function Input({ className, ...props }: ComponentProps<"input">) {
 }
 
 export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
-  return <textarea className={cn(fieldClass, "h-auto min-h-20 py-2.5", className)} {...props} />;
+  // Block, or the inline box's descender space adds a few px under it in a stack.
+  return <textarea className={cn(fieldClass, "block h-auto min-h-20 py-2.5", className)} {...props} />;
 }
 
 /** The browser's own arrow is replaced (see .select), so the text lines up with an Input's. */

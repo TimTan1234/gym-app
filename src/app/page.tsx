@@ -59,7 +59,7 @@ async function Landing() {
           </div>
         </div>
 
-        <figure className="rounded-[14px] bg-paper p-5">
+        <figure className="rounded-card bg-paper p-5">
           <MacroSummary totals={SAMPLE.totals} targets={SAMPLE.targets} />
           <figcaption className="mt-4 border-t border-line pt-3 text-[13px] text-steel">
             {t("landing.sampleCaption")}

@@ -167,7 +167,7 @@ export function WorkoutLogger({
 
       {finishing && (
         <div role="dialog" aria-modal="true" aria-label={t("train.finishTitle").replace(/[?？]$/, "")} className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
-          <Card className="w-full max-w-md space-y-3 rounded-b-none sm:rounded-[14px]">
+          <Card className="w-full max-w-md space-y-3 rounded-b-none sm:rounded-card">
             <h2 className="display text-[22px]">{t("train.finishTitle")}</h2>
             <p className="text-sm text-steel">
               {t("train.finishSummary", {
@@ -342,7 +342,7 @@ function ExerciseBlock({
                 aria-label={t("train.deleteSet", { set: s.isWarmup ? t("train.warmupWord") : s.setIndex })}
                 onClick={() => remove(s.id)}
                 disabled={pending}
-                className="rounded-[8px] p-2 text-steel hover:bg-wash hover:text-alert"
+                className="rounded-field p-2 text-steel hover:bg-wash hover:text-alert"
               >
                 <Trash2 className="size-4" />
               </button>

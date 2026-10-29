@@ -1,28 +1,39 @@
 @import "tailwindcss";
 
 /*
- * Chalk & Plates.
- * Chalk/paper/iron for the room; competition-plate colours are reserved for
- * macros (blue = protein, yellow = carbs, red = fat) and used for nothing else.
- * Iron is the action colour. Palette validated for CVD separation.
+ * Warm canvas (see DESIGN.md).
+ * The token names are the app's roles, the values DESIGN.md's: chalk = cream
+ * canvas, paper = cream card, iron = warm ink, steel = muted, wash = strong
+ * cream, panel = the dark surface. Coral (primary) is for primary buttons and
+ * focus only. Plate colours are reserved for macros (blue = protein,
+ * yellow = carbs, red = fat) and used for nothing else.
+ * Some DESIGN.md values are darkened so text passes WCAG AA on every surface:
+ * coral fill #cc785c → #b05e44 (white text 4.6:1), muted, success, error.
  */
 :root {
-  --chalk: #eef0ec;
-  --paper: #ffffff;
-  --iron: #1f2226;
-  --iron-fg: #ffffff;
-  --steel: #5b6672;
-  --line: #d9ddd6;
-  --wash: #e3e6e0;
+  --chalk: #faf9f5;
+  --paper: #efe9de;
+  --iron: #141413;
+  --iron-fg: #faf9f5;
+  --steel: #625f58;
+  /* One step stronger than DESIGN.md's hairline, so dividers still show on the cream card. */
+  --line: #ded6c8;
+  --wash: #e8e0d2;
+  --primary: #b05e44;
+  --primary-fg: #ffffff;
+  --primary-active: #8f4631;
   --plate-blue: #2456c4;
-  --plate-yellow: #b88600;
-  --plate-red: #cc2f2b;
-  --good: #1e7a46;
-  --alert: #a3261f;
-  --focus: #2456c4;
+  --plate-yellow: #9c7100;
+  --plate-red: #c4302b;
+  --good: #23683b;
+  --alert: #a8353a;
+  --focus: #a9583e;
   /* The one emphasised panel per screen ("next thing to do"). */
-  --panel: #1f2226;
-  --panel-fg: #ffffff;
+  --panel: #181715;
+  --panel-fg: #faf9f5;
+  /* Chinese has no matching serif here, so both stacks fall back to the system CJK sans. */
+  --type-body: var(--font-inter), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
+  --type-display: var(--font-serif4), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", Georgia, serif;
   color-scheme: light;
 }
 
@@ -32,42 +43,48 @@
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --chalk: #16181b;
-    --paper: #1f2226;
-    --iron: #eceeea;
-    --iron-fg: #16181b;
-    --steel: #848f9b;
-    --line: #30343a;
-    --wash: #272a2f;
-    --plate-blue: #5a8cf0;
-    --plate-yellow: #b48a0d;
-    --plate-red: #c9302c;
-    --good: #3daa6a;
-    --alert: #f2827a;
-    --focus: #5a8cf0;
-    /* Raised graphite rather than an inverted white slab in the dark. */
-    --panel: #2b2f35;
-    --panel-fg: #f3f4f1;
+    --chalk: #181715;
+    --paper: #252320;
+    --iron: #faf9f5;
+    --iron-fg: #181715;
+    --steel: #a9a69f;
+    --line: #3a3631;
+    --wash: #312e29;
+    --primary: #b05e44;
+    --primary-fg: #ffffff;
+    --primary-active: #8f4631;
+    --plate-blue: #6f95ec;
+    --plate-yellow: #c99a25;
+    --plate-red: #e5675c;
+    --good: #5db872;
+    --alert: #ea8a7f;
+    --focus: #d98b6f;
+    /* Raised warm graphite rather than an inverted cream slab in the dark. */
+    --panel: #38342e;
+    --panel-fg: #faf9f5;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --chalk: #16181b;
-  --paper: #1f2226;
-  --iron: #eceeea;
-  --iron-fg: #16181b;
-  --steel: #848f9b;
-  --line: #30343a;
-  --wash: #272a2f;
-  --plate-blue: #5a8cf0;
-  --plate-yellow: #b48a0d;
-  --plate-red: #c9302c;
-  --good: #3daa6a;
-  --alert: #f2827a;
-  --focus: #5a8cf0;
-  /* Raised graphite rather than an inverted white slab in the dark. */
-  --panel: #2b2f35;
-  --panel-fg: #f3f4f1;
+  --chalk: #181715;
+  --paper: #252320;
+  --iron: #faf9f5;
+  --iron-fg: #181715;
+  --steel: #a9a69f;
+  --line: #3a3631;
+  --wash: #312e29;
+  --primary: #b05e44;
+  --primary-fg: #ffffff;
+  --primary-active: #8f4631;
+  --plate-blue: #6f95ec;
+  --plate-yellow: #c99a25;
+  --plate-red: #e5675c;
+  --good: #5db872;
+  --alert: #ea8a7f;
+  --focus: #d98b6f;
+  /* Raised warm graphite rather than an inverted cream slab in the dark. */
+  --panel: #38342e;
+  --panel-fg: #faf9f5;
   color-scheme: dark;
 }
 :root[data-theme="light"] {
@@ -89,19 +106,22 @@
   --color-alert: var(--alert);
   --color-panel: var(--panel);
   --color-panel-fg: var(--panel-fg);
-  --font-sans: var(--font-archivo), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-active: var(--primary-active);
+  --font-sans: var(--type-body);
+  --font-serif: var(--type-display);
+  /* Buttons and fields; cards. */
+  --radius-field: 8px;
+  --radius-card: 12px;
 }
 
 body {
   background: var(--chalk);
   color: var(--iron);
-  font-family: var(--font-archivo), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-family: var(--type-body);
   font-size: 15px;
   line-height: 1.5;
-  /* Archivo's wide t-crossbar reads loose at full width; a touch narrower is even. */
-  font-stretch: 93%;
-  /* Narrowing the width also narrows the space; give words their gap back. */
-  word-spacing: 0.06em;
   font-kerning: normal;
   text-rendering: optimizeLegibility;
   -webkit-tap-highlight-color: transparent;
@@ -111,22 +131,26 @@ body {
 .num {
   font-variant-numeric: tabular-nums;
 }
-/* Scoreboard numerals: the numbers people act on. */
+/* The numbers people act on: serif at regular weight; size, not boldness, gives them weight. */
 .score {
-  font-stretch: 62%;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-  word-spacing: 0.12em;
-  line-height: 0.9;
+  font-family: var(--type-display);
+  font-weight: 400;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
 }
-/* Semi-condensed headings. */
+/* Serif headings, regular weight with tight tracking. */
 .display {
-  font-stretch: 75%;
-  font-weight: 700;
-  letter-spacing: -0.005em;
-  word-spacing: 0.1em;
-  line-height: 1.1;
+  font-family: var(--type-display);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+/* The CJK fallback is a sans; at regular weight it reads thin next to the serif, so give it some. */
+:lang(zh) .score,
+:lang(zh) .display {
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 :focus-visible {
@@ -169,7 +193,7 @@ body {
 .slip {
   --tooth: 7px;
   background: var(--paper);
-  border-radius: 10px 10px 0 0;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
   padding-bottom: calc(var(--tooth) + 12px);
   -webkit-mask:
     conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(2 * var(--tooth)) var(--tooth) repeat-x,

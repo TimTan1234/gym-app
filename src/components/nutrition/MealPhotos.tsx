@@ -42,11 +42,11 @@ export function MealPhotos({
       <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={onPick} data-testid="meal-photos-input" />
 
       {images.length === 0 ? (
-        <div className="flex flex-col items-center gap-1 rounded-[10px] border-2 border-dashed border-line bg-chalk px-4 py-5">
+        <div className="flex flex-col items-center gap-1 rounded-field border-2 border-dashed border-line bg-chalk px-4 py-5">
           <button
             type="button"
             onClick={camera}
-            className="flex flex-col items-center gap-2 rounded-[10px] px-4 py-2 text-[15px] font-semibold text-iron hover:bg-wash"
+            className="flex flex-col items-center gap-2 rounded-field px-4 py-2 text-[15px] font-semibold text-iron hover:bg-wash"
           >
             <span className="grid size-12 place-items-center rounded-full bg-iron text-iron-fg">
               <Camera className="size-5" />
@@ -60,7 +60,7 @@ export function MealPhotos({
       ) : (
         <>
           <ul
-            className={cn("grid aspect-[4/3] gap-0.5 overflow-hidden rounded-[10px] bg-paper", FRAME[images.length])}
+            className={cn("grid aspect-[4/3] gap-0.5 overflow-hidden rounded-field bg-paper", FRAME[images.length])}
             aria-label={t("nutrition.photos")}
           >
             {images.map((src, i) => (

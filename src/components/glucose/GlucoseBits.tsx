@@ -44,7 +44,7 @@ export function HypoCard({ severe, unit }: { severe: boolean; unit: GlucoseUnit 
   const low = toDisplay(HYPO_MMOL, unit);
   const u = unitLabel(unit);
   return (
-    <section role="alert" className="space-y-2 rounded-[14px] border-2 border-alert bg-paper p-4 text-sm" data-testid="hypo-card">
+    <section role="alert" className="space-y-2 rounded-card border-2 border-alert bg-paper p-4 text-sm" data-testid="hypo-card">
       <h2 className="display flex items-center gap-2 text-[20px] text-alert">
         <AlertTriangle className="size-5" aria-hidden /> {severe ? t("glucose.hypo.severeTitle") : t("glucose.hypo.title")}
       </h2>
@@ -65,7 +65,7 @@ export function HypoCard({ severe, unit }: { severe: boolean; unit: GlucoseUnit 
 export function HighCard() {
   const t = useT();
   return (
-    <section role="alert" className="space-y-1 rounded-[14px] border border-alert/60 bg-paper p-4 text-sm" data-testid="high-card">
+    <section role="alert" className="space-y-1 rounded-card border border-alert/60 bg-paper p-4 text-sm" data-testid="high-card">
       <h2 className="display flex items-center gap-2 text-[18px]">
         <AlertTriangle className="size-5 text-alert" aria-hidden /> {t("glucose.high.title")}
       </h2>
@@ -85,7 +85,7 @@ export function SafetyCard({ status, unit }: { status: GlucoseStatus; unit: Gluc
 export function AfterMealPrompt({ meal }: { meal: { id: string; description: string; time: string } }) {
   const t = useT();
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-line bg-paper px-3 py-2.5 text-sm" data-testid="after-meal-prompt">
+    <div className="flex flex-wrap items-center gap-3 rounded-field border border-line bg-paper px-3 py-2.5 text-sm" data-testid="after-meal-prompt">
       <Clock className="size-4 shrink-0 text-steel" aria-hidden />
       <p className="min-w-0 flex-1">{t("glucose.checkAfterMeal", { meal: meal.description, time: meal.time })}</p>
       <Link href={`/glucose?context=AFTER_MEAL&meal=${meal.id}`} className={buttonClass("secondary", "sm")}>

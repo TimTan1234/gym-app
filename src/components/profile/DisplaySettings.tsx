@@ -33,7 +33,7 @@ function Segmented<V extends string>({
           disabled={disabled}
           onClick={() => value !== o.value && onChange(o.value)}
           className={cn(
-            "h-10 rounded-[10px] border text-sm font-semibold disabled:opacity-50",
+            "h-10 rounded-field border text-sm font-semibold disabled:opacity-50",
             value === o.value ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
           )}
         >

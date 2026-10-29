@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo } from "next/font/google";
+import { Inter, Source_Serif_4 } from "next/font/google";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import { ThemedToaster } from "@/components/ThemedToaster";
 import { THEME_SCRIPT } from "@/lib/theme-script";
 import "./globals.css";
 
-// One family; the width axis does the expressive work (condensed numerals,
-// semi-condensed headings, normal-width body).
-const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"], axes: ["wdth"] });
+// Inter for reading and UI; Source Serif 4 (standing in for DESIGN.md's display serif)
+// for headings and the big numbers. Its optical-size axis keeps large sizes crisp.
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
+const serif = Source_Serif_4({ variable: "--font-serif4", subsets: ["latin"], axes: ["opsz"] });
 
 export const metadata: Metadata = {
   title: { default: "GymPal", template: "%s | GymPal" },
@@ -21,15 +22,15 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#eef0ec" },
-    { media: "(prefers-color-scheme: dark)", color: "#16181b" },
+    { media: "(prefers-color-scheme: light)", color: "#faf9f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#181715" },
   ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // The head script sets data-theme before hydration, so React must not flag the difference.
-    <html lang="en" className={`${archivo.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${serif.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>

@@ -7,7 +7,7 @@ import { THEME_KEY } from "./theme-script";
 // as data-theme on <html>. "system" removes the override so the OS decides.
 export type ThemePref = "system" | "light" | "dark";
 
-const COLORS = { light: "#eef0ec", dark: "#16181b" } as const;
+const COLORS = { light: "#faf9f5", dark: "#181715" } as const;
 
 const listeners = new Set<() => void>();
 const darkQuery = () => window.matchMedia("(prefers-color-scheme: dark)");

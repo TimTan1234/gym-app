@@ -118,7 +118,7 @@ export function MealCard({
                   aria-label={t("nutrition.saveToFavourites", { name: item.name })}
                   disabled={pending}
                   onClick={() => run(() => saveFoodFromItem(item.id), t("nutrition.savedFood", { name: item.name }))}
-                  className="rounded-[8px] p-1.5 text-steel hover:bg-wash hover:text-iron"
+                  className="rounded-field p-1.5 text-steel hover:bg-wash hover:text-iron"
                 >
                   <Star className="size-4" />
                 </button>

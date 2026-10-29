@@ -46,7 +46,7 @@ async function Coach({ searchParams }: { searchParams: PageProps<"/coach">["sear
         </Link>
       </header>
       {threads.length > 0 && (
-        <details className="mb-3 rounded-[10px] border border-line bg-paper px-3 py-2 text-sm">
+        <details className="mb-3 rounded-field border border-line bg-paper px-3 py-2 text-sm">
           <summary className="flex cursor-pointer items-center gap-2 font-medium text-steel">
             <History className="size-4" /> {t("coach.pastConversations")}
           </summary>
@@ -55,7 +55,7 @@ async function Coach({ searchParams }: { searchParams: PageProps<"/coach">["sear
               <li key={t.id} className="flex items-center gap-1">
                 <Link
                   href={`/coach?thread=${t.id}`}
-                  className={cn("block min-w-0 flex-1 truncate rounded-[8px] px-2 py-1.5 hover:bg-wash", t.id === thread?.id && "bg-wash font-semibold")}
+                  className={cn("block min-w-0 flex-1 truncate rounded-field px-2 py-1.5 hover:bg-wash", t.id === thread?.id && "bg-wash font-semibold")}
                 >
                   {t.title}
                 </Link>

@@ -38,7 +38,7 @@ async function PlanDetail({ params, searchParams }: PageProps<"/nutrition/procur
         }
         action={<PlanMenu plan={plan} />}
       />
-      <nav className="mb-5 grid grid-cols-4 gap-1 rounded-[10px] bg-wash p-1" aria-label={t("procurement.viewsLabel")}>
+      <nav className="mb-5 grid grid-cols-4 gap-1 rounded-field bg-wash p-1" aria-label={t("procurement.viewsLabel")}>
         {VIEWS.map((v) => (
           <Link
             key={v}
@@ -46,7 +46,7 @@ async function PlanDetail({ params, searchParams }: PageProps<"/nutrition/procur
             scroll={false}
             aria-current={v === view ? "page" : undefined}
             className={cn(
-              "rounded-[8px] py-1.5 text-center text-[13px] font-semibold",
+              "rounded-field py-1.5 text-center text-[13px] font-semibold",
               v === view ? "bg-paper text-iron shadow-sm" : "text-steel hover:text-iron",
             )}
           >

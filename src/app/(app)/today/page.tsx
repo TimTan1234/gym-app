@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { CalendarCheck, ChevronRight, Plus, Settings, Sparkles, Trophy } from "lucide-react";
+import { CalendarCheck, ChevronRight, Plus, Scale, Settings, Sparkles, Trophy, Utensils } from "lucide-react";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import { getActiveWorkout, getCheckin, getDayNutrition, getLatestWeight, getNextPlanDay } from "@/lib/queries";
@@ -11,7 +11,7 @@ import { WeightQuickLog } from "@/components/body/WeightQuickLog";
 import { StartWorkoutButton } from "@/components/train/StartWorkoutButton";
 import { GlucoseToday } from "@/components/glucose/GlucoseToday";
 import { PreExerciseCheck } from "@/components/glucose/PreExerciseCheck";
-import { PageSkeleton, Section, buttonClass } from "@/components/ui";
+import { Card, PageSkeleton, buttonClass, tonalIconClass } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
 import { exerciseName } from "@/i18n/labels";
@@ -54,18 +54,35 @@ async function Today() {
   const proteinLeft = Math.max(0, Math.round(profile.targetProteinG - totals.proteinG));
 
   return (
-    <div className="space-y-7">
-      <header className="flex items-start justify-between">
-        <div>
+    <div className="space-y-4">
+      {/* A big serif greeting with the date above it; settings is a round tinted button. */}
+      <header className="flex items-start justify-between gap-3 pb-2">
+        <div className="min-w-0">
           <p className="text-sm text-steel">{formatLocalDate(today, { weekday: "long", month: "long" }, intl)}</p>
-          <h1 className="display mt-0.5 text-[28px]">{t(greetingKey(hour), { name: user.name.split(" ")[0] })}</h1>
+          <h1 className="display mt-1 text-[36px]">{t(greetingKey(hour), { name: user.name.split(" ")[0] })}</h1>
         </div>
-        <Link href="/settings" aria-label={t("today.settings")} className={buttonClass("ghost", "sm", "end")}>
+        <Link href="/settings" aria-label={t("today.settings")} className={tonalIconClass}>
           <Settings className="size-5" />
         </Link>
       </header>
 
-      <Link href="/nutrition" aria-label={t("today.openNutrition")} className="block rounded-[14px] focus-visible:outline-offset-4">
+      {checkin.status === "adjust" && checkin.suggested && (
+        <Link href="/progress" className="flex items-center gap-3 rounded-card border border-line p-4 active:bg-wash">
+          <CalendarCheck className="size-5 shrink-0 text-steel" aria-hidden />
+          <span className="min-w-0 flex-1 text-sm">
+            <span className="block font-semibold">{t("today.checkinReady")}</span>
+            <span className="block text-steel">{t("today.checkinSuggests", { kcal: checkin.suggested.kcal.toLocaleString("en-US") })}</span>
+          </span>
+          <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-wash">
+            <ChevronRight className="size-4" />
+          </span>
+        </Link>
+      )}
+
+      <Link href="/nutrition" aria-label={t("today.openNutrition")} className="block rounded-card bg-paper p-5 focus-visible:outline-offset-4">
+        <p aria-hidden className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <Utensils className="size-4 text-steel" /> {t("nav.food")}
+        </p>
         <MacroSummary totals={totals} targets={profile} compact />
       </Link>
 
@@ -80,21 +97,10 @@ async function Today() {
 
       {profile.diabetesMode && <GlucoseToday userId={user.id} today={today} profile={profile} />}
 
-      {checkin.status === "adjust" && checkin.suggested && (
-        <Link href="/progress" className="flex items-center gap-3 border-y border-line py-3 text-sm hover:bg-wash">
-          <CalendarCheck className="size-5 shrink-0 text-steel" aria-hidden />
-          <span className="flex-1">
-            <span className="font-semibold">{t("today.checkinReady")}</span>{" "}
-            <span className="text-steel">{t("today.checkinSuggests", { kcal: checkin.suggested.kcal.toLocaleString("en-US") })}</span>
-          </span>
-          <ChevronRight className="size-4 text-steel" aria-hidden />
-        </Link>
-      )}
-
       {profile.diabetesMode && !active && <PreExerciseCheck userId={user.id} hypoRiskMeds={profile.hypoRiskMeds} unit={profile.glucoseUnit} showOk={false} />}
 
-      {/* The one inverted panel: the next thing to do in the gym. */}
-      <section className="rounded-[14px] bg-panel p-5 text-panel-fg">
+      {/* The one dark panel: the next thing to do in the gym. */}
+      <section className="rounded-card bg-panel p-5 text-panel-fg">
         {active ? (
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -107,7 +113,7 @@ async function Today() {
           <div className="space-y-4">
             <div>
               <p className="text-sm opacity-70">{t("today.nextSession", { plan: next.plan.name })}</p>
-              <p className="score mt-1 text-[44px]">{next.day.name}</p>
+              <p className="score mt-1 text-[40px] [overflow-wrap:anywhere]">{next.day.name}</p>
               <p className="mt-2 text-sm opacity-80">{next.day.exercises.map((e) => exerciseName(t, e.exercise)).join(t("progress.checkin.listSeparator"))}</p>
             </div>
             <StartWorkoutButton planDayId={next.day.id} label={t("today.startDay", { day: next.day.name })} variant="inverse" />
@@ -128,35 +134,40 @@ async function Today() {
         )}
       </section>
 
-      <Section title={t("today.bodyWeight")}>
-        <div className="flex items-baseline justify-between">
-          {latestWeight ? (
-            <p>
-              <span className="score text-[32px]">{formatWeight(latestWeight.weightKg, profile.unitSystem)}</span>
-              <span className="ml-2 text-sm text-steel">
-                {latestWeight.localDate === today ? t("today.weighedToday") : t("today.weighedOn", { date: formatLocalDate(latestWeight.localDate, undefined, intl) })}
-              </span>
-            </p>
-          ) : (
-            <p className="text-sm text-steel">{t("today.logWeighIn")}</p>
-          )}
-        </div>
+      <Card className="space-y-4">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Scale className="size-4 text-steel" aria-hidden /> {t("today.bodyWeight")}
+        </h2>
+        {latestWeight ? (
+          <p>
+            <span className="score text-[40px]">{formatWeight(latestWeight.weightKg, profile.unitSystem)}</span>
+            <span className="ml-2 text-sm text-steel">
+              {latestWeight.localDate === today ? t("today.weighedToday") : t("today.weighedOn", { date: formatLocalDate(latestWeight.localDate, undefined, intl) })}
+            </span>
+          </p>
+        ) : (
+          <p className="text-sm text-steel">{t("today.logWeighIn")}</p>
+        )}
         <WeightQuickLog date={today} units={profile.unitSystem} current={latestWeight?.localDate === today ? latestWeight.weightKg : null} />
-      </Section>
+      </Card>
 
       {latestPRs.length > 0 && (
-        <Section title={t("today.recentRecords")} action={<span className="text-[13px] text-steel">{t("today.estimated1rm")}</span>}>
-          <ul className="divide-y divide-line border-y border-line">
+        <Card>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <Trophy className="size-4 text-steel" aria-hidden /> {t("today.recentRecords")}
+            </h2>
+            <span className="text-[13px] text-steel">{t("today.estimated1rm")}</span>
+          </div>
+          <ul className="mt-2 divide-y divide-line">
             {latestPRs.map((pr) => (
-              <li key={pr.id} className="flex items-baseline justify-between py-2.5">
-                <span className="flex items-center gap-2">
-                  <Trophy className="size-4 text-steel" aria-hidden /> {exerciseName(t, pr.exercise)}
-                </span>
-                <span className="score text-[22px]">{formatWeight(pr.value, profile.unitSystem)}</span>
+              <li key={pr.id} className="flex items-baseline justify-between py-3 last:pb-0">
+                <span>{exerciseName(t, pr.exercise)}</span>
+                <span className="score text-[24px]">{formatWeight(pr.value, profile.unitSystem)}</span>
               </li>
             ))}
           </ul>
-        </Section>
+        </Card>
       )}
     </div>
   );

@@ -297,7 +297,7 @@ export function FormCheck() {
   return (
     <div className="space-y-6">
       {/* On phones the whole stage fits on screen under the page header, so the lights stay visible mid-set. */}
-      <div className="relative h-[min(133vw,calc(100dvh-15rem))] min-h-80 overflow-hidden rounded-[14px] bg-black sm:aspect-video sm:h-auto sm:min-h-0">
+      <div className="relative h-[min(133vw,calc(100dvh-15rem))] min-h-80 overflow-hidden rounded-card bg-black sm:aspect-video sm:h-auto sm:min-h-0">
         {/* Selfie view is mirrored; the overlay is mirrored with it so the two line up. */}
         <div className={cn("absolute inset-0", facing === "user" && "-scale-x-100")}>
           <video ref={videoRef} muted playsInline className="absolute inset-0 size-full object-contain" />
@@ -317,7 +317,7 @@ export function FormCheck() {
         </div>
 
         {status && (
-          <p className="absolute inset-x-6 top-1/2 flex -translate-y-1/2 items-center justify-center gap-2 rounded-[10px] bg-black/60 px-3 py-2 text-center text-sm text-white" aria-live="polite">
+          <p className="absolute inset-x-6 top-1/2 flex -translate-y-1/2 items-center justify-center gap-2 rounded-field bg-black/60 px-3 py-2 text-center text-sm text-white" aria-live="polite">
             {busy && <Loader2 className="size-4 shrink-0 animate-spin" />}
             {status}
           </p>

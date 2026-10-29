@@ -30,7 +30,7 @@ export async function WeeklyCheckin({ checkin: c, targetKcal, units }: { checkin
   );
 
   return (
-    <section className="space-y-4 rounded-[14px] bg-panel p-5 text-panel-fg" aria-labelledby="checkin-title" data-testid="weekly-checkin">
+    <section className="space-y-4 rounded-card bg-panel p-5 text-panel-fg" aria-labelledby="checkin-title" data-testid="weekly-checkin">
       <div>
         <p className="text-sm opacity-70">
           {t("progress.checkin.window", {

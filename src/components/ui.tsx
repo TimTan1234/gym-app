@@ -1,6 +1,9 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
 import type { ComponentProps, ReactNode } from "react";
+
+// Knows the theme's radius names, so `rounded-full` in a className replaces a `rounded-field`.
+const twMerge = extendTailwindMerge({ extend: { theme: { radius: ["field", "card"] } } });
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -8,14 +11,15 @@ export function cn(...inputs: ClassValue[]) {
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "inverse" | "inverse-ghost";
 
-// Iron is the only action colour; plate colours are reserved for macro data.
+// Coral is the one action colour and stays scarce: one primary button per view.
+// Plate colours are reserved for macro data. Pressing darkens; hover adds nothing.
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-iron text-iron-fg hover:opacity-90",
-  secondary: "border border-line bg-paper text-iron hover:border-iron",
+  primary: "bg-primary text-primary-fg active:bg-primary-active",
+  secondary: "border border-line bg-chalk text-iron active:bg-wash",
   ghost: "text-steel hover:text-iron hover:bg-wash",
   danger: "border border-alert/30 text-alert hover:bg-alert/10",
   // For use on the emphasised panel.
-  inverse: "bg-panel-fg text-panel hover:opacity-90",
+  inverse: "bg-panel-fg text-panel active:opacity-85",
   "inverse-ghost": "border border-panel-fg/30 text-panel-fg hover:border-panel-fg",
 };
 
@@ -35,7 +39,7 @@ const EDGE_PULL: Record<ButtonSize, Record<Edge, string>> = {
 
 export function buttonClass(variant: ButtonVariant = "primary", size: ButtonSize = "md", edge?: Edge) {
   return cn(
-    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40",
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-field font-medium transition-colors disabled:pointer-events-none disabled:opacity-40",
     size === "sm" && "h-9 px-3 text-sm",
     size === "md" && "h-11 px-4 text-[15px]",
     size === "lg" && "h-13 px-5 text-base",
@@ -69,7 +73,7 @@ export function IconButton({
     <button
       type={type}
       className={cn(
-        "grid size-9 shrink-0 place-items-center rounded-[8px] text-steel transition-colors disabled:opacity-50",
+        "grid size-9 shrink-0 place-items-center rounded-field text-steel transition-colors disabled:opacity-50",
         tone === "danger" ? "hover:bg-alert/10 hover:text-alert" : "hover:bg-wash hover:text-iron",
         edge === "start" && "-ml-2.5",
         edge === "end" && "-mr-2.5",
@@ -80,13 +84,21 @@ export function IconButton({
   );
 }
 
-/** A raised surface. Use sparingly: most content sits in rows on the chalk background. */
+/**
+ * A round, tinted icon button for a page's header actions (refresh, settings).
+ * A class, so links can wear it too.
+ */
+export const tonalIconClass =
+  "grid size-12 shrink-0 place-items-center rounded-full bg-wash text-iron transition-colors active:bg-line disabled:opacity-50";
+
+/** A cream card on the canvas: depth comes from the colour step, not a shadow. */
 export function Card({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("rounded-[14px] bg-paper p-4", className)} {...props} />;
+  return <div className={cn("rounded-card bg-paper p-5", className)} {...props} />;
 }
 
+/** Card titles are sans; the serif is kept for page and section headings. */
 export function CardTitle({ className, ...props }: ComponentProps<"h2">) {
-  return <h2 className={cn("display text-[17px] text-iron", className)} {...props} />;
+  return <h2 className={cn("text-[17px] font-semibold text-iron", className)} {...props} />;
 }
 
 /** Heading + content without a box. */
@@ -104,7 +116,7 @@ export function Section({
   return (
     <section className={cn("space-y-3", className)}>
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="display text-[20px]">{title}</h2>
+        <h2 className="display text-[22px]">{title}</h2>
         {action}
       </div>
       {children}
@@ -112,8 +124,9 @@ export function Section({
   );
 }
 
+// Canvas-filled, so a field reads as an inset on the cream card; focus gets a coral edge and a soft ring.
 const fieldClass =
-  "h-11 w-full rounded-[8px] border border-line bg-paper px-3 text-[15px] text-iron placeholder:text-steel/70 focus:border-iron focus:outline-none disabled:bg-wash disabled:text-steel";
+  "h-11 w-full rounded-field border border-line bg-chalk px-3 text-[15px] text-iron placeholder:text-steel/70 focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/15 disabled:bg-wash disabled:text-steel";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(fieldClass, className)} {...props} />;
@@ -150,9 +163,9 @@ export function Badge({ className, ...props }: ComponentProps<"span">) {
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: ReactNode; action?: ReactNode }) {
   return (
     // The action wraps under the title when both don't fit, instead of squeezing a long title.
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0 flex-[1_1_14rem]">
-        <h1 className="display text-[32px]">{title}</h1>
+        <h1 className="display text-[34px]">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-steel [overflow-wrap:anywhere]">{subtitle}</p>}
       </div>
       {action}
@@ -185,7 +198,7 @@ export function ProgressBar({ value, max, color = "var(--iron)" }: { value: numb
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-[10px] bg-wash", className)} />;
+  return <div className={cn("animate-pulse rounded-card bg-wash", className)} />;
 }
 
 export function PageSkeleton() {

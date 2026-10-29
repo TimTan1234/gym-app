@@ -135,19 +135,19 @@ export function BarcodeScanner({ onFound, onClose }: { onFound: (item: BarcodeIt
   // Portalled to <body> so the sheet covers the whole screen, tab bar included.
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label={t("nutrition.scanTitle")} className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
-      <Card className="w-full max-w-md space-y-4 rounded-b-none pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-[14px]">
+      <Card className="w-full max-w-md space-y-4 rounded-b-none pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-card">
         <div className="flex items-center justify-between">
           <h2 className="display text-[22px]">{t("nutrition.scanTitle")}</h2>
-          <button type="button" aria-label={t("common.close")} onClick={onClose} className="rounded-[8px] p-2 text-steel hover:bg-wash hover:text-iron">
+          <button type="button" aria-label={t("common.close")} onClick={onClose} className="rounded-field p-2 text-steel hover:bg-wash hover:text-iron">
             <X className="size-5" />
           </button>
         </div>
 
         {camera !== "off" && (
-          <div className="relative aspect-[4/3] overflow-hidden rounded-[10px] bg-black">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-field bg-black">
             <video ref={videoRef} muted playsInline className="size-full object-cover" />
             {/* Aiming guide */}
-            <div aria-hidden className="absolute inset-x-8 top-1/2 h-20 -translate-y-1/2 rounded-[8px] border-2 border-white/80" />
+            <div aria-hidden className="absolute inset-x-8 top-1/2 h-20 -translate-y-1/2 rounded-field border-2 border-white/80" />
             <p className="absolute inset-x-0 bottom-0 bg-black/50 px-3 py-2 text-center text-sm text-white" aria-live="polite">
               {busy ? t("nutrition.lookingUp", { code }) : camera === "starting" ? t("nutrition.startingCamera") : t("nutrition.holdBarcode")}
             </p>

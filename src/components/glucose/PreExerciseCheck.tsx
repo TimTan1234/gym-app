@@ -43,7 +43,7 @@ export async function PreExerciseCheck({
   return (
     <div
       role={urgent ? "alert" : undefined}
-      className={cn("flex flex-wrap items-center gap-3 rounded-[10px] border bg-paper px-3 py-2.5 text-sm", urgent ? "border-2 border-alert" : "border-line")}
+      className={cn("flex flex-wrap items-center gap-3 rounded-field border bg-paper px-3 py-2.5 text-sm", urgent ? "border-2 border-alert" : "border-line")}
       data-testid="pre-exercise"
     >
       {urgent ? <AlertTriangle className="size-5 shrink-0 text-alert" aria-hidden /> : <Droplet className="size-4 shrink-0 text-iron" aria-hidden />}

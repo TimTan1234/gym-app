@@ -29,7 +29,7 @@ function Choice<T extends string>({ label, value, options, onChange }: { label: 
           role="radio"
           aria-checked={value === v}
           onClick={() => onChange(v)}
-          className={cn("rounded-[10px] border px-3 py-2 text-sm font-semibold", value === v ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}
+          className={cn("rounded-field border px-3 py-2 text-sm font-semibold", value === v ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}
         >
           {text}
         </button>
@@ -89,7 +89,7 @@ export function DiabetesSettings({ initial, budget }: { initial: DiabetesSetting
 
       {enabled && (
         <>
-          <p className="rounded-[10px] border border-line bg-wash px-3 py-2 text-[13px]">{t("glucose.settings.disclaimer")}</p>
+          <p className="rounded-field border border-line bg-wash px-3 py-2 text-[13px]">{t("glucose.settings.disclaimer")}</p>
           <div className="space-y-1.5">
             <p className="text-sm font-medium">{t("glucose.settings.type")}</p>
             <Choice

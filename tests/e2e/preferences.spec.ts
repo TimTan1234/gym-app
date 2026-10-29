@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { signUpAndOnboard } from "./helpers";
 
-const DARK_BG = "rgb(22, 24, 27)";
-const LIGHT_BG = "rgb(238, 240, 236)";
+const DARK_BG = "rgb(24, 23, 21)";
+const LIGHT_BG = "rgb(250, 249, 245)";
 const bodyBg = (page: import("@playwright/test").Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
 test("appearance: dark and light override the device setting and survive a reload", async ({ page }) => {

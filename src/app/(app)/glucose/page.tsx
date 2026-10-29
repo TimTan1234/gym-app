@@ -214,7 +214,7 @@ async function Glucose({ searchParams }: { searchParams: PageProps<"/glucose">["
             </Section>
           ))}
           {olderDays.length > 0 && (
-            <details className="rounded-[10px] border border-line bg-paper px-3 py-2 text-sm">
+            <details className="rounded-field border border-line bg-paper px-3 py-2 text-sm">
               <summary className="cursor-pointer font-medium text-steel">
                 {t("glucose.olderDays", { count: olderDays.reduce((n, [, list]) => n + list.length, 0) })}
               </summary>

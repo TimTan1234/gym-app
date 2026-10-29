@@ -35,7 +35,7 @@ function NavBar({ pathname, bare = false }: { pathname: string; bare?: boolean }
       aria-label={t("nav.main")}
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper pb-[env(safe-area-inset-bottom)] md:inset-y-0 md:left-0 md:right-auto md:w-56 md:border-r md:border-t-0 md:pb-0"
     >
-      <div className="score hidden px-6 pb-6 pt-7 text-[30px] md:block">GymPal</div>
+      <div className="display hidden px-6 pb-6 pt-7 text-[30px] md:block">GymPal</div>
       <ul className="mx-auto flex max-w-lg justify-around md:max-w-none md:flex-col md:gap-1 md:px-3">
         {tabs.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -45,19 +45,14 @@ function NavBar({ pathname, bare = false }: { pathname: string; bare?: boolean }
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex flex-col items-center gap-0.5 pb-2 pt-2.5 text-[11px] font-medium md:flex-row md:gap-3 md:rounded-[10px] md:px-3 md:py-2.5 md:text-[15px]",
+                  "flex flex-col items-center gap-1 pb-2 pt-2 text-[11px] font-medium md:flex-row md:gap-3 md:rounded-field md:px-3 md:py-2.5 md:text-[15px]",
                   active ? "text-iron md:bg-wash" : "text-steel hover:text-iron",
                 )}
               >
-                {/* Active marker: a short iron bar, like a plate on the bar */}
-                <span
-                  aria-hidden
-                  className={cn(
-                    "absolute top-0 h-[3px] w-6 rounded-b-[2px] bg-iron md:hidden",
-                    active ? "opacity-100" : "opacity-0",
-                  )}
-                />
-                <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
+                {/* Active marker: a strong-cream pill behind the icon (on desktop the whole row is tinted). */}
+                <span className={cn("grid h-8 w-14 place-items-center rounded-full transition-colors md:contents", active && "bg-wash")}>
+                  <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
+                </span>
                 <span className={cn(bare && "invisible")}>{t(label)}</span>
               </Link>
             </li>

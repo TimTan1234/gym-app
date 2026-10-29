@@ -33,9 +33,10 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
 
   return (
     <>
-      <header className="mb-6 flex items-center justify-between gap-2">
-        <h1 className="display text-[32px]">{t("nutrition.title")}</h1>
-        <div className="flex items-center gap-1">
+      {/* As in PageHeader, the actions wrap under the title on narrow phones rather than push the page wider. */}
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <h1 className="display text-[34px]">{t("nutrition.title")}</h1>
+        <div className="ml-auto flex items-center gap-1">
           <Link href="/nutrition/procurement" className={buttonClass("ghost", "sm")} aria-label={t("procurement.title")}>
             <ShoppingBasket className="size-4" />
             <span className="hidden sm:inline">{t("procurement.title")}</span>
@@ -98,7 +99,7 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
       </div>
       <Link
         href={`/nutrition/log?date=${date}`}
-        className={`${buttonClass("primary", "lg")} fixed bottom-24 right-4 z-30 shadow-[0_8px_24px_-10px_rgba(31,34,38,0.55)] md:bottom-8`}
+        className={`${buttonClass("primary", "lg")} fixed bottom-24 right-4 z-30 shadow-[0_8px_24px_-10px_rgba(20,20,19,0.55)] md:bottom-8`}
       >
         <Plus className="size-5" /> {t("nutrition.logMeal")}
       </Link>

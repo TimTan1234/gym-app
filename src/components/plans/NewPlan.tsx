@@ -79,7 +79,7 @@ export function NewPlan({
   if (draft) {
     return (
       <div className="space-y-3">
-        <p className="rounded-[10px] bg-wash px-3 py-2 text-sm">
+        <p className="rounded-field bg-wash px-3 py-2 text-sm">
           <Sparkles className="mr-1.5 inline size-4" />
           {t("plans.generator.draftIntro")}
         </p>
@@ -97,10 +97,10 @@ export function NewPlan({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" aria-pressed={mode === "ai"} onClick={() => setMode("ai")} className={cn("flex items-center justify-center gap-2 rounded-[10px] border py-2.5 text-sm font-semibold", mode === "ai" ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}>
+        <button type="button" aria-pressed={mode === "ai"} onClick={() => setMode("ai")} className={cn("flex items-center justify-center gap-2 rounded-field border py-2.5 text-sm font-semibold", mode === "ai" ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}>
           <Sparkles className="size-4" /> {t("plans.generator.withAi")}
         </button>
-        <button type="button" aria-pressed={mode === "manual"} onClick={() => setMode("manual")} className={cn("flex items-center justify-center gap-2 rounded-[10px] border py-2.5 text-sm font-semibold", mode === "manual" ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}>
+        <button type="button" aria-pressed={mode === "manual"} onClick={() => setMode("manual")} className={cn("flex items-center justify-center gap-2 rounded-field border py-2.5 text-sm font-semibold", mode === "manual" ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}>
           <PencilRuler className="size-4" /> {t("plans.generator.manually")}
         </button>
       </div>

@@ -91,20 +91,20 @@ export function RestTimerBar({ timer }: { timer: ReturnType<typeof useRestTimer>
       role="timer"
       aria-live="polite"
       // Same side offsets as the page (see the app layout), so it lines up with the content column.
-      className="fixed inset-x-4 bottom-20 z-40 mx-auto flex max-w-md items-center gap-3 rounded-[14px] bg-panel px-4 py-3 text-panel-fg md:bottom-6 md:left-60 lg:right-[max(1rem,calc((100vw-56rem)/2))]"
+      className="fixed inset-x-4 bottom-20 z-40 mx-auto flex max-w-md items-center gap-3 rounded-card bg-panel px-4 py-3 text-panel-fg md:bottom-6 md:left-60 lg:right-[max(1rem,calc((100vw-56rem)/2))]"
     >
       <Timer className="size-5" />
       <span className="sr-only">{t("train.rest")}</span>
       <span className="score flex-1 text-[40px]">
         {m}:{s}
       </span>
-      <button type="button" aria-label={t("train.subtract15")} onClick={() => timer.adjust(-15)} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
+      <button type="button" aria-label={t("train.subtract15")} onClick={() => timer.adjust(-15)} className="rounded-field p-2 hover:bg-panel-fg/10">
         <Minus className="size-4" />
       </button>
-      <button type="button" aria-label={t("train.add15")} onClick={() => timer.adjust(15)} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
+      <button type="button" aria-label={t("train.add15")} onClick={() => timer.adjust(15)} className="rounded-field p-2 hover:bg-panel-fg/10">
         <Plus className="size-4" />
       </button>
-      <button type="button" aria-label={t("train.skipRest")} onClick={timer.stop} className="rounded-[8px] p-2 hover:bg-panel-fg/10">
+      <button type="button" aria-label={t("train.skipRest")} onClick={timer.stop} className="rounded-field p-2 hover:bg-panel-fg/10">
         <X className="size-4" />
       </button>
     </div>

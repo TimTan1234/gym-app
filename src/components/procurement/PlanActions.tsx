@@ -55,7 +55,7 @@ export function PlanMenu({ plan }: { plan: MenuPlan }) {
         <MoreHorizontal className="size-5" />
       </IconButton>
       {open && (
-        <Card className="absolute right-0 top-10 z-30 w-60 space-y-0.5 border border-line p-1.5 shadow-[0_8px_24px_-12px_rgba(31,34,38,0.45)]">
+        <Card className="absolute right-0 top-10 z-30 w-60 space-y-0.5 border border-line p-1.5 shadow-[0_8px_24px_-12px_rgba(20,20,19,0.45)]">
           <MenuButton onClick={() => (setEditing(true), setOpen(false))}>{t("procurement.menu.editDetails")}</MenuButton>
           {plan.status === "ACTIVE" ? (
             <MenuButton disabled={busy} onClick={() => act(() => updateProcurementPlan(plan.id, { status: "DONE" }))}>
@@ -107,7 +107,7 @@ function MenuButton({ danger, ...props }: React.ComponentProps<"button"> & { dan
   return (
     <button
       type="button"
-      className={`flex w-full items-center gap-2 rounded-[8px] px-3 py-2 text-left text-sm font-medium disabled:opacity-50 ${danger ? "text-alert hover:bg-alert/10" : "hover:bg-wash"}`}
+      className={`flex w-full items-center gap-2 rounded-field px-3 py-2 text-left text-sm font-medium disabled:opacity-50 ${danger ? "text-alert hover:bg-alert/10" : "hover:bg-wash"}`}
       {...props}
     />
   );
@@ -122,7 +122,7 @@ function DetailsEditor({ plan, onClose }: { plan: MenuPlan; onClose: () => void 
   const [saving, startSaving] = useTransition();
 
   return (
-    <Card className="absolute right-0 top-10 z-30 w-[min(22rem,calc(100vw-2rem))] space-y-3 border border-line shadow-[0_8px_24px_-12px_rgba(31,34,38,0.45)]">
+    <Card className="absolute right-0 top-10 z-30 w-[min(22rem,calc(100vw-2rem))] space-y-3 border border-line shadow-[0_8px_24px_-12px_rgba(20,20,19,0.45)]">
       <Label>
         {t("procurement.fields.title")}
         <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} />

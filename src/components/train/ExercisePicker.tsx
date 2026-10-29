@@ -40,10 +40,10 @@ export function ExercisePicker({
 
   return (
     <div role="dialog" aria-modal="true" aria-label={t("train.addExercise")} className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
-      <div className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-[14px] bg-paper p-4 sm:rounded-[14px]">
+      <div className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-[14px] bg-paper p-4 sm:rounded-card">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="display text-[22px]">{t("train.addExercise")}</h2>
-          <button type="button" aria-label={t("train.close")} onClick={onClose} className="rounded-[8px] p-2 text-steel hover:bg-wash">
+          <button type="button" aria-label={t("train.close")} onClick={onClose} className="rounded-field p-2 text-steel hover:bg-wash">
             <X className="size-5" />
           </button>
         </div>
@@ -62,7 +62,7 @@ export function ExercisePicker({
         <ul className="-mx-2 flex-1 overflow-y-auto">
           {filtered.map((e) => (
             <li key={e.id}>
-              <button type="button" onClick={() => onPick(e)} className="flex w-full items-center justify-between rounded-[10px] px-3 py-2.5 text-left hover:bg-wash">
+              <button type="button" onClick={() => onPick(e)} className="flex w-full items-center justify-between rounded-field px-3 py-2.5 text-left hover:bg-wash">
                 <span className="font-medium">{nameOf(e)}</span>
                 <span className="text-xs text-steel">
                   {labelOf(t, "muscle", e.primaryMuscle)}

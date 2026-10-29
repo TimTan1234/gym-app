@@ -104,7 +104,7 @@ export function Segmented<V extends string>({
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "rounded-[10px] border py-2 text-sm font-semibold",
+            "rounded-field border py-2 text-sm font-semibold",
             value === o.value ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
           )}
         >

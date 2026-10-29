@@ -367,7 +367,7 @@ export function MealLogger({
               type="button"
               onClick={() => setEditingSaved((e) => !e)}
               aria-pressed={editingSaved}
-              className="rounded-[8px] px-2 py-1 text-[13px] font-medium text-steel hover:bg-wash hover:text-iron"
+              className="rounded-field px-2 py-1 text-[13px] font-medium text-steel hover:bg-wash hover:text-iron"
             >
               {editingSaved ? t("common.done") : t("common.edit")}
             </button>
@@ -447,7 +447,7 @@ export function MealLogger({
             aria-checked={mealType === type}
             onClick={() => setMealType(type)}
             className={cn(
-              "rounded-[10px] border py-2 text-xs font-semibold sm:text-sm",
+              "rounded-field border py-2 text-xs font-semibold sm:text-sm",
               mealType === type ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
             )}
           >
@@ -483,7 +483,7 @@ export function MealLogger({
 
       {items.length > 0 && (
         <div className="sticky bottom-20 z-20 md:bottom-4">
-          <Card className="flex items-center gap-3 border border-line shadow-[0_8px_24px_-12px_rgba(31,34,38,0.45)]">
+          <Card className="flex items-center gap-3 border border-line shadow-[0_8px_24px_-12px_rgba(20,20,19,0.45)]">
             <div className="flex-1">
               <p>
                 <span className="score text-[30px]" data-testid="draft-total-kcal">{Math.round(totals.kcal)}</span>

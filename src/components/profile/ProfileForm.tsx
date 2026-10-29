@@ -128,7 +128,7 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
               onClick={() => setGoal(g)}
               aria-pressed={goal === g}
               className={cn(
-                "rounded-[10px] border px-3 py-2.5 text-sm font-semibold",
+                "rounded-field border px-3 py-2.5 text-sm font-semibold",
                 goal === g ? "border-iron bg-iron text-iron-fg" : "border-line bg-paper text-steel hover:border-iron",
               )}
             >

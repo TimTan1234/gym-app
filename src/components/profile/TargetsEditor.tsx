@@ -45,7 +45,7 @@ export function TargetsEditor({ initial }: { initial: Targets }) {
             type="button"
             aria-pressed={manual === m}
             onClick={() => setManual(m)}
-            className={cn("rounded-[10px] border px-3 py-2 text-sm font-semibold", manual === m ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}
+            className={cn("rounded-field border px-3 py-2 text-sm font-semibold", manual === m ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}
           >
             {m ? t("settings.targets.custom") : t("settings.targets.automatic")}
           </button>

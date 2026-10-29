@@ -42,7 +42,7 @@ type TooltipRow = { label: string; value: string; color?: string };
 
 function TooltipBox({ title, rows }: { title: string; rows: TooltipRow[] }) {
   return (
-    <div className="rounded-[10px] border border-line bg-paper px-3 py-2 text-xs shadow-lg">
+    <div className="rounded-field border border-line bg-paper px-3 py-2 text-xs shadow-lg">
       <p className="mb-1 font-semibold">{title}</p>
       {rows.map((r) => (
         <p key={r.label} className="num flex items-center gap-1.5 text-steel">

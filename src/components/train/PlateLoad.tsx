@@ -85,7 +85,7 @@ export function PlateLoad({ weight, units }: { weight: number; units: UnitSystem
         type="button"
         onClick={cycleBar}
         title={t("train.changeBar")}
-        className="-mr-2 ml-auto shrink-0 rounded-[8px] px-2 py-1 font-medium hover:bg-wash hover:text-iron"
+        className="-mr-2 ml-auto shrink-0 rounded-field px-2 py-1 font-medium hover:bg-wash hover:text-iron"
       >
         <span className="num">{t("train.barButton", { bar, unit })}</span>
       </button>

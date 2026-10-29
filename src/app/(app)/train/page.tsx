@@ -37,7 +37,7 @@ async function Train() {
 
       {profile.diabetesMode && !active && <PreExerciseCheck userId={user.id} hypoRiskMeds={profile.hypoRiskMeds} unit={profile.glucoseUnit} />}
 
-      <section className="rounded-[14px] bg-panel p-5 text-panel-fg">
+      <section className="rounded-card bg-panel p-5 text-panel-fg">
         {active ? (
           <div className="flex items-center justify-between gap-3">
             <div>

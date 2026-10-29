@@ -226,7 +226,7 @@ function ShopRow({
           type="button"
           onClick={() => setPaying(true)}
           aria-label={t("procurement.shop.enterPaid", { name: item.name })}
-          className="-mr-1 flex min-h-14 shrink-0 items-start justify-end rounded-[8px] px-1 pt-2 text-[15px] leading-normal hover:bg-wash"
+          className="-mr-1 flex min-h-14 shrink-0 items-start justify-end rounded-field px-1 pt-2 text-[15px] leading-normal hover:bg-wash"
         >
           <span className="underline decoration-steel/50 decoration-dotted underline-offset-4">
             <PriceText paid={item.actualPrice} estimate={item.estPrice} />

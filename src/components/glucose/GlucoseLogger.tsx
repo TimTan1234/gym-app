@@ -113,7 +113,7 @@ export function GlucoseLogger({
                 aria-checked={context === c}
                 onClick={() => pickContext(c)}
                 className={cn(
-                  "rounded-[10px] border px-2 py-2 text-xs font-semibold sm:text-sm",
+                  "rounded-field border px-2 py-2 text-xs font-semibold sm:text-sm",
                   context === c ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
                 )}
               >

@@ -77,7 +77,8 @@ function Barbell({ totals, target, compact }: { totals: Nutrients; target: numbe
   );
 }
 
-export function MacroSummary({ totals, targets, compact = false }: { totals: Nutrients; targets: Targets; compact?: boolean }) {
+/** `past`: a finished day, where the kcal still to go is what was left under the target, not "left today". */
+export function MacroSummary({ totals, targets, compact = false, past = false }: { totals: Nutrients; targets: Targets; compact?: boolean; past?: boolean }) {
   const t = useT();
   const remaining = Math.round(targets.targetKcal - totals.kcal);
   const over = remaining < 0;
@@ -90,7 +91,7 @@ export function MacroSummary({ totals, targets, compact = false }: { totals: Nut
       <div className="flex items-end justify-between gap-4">
         <p>
           <span className={cn("score block", compact ? "text-[56px]" : "text-[76px]")}>{fmt(Math.abs(remaining))}</span>
-          <span className="mt-1 block text-sm text-steel">{over ? t("nutrition.kcalOver") : t("nutrition.kcalLeft")}</span>
+          <span className="mt-1 block text-sm text-steel">{over ? t("nutrition.kcalOver") : past ? t("nutrition.kcalUnder") : t("nutrition.kcalLeft")}</span>
         </p>
         <p className="pb-6 text-right text-sm text-steel">
           {eatenBefore}

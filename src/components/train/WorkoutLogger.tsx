@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Check, Plus, Trash2, TrendingUp, Trophy, History } from "lucide-react";
-import { deleteSet, discardWorkout, finishWorkout, getLastSets, logSet, type LoggedSet } from "@/server/training";
+import { deleteSet, discardWorkout, finishWorkout, getLastSets, logSet, removeWorkoutExercise, type LoggedSet } from "@/server/training";
 import { suggestNext } from "@/lib/training/progression";
 import { currentExercise } from "@/lib/training/summary";
 import type { RecordType } from "@/lib/training/records";
@@ -79,10 +79,14 @@ export function WorkoutLogger({
   const [finishing, setFinishing] = useState(false);
   const [notes, setNotes] = useState("");
   const [pending, startTransition] = useTransition();
+  // Exercises taken out of this workout, kept so adding one back restores its planned target.
+  const [removed, setRemoved] = useState<Record<string, Block>>({});
 
   async function addExercise(ex: PickerExercise) {
     setPicking(false);
     if (blocks.some((b) => b.exercise.id === ex.id)) return;
+    const back = removed[ex.id];
+    if (back) return void setBlocks((cur) => [...cur, back]);
     setBlocks((cur) => [...cur, { exercise: ex, target: null, last: null }]);
     const last = await getLastSets(ex.id, sessionId);
     if (last) setBlocks((cur) => cur.map((b) => (b.exercise.id === ex.id ? { ...b, last } : b)));
@@ -95,6 +99,20 @@ export function WorkoutLogger({
       toast.success(t("train.newPr", { type: t(`labels.record.${r.type}`), value }), { icon: <Trophy className="size-4" /> });
     }
     timer.start(set.isWarmup ? 60 : restSec);
+  }
+
+  function removeExercise(block: Block) {
+    const name = exerciseName(t, { slug: block.exercise.slug ?? "", name: block.exercise.name });
+    const logged = sets.filter((s) => s.exerciseId === block.exercise.id).length;
+    if (logged > 0 && !confirm(t("train.removeExerciseConfirm", { exercise: name, sets: t.plural("train.setCount", logged) }))) return;
+    startTransition(async () => {
+      const res = await removeWorkoutExercise(sessionId, block.exercise.id);
+      if (!res.ok) return void toast.error(res.error);
+      setBlocks((cur) => cur.filter((b) => b.exercise.id !== block.exercise.id));
+      setSets((cur) => cur.filter((s) => s.exerciseId !== block.exercise.id));
+      setRemoved((cur) => ({ ...cur, [block.exercise.id]: block }));
+      toast(t("train.exerciseRemoved", { exercise: name }));
+    });
   }
 
   function finish() {
@@ -170,6 +188,8 @@ export function WorkoutLogger({
           sets={sets.filter((s) => s.exerciseId === block.exercise.id)}
           units={units}
           onLogged={onLogged}
+          onRemove={() => removeExercise(block)}
+          removing={pending}
           onDeleted={(id) => setSets((cur) => {
             const removed = cur.find((s) => s.id === id);
             return cur
@@ -225,6 +245,8 @@ function ExerciseBlock({
   sets,
   units,
   onLogged,
+  onRemove,
+  removing,
   onDeleted,
 }: {
   block: Block;
@@ -233,6 +255,8 @@ function ExerciseBlock({
   sets: LoggedSet[];
   units: UnitSystem;
   onLogged: (set: LoggedSet, records: { type: RecordType; value: number }[], restSec: number) => void;
+  onRemove: () => void;
+  removing: boolean;
   onDeleted: (id: string) => void;
 }) {
   const t = useT();
@@ -401,10 +425,17 @@ function ExerciseBlock({
         </div>
       </div>
       {exercise.equipment === "barbell" && Number(weight) > 0 && <PlateLoad weight={Number(weight)} units={units} />}
-      <label className="flex w-fit items-center gap-2 text-[13px] text-steel">
-        <input type="checkbox" checked={warmup} onChange={(e) => setWarmup(e.target.checked)} className="size-4 accent-[var(--iron)]" />
-        {t("train.warmupCheckbox")}
-      </label>
+      <div className="flex items-center justify-between gap-3">
+        <label className="flex w-fit items-center gap-2 text-[13px] text-steel">
+          <input type="checkbox" checked={warmup} onChange={(e) => setWarmup(e.target.checked)} className="size-4 accent-[var(--iron)]" />
+          {t("train.warmupCheckbox")}
+        </label>
+        {/* Words, not a bin icon: the bins in the rows above delete single sets. */}
+        <Button variant="ghost" size="sm" edge="end" onClick={onRemove} disabled={removing} className="hover:text-alert">
+          {t("train.removeExercise")}
+          <span className="sr-only"> {name}</span>
+        </Button>
+      </div>
     </section>
   );
 }

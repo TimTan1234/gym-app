@@ -39,6 +39,7 @@ async function Workout({ params }: { params: PageProps<"/train/workout/[id]">["p
   // Planned exercises first, then any extra exercises in the order first logged.
   const ordered = new Map<string, Omit<Block, "last">>();
   for (const pe of session.planDay?.exercises ?? []) {
+    if (session.skippedExerciseIds.includes(pe.exerciseId)) continue;
     ordered.set(pe.exerciseId, {
       exercise: pe.exercise,
       target: { sets: pe.sets, repMin: pe.repMin, repMax: pe.repMax, restSec: pe.restSec, targetRpe: pe.targetRpe, notes: pe.notes },

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addDays, formatLocalDate } from "@/lib/dates";
 import { buttonClass, cn } from "@/components/ui";
+import { DatePicker } from "@/components/DatePicker";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
 
@@ -15,7 +16,8 @@ export async function DateNav({ date, today, basePath }: { date: string; today: 
       <Link aria-label={t("today.previousDay")} href={`${basePath}?date=${addDays(date, -1)}`} className={buttonClass("ghost", "sm")}>
         <ChevronLeft className="size-4" />
       </Link>
-      <span className="min-w-24 text-center text-sm font-semibold">{label}</span>
+      {/* Up to five years back; the floor also stops a half-typed year (0002, 0020…) from counting. */}
+      <DatePicker date={date} min={addDays(today, -5 * 365)} max={today} basePath={basePath} label={label} />
       {date < today ? (
         <Link aria-label={t("today.nextDay")} href={`${basePath}?date=${addDays(date, 1)}`} className={buttonClass("ghost", "sm")}>
           <ChevronRight className="size-4" />

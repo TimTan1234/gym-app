@@ -114,7 +114,7 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
           <DateNav date={date} today={today} basePath="/nutrition" />
         </div>
       </header>
-      <MacroSummary totals={totals} targets={profile} />
+      <MacroSummary totals={totals} targets={profile} past={date !== today} />
       {dueForCheck && (
         <div className="mt-6">
           <AfterMealPrompt meal={dueForCheck} />

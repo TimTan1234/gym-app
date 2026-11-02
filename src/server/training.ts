@@ -67,7 +67,7 @@ export async function logSet(
   const s = parsed.data;
 
   const [session, exercise] = await Promise.all([
-    db.workoutSession.findFirst({ where: { id: s.sessionId, userId: user.id }, select: { id: true } }),
+    db.workoutSession.findFirst({ where: { id: s.sessionId, userId: user.id }, select: { id: true, skippedExerciseIds: true } }),
     db.exercise.findFirst({ where: { id: s.exerciseId, OR: [{ userId: null }, { userId: user.id }] }, select: { id: true } }),
   ]);
   if (!session) return { ok: false, error: t("train.errors.workoutNotFound") };
@@ -81,6 +81,13 @@ export async function logSet(
     const created = await tx.workoutSet.create({
       data: { ...s, setIndex: count + 1 },
     });
+    // Logging an exercise that was taken out of this workout puts it back in.
+    if (session.skippedExerciseIds.includes(s.exerciseId)) {
+      await tx.workoutSession.update({
+        where: { id: s.sessionId },
+        data: { skippedExerciseIds: session.skippedExerciseIds.filter((id) => id !== s.exerciseId) },
+      });
+    }
     if (records.length) {
       await tx.personalRecord.createMany({
         data: records.map((r) => ({
@@ -115,6 +122,27 @@ export async function deleteSet(setId: string): Promise<ActionResult> {
     db.workoutSet.updateMany({
       where: { sessionId: set.sessionId, exerciseId: set.exerciseId, setIndex: { gt: set.setIndex } },
       data: { setIndex: { decrement: 1 } },
+    }),
+  ]);
+  return { ok: true };
+}
+
+/**
+ * Takes an exercise out of a workout in progress: its sets go (with any records they set), and a
+ * planned exercise is remembered as skipped so reopening the workout doesn't bring it back.
+ */
+export async function removeWorkoutExercise(sessionId: string, exerciseId: string): Promise<ActionResult> {
+  const { user } = await requireProfile();
+  const session = await db.workoutSession.findFirst({
+    where: { id: sessionId, userId: user.id, endedAt: null },
+    select: { skippedExerciseIds: true },
+  });
+  if (!session) return { ok: false, error: (await getT())("train.errors.workoutNotFound") };
+  await db.$transaction([
+    db.workoutSet.deleteMany({ where: { sessionId, exerciseId } }),
+    db.workoutSession.update({
+      where: { id: sessionId },
+      data: { skippedExerciseIds: [...new Set([...session.skippedExerciseIds, exerciseId])] },
     }),
   ]);
   return { ok: true };

@@ -496,6 +496,8 @@ model WorkoutSession {
   planDay   PlanDay?     @relation(fields: [planDayId], references: [id], onDelete: SetNull)
   notes     String?
   sets      WorkoutSet[]
+  /// Planned exercises taken out of this workout, so a reload or resume doesn't bring them back.
+  skippedExerciseIds String[] @default([])
 
   @@index([userId, localDate])
 }

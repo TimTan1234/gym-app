@@ -13,6 +13,7 @@ export const en = {
   // Macro summary
   kcalLeft: "kcal left today",
   kcalOver: "kcal over your target",
+  kcalUnder: "kcal under your target",
   eaten: "{kcal} eaten",
   ofTarget: "of {kcal} target",
   gLeft: "{g} g left",
@@ -141,6 +142,7 @@ export const zh: typeof en = {
 
   kcalLeft: "今日剩余（千卡）",
   kcalOver: "超出目标（千卡）",
+  kcalUnder: "低于目标（千卡）",
   eaten: "已摄入 {kcal}",
   ofTarget: "目标 {kcal}",
   gLeft: "还差 {g} g",

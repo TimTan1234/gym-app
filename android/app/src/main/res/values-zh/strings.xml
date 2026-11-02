@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GymPal Health</string>
+    <string name="intro">把 Health Connect 中的每日步数和睡眠发送到 GymPal，用来调整你的热量目标，并在睡眠不足后建议轻一点的训练。</string>
+    <string name="server_label">服务器地址</string>
+    <string name="code_label">关联验证码</string>
+    <string name="link_help">在 GymPal 中打开“设置”，再打开“手机健康数据”，点击“关联安卓手机”。输入显示的验证码和地址。</string>
+    <string name="link">关联这部手机</string>
+    <string name="linking">正在关联…</string>
+    <string name="need_https">地址必须以 https:// 开头</string>
+    <string name="bad_code">验证码无效。每个验证码只能用一次，10 分钟内有效，请在 GymPal 中重新生成。</string>
+    <string name="no_connection">无法连接 %1$s。请检查地址和网络。</string>
+    <string name="linked_as">已关联到 %1$s，账号：%2$s。</string>
+    <string name="grant_help">允许 GymPal Health 读取步数和睡眠。它不会向 Health Connect 写入任何数据。</string>
+    <string name="grant">允许读取步数和睡眠</string>
+    <string name="sync_now">立即同步</string>
+    <string name="syncing">正在同步…</string>
+    <string name="last_sync">上次同步：%1$s。</string>
+    <string name="never_synced">尚未同步。</string>
+    <plurals name="synced_days">
+        <item quantity="other">已发送 %1$d 天的步数和睡眠。</item>
+    </plurals>
+    <string name="background_on">大约每 3 小时在后台同步一次。</string>
+    <string name="background_off">你的 Health Connect 版本不支持后台读取数据，请不时打开这个应用来发送新数据。</string>
+    <string name="unlink">取消关联</string>
+    <string name="unlinked_remote">这部手机已在 GymPal 中取消关联。请用新的验证码重新关联。</string>
+    <string name="hc_missing">这部手机上没有 Health Connect。请先从 Play 商店安装，再回到这里。</string>
+    <string name="hc_update">Health Connect 需要更新后才能共享数据。</string>
+    <string name="open_play">打开 Play 商店</string>
+    <string name="privacy_title">GymPal Health 如何使用你的数据</string>
+    <string name="privacy_body">GymPal Health 只从 Health Connect 读取两类数据：步数和睡眠记录。它把这些数据汇总成每天一个总数，并且只通过 HTTPS 把每日总数发送到你关联的 GymPal 服务器。它不会读取其他健康数据，不会向 Health Connect 写入数据，也不会与任何其他人共享你的数据。GymPal 用这些总数来显示步数和睡眠、在活动较多的日子提高热量目标、在睡眠不足后建议轻一点的训练，以及让 AI 教练回答相关问题。在 GymPal 中取消关联后，这部手机就不会再发送任何数据。</string>
+</resources>

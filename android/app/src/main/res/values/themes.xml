@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- GymPal's warm canvas and ink, so the app reads as part of the same product. -->
+    <color name="canvas">#FAF9F5</color>
+    <color name="ink">#141413</color>
+    <color name="steel">#6B675F</color>
+    <color name="coral">#B05E44</color>
+    <style name="Theme.GymPalHealth" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/canvas</item>
+        <item name="android:textColorPrimary">@color/ink</item>
+        <item name="android:textColorSecondary">@color/steel</item>
+        <item name="android:colorAccent">@color/coral</item>
+        <item name="android:statusBarColor">@color/canvas</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

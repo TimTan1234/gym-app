@@ -48,3 +48,11 @@ next-env.d.ts
 
 # copied from node_modules on postinstall
 /public/vendor
+
+# android companion app (Gradle)
+/android/.gradle/
+/android/**/build/
+/android/local.properties
+/android/.kotlin/
+# built by scripts/build-android.sh
+/public/downloads/

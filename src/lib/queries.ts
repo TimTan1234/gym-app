@@ -19,6 +19,18 @@ export async function getLatestWeight(userId: string) {
   return db.bodyMetric.findFirst({ where: { userId }, orderBy: { localDate: "desc" } });
 }
 
+/** Steps and sleep sent by the linked phone, by local date from `from` to `to`. */
+export async function getActivity(userId: string, from: string, to: string) {
+  return db.dailyActivity.findMany({
+    where: { userId, localDate: { gte: from, lte: to } },
+    orderBy: { localDate: "asc" },
+    select: { localDate: true, steps: true, sleepMinutes: true },
+  });
+}
+
+/** The days a step bonus for `date` looks at: that day and the 28 before it. */
+export const stepBonusWindow = (date: string) => [addDays(date, -28), date] as const;
+
 export async function getActivePlan(userId: string) {
   return db.trainingPlan.findFirst({
     where: { userId, isActive: true },

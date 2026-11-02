@@ -1,5 +1,16 @@
 // "progress" messages (Progress page, weekly check-in, charts, body log). zh must have the same keys.
 export const en = {
+  activity: {
+    title: "Steps and sleep",
+    avgSteps: "Avg steps",
+    avgSleep: "Avg sleep",
+    perDay: "per day",
+    perNight: "per night",
+    steps: "Steps",
+    stepsUnit: "steps",
+    sleep: "Sleep",
+    hours: "h",
+  },
   title: "Progress",
   range: "Range",
   range30: "30 days",
@@ -127,6 +138,17 @@ export const en = {
 };
 
 export const zh: typeof en = {
+  activity: {
+    title: "步数和睡眠",
+    avgSteps: "平均步数",
+    avgSleep: "平均睡眠",
+    perDay: "每天",
+    perNight: "每晚",
+    steps: "步数",
+    stepsUnit: "步",
+    sleep: "睡眠",
+    hours: "小时",
+  },
   title: "进度",
   range: "时间范围",
   range30: "30 天",

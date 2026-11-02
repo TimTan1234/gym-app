@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, Plus, Trash2, TrendingUp, Trophy, History } from "lucide-react";
-import { deleteSet, discardWorkout, finishWorkout, getLastSets, logSet, removeWorkoutExercise, type LoggedSet } from "@/server/training";
+import { Check, CloudOff, Plus, Trash2, TrendingUp, Trophy, History } from "lucide-react";
+import { deleteSet, discardWorkout, finishWorkout, getLastSets, logSet, removeWorkoutExercise, swapWorkoutExercise, type LoggedSet, type SetInput } from "@/server/training";
 import { suggestNext } from "@/lib/training/progression";
 import { currentExercise } from "@/lib/training/summary";
+import { newSetId, pendingSets, usePendingSets } from "@/lib/training/pending-sets";
+import { swapOptions } from "@/lib/training/swap";
 import type { RecordType } from "@/lib/training/records";
 import { displayWeight, formatWeight, inputWeightToKg, weightUnit, type UnitSystem } from "@/lib/units";
 import { formatLocalDate } from "@/lib/dates";
@@ -32,6 +34,10 @@ export interface Block {
   target: Target | null;
   last: { date: string; sets: { weightKg: number; reps: number; isWarmup: boolean }[] } | null;
 }
+
+/** A set on screen: saved, or still waiting on the phone for a connection. */
+type ShownSet = LoggedSet & { pending?: boolean };
+type SetValues = Pick<SetInput, "weightKg" | "reps" | "rpe" | "isWarmup">;
 
 const DEFAULT_RANGE = { repMin: 8, repMax: 12 };
 const DEFAULT_REST = 90;
@@ -59,6 +65,7 @@ export function WorkoutLogger({
   initialBlocks,
   initialSets,
   library,
+  equipment,
   units,
 }: {
   sessionId: string;
@@ -67,6 +74,8 @@ export function WorkoutLogger({
   initialBlocks: Block[];
   initialSets: LoggedSet[];
   library: PickerExercise[];
+  /** The user's equipment, for swap suggestions. */
+  equipment: string[];
   units: UnitSystem;
 }) {
   const router = useRouter();
@@ -81,6 +90,16 @@ export function WorkoutLogger({
   const [pending, startTransition] = useTransition();
   // Exercises taken out of this workout, kept so adding one back restores its planned target.
   const [removed, setRemoved] = useState<Record<string, Block>>({});
+  const [swapping, setSwapping] = useState<Block | null>(null);
+  const queued = usePendingSets(sessionId);
+  // Saved sets, then the ones waiting on the phone, in the order they were logged.
+  const shown: ShownSet[] = [
+    ...sets,
+    ...queued
+      .filter((q) => !sets.some((s) => s.id === q.input.id))
+      .map(({ input, setIndex }) => ({ id: input.id, exerciseId: input.exerciseId, setIndex, weightKg: input.weightKg, reps: input.reps, rpe: input.rpe, isWarmup: input.isWarmup, pending: true })),
+  ];
+  const offline = () => void toast.error(t("train.offline"));
 
   async function addExercise(ex: PickerExercise) {
     setPicking(false);
@@ -92,22 +111,112 @@ export function WorkoutLogger({
     if (last) setBlocks((cur) => cur.map((b) => (b.exercise.id === ex.id ? { ...b, last } : b)));
   }
 
-  function onLogged(set: LoggedSet, records: { type: RecordType; value: number }[], restSec: number) {
-    setSets((cur) => [...cur, set]);
-    for (const r of records) {
-      const value = r.type === "MAX_VOLUME_SET" ? `${Math.round(displayWeight(r.value, units, 0))} ${weightUnit(units)}` : formatWeight(r.value, units);
-      toast.success(t("train.newPr", { type: t(`labels.record.${r.type}`), value }), { icon: <Trophy className="size-4" /> });
+  const onSaved = useCallback(
+    (set: LoggedSet, records: { type: RecordType; value: number }[]) => {
+      setSets((cur) => (cur.some((s) => s.id === set.id) ? cur : [...cur, set]));
+      for (const r of records) {
+        const value = r.type === "MAX_VOLUME_SET" ? `${Math.round(displayWeight(r.value, units, 0))} ${weightUnit(units)}` : formatWeight(r.value, units);
+        toast.success(t("train.newPr", { type: t(`labels.record.${r.type}`), value }), { icon: <Trophy className="size-4" /> });
+      }
+    },
+    [t, units],
+  );
+
+  // Sends the queued sets in order, one at a time; stops at the first that can't get through.
+  const flushing = useRef(false);
+  const flush = useCallback(async () => {
+    if (flushing.current) return;
+    flushing.current = true;
+    try {
+      for (const p of pendingSets.read(sessionId)) {
+        let res: Awaited<ReturnType<typeof logSet>>;
+        try {
+          res = await logSet(p.input);
+        } catch {
+          return; // Still no connection: try again later.
+        }
+        if (res.ok) onSaved(res.set, res.records);
+        else toast.error(res.error);
+        pendingSets.remove(sessionId, [p.input.id]);
+      }
+    } finally {
+      flushing.current = false;
     }
-    timer.start(set.isWarmup ? 60 : restSec);
+  }, [sessionId, onSaved]);
+
+  useEffect(() => {
+    void flush();
+    const onOnline = () => void flush();
+    window.addEventListener("online", onOnline);
+    const id = setInterval(() => {
+      if (pendingSets.read(sessionId).length) void flush();
+    }, 15_000);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      clearInterval(id);
+    };
+  }, [flush, sessionId]);
+
+  /** Saves a set, or keeps it on the phone when there's no connection. False when it was refused. */
+  async function log(block: Block, values: SetValues): Promise<boolean> {
+    const restSec = values.isWarmup ? 60 : (block.target?.restSec ?? DEFAULT_REST);
+    const input: SetInput = { id: newSetId(), completedAt: new Date().toISOString(), sessionId, exerciseId: block.exercise.id, ...values };
+    // Behind sets still waiting, a new one waits its turn so the set numbers stay in order.
+    if (pendingSets.read(sessionId).length === 0) {
+      try {
+        const res = await logSet(input);
+        if (!res.ok) {
+          toast.error(res.error);
+          return false;
+        }
+        onSaved(res.set, res.records);
+        timer.start(restSec);
+        return true;
+      } catch {
+        // No connection: keep it on the phone, below.
+      }
+    }
+    const setIndex = shown.filter((s) => s.exerciseId === block.exercise.id).length + 1;
+    pendingSets.add(sessionId, { input, setIndex, restSec });
+    timer.start(restSec);
+    void flush();
+    return true;
+  }
+
+  function swapTo(block: Block, ex: PickerExercise) {
+    setSwapping(null);
+    if (ex.id === block.exercise.id || blocks.some((b) => b.exercise.id === ex.id)) return;
+    const from = exerciseName(t, { slug: block.exercise.slug ?? "", name: block.exercise.name });
+    const to = exerciseName(t, { slug: ex.slug ?? "", name: ex.name });
+    startTransition(async () => {
+      let res: Awaited<ReturnType<typeof swapWorkoutExercise>>;
+      try {
+        res = await swapWorkoutExercise(sessionId, block.exercise.id, ex.id);
+      } catch {
+        return offline();
+      }
+      if (!res.ok) return void toast.error(res.error);
+      // The new exercise takes over the slot: same place, same planned target.
+      setBlocks((cur) => cur.map((b) => (b.exercise.id === block.exercise.id ? { exercise: ex, target: block.target, last: null } : b)));
+      toast(t("train.swapped", { from, to }));
+      const last = await getLastSets(ex.id, sessionId).catch(() => null);
+      if (last) setBlocks((cur) => cur.map((b) => (b.exercise.id === ex.id ? { ...b, last } : b)));
+    });
   }
 
   function removeExercise(block: Block) {
     const name = exerciseName(t, { slug: block.exercise.slug ?? "", name: block.exercise.name });
-    const logged = sets.filter((s) => s.exerciseId === block.exercise.id).length;
+    const logged = shown.filter((s) => s.exerciseId === block.exercise.id).length;
     if (logged > 0 && !confirm(t("train.removeExerciseConfirm", { exercise: name, sets: t.plural("train.setCount", logged) }))) return;
     startTransition(async () => {
-      const res = await removeWorkoutExercise(sessionId, block.exercise.id);
+      let res: Awaited<ReturnType<typeof removeWorkoutExercise>>;
+      try {
+        res = await removeWorkoutExercise(sessionId, block.exercise.id);
+      } catch {
+        return offline();
+      }
       if (!res.ok) return void toast.error(res.error);
+      pendingSets.remove(sessionId, queued.filter((q) => q.input.exerciseId === block.exercise.id).map((q) => q.input.id));
       setBlocks((cur) => cur.filter((b) => b.exercise.id !== block.exercise.id));
       setSets((cur) => cur.filter((s) => s.exerciseId !== block.exercise.id));
       setRemoved((cur) => ({ ...cur, [block.exercise.id]: block }));
@@ -115,9 +224,23 @@ export function WorkoutLogger({
     });
   }
 
+  /** Finish needs every set on the server first: with none there, finishing would discard the workout. */
+  async function syncedForFinish() {
+    if (pendingSets.read(sessionId).length) await flush();
+    const left = pendingSets.read(sessionId).length;
+    if (left) toast.error(t.plural("train.finishWaiting", left));
+    return left === 0;
+  }
+
   function finish() {
     startTransition(async () => {
-      const res = await finishWorkout(sessionId, notes);
+      if (!(await syncedForFinish())) return void setFinishing(false);
+      let res: Awaited<ReturnType<typeof finishWorkout>>;
+      try {
+        res = await finishWorkout(sessionId, notes);
+      } catch {
+        return offline();
+      }
       if (!res.ok) return void toast.error(res.error);
       timer.stop();
       if (res.discarded) {
@@ -133,17 +256,22 @@ export function WorkoutLogger({
   function discard() {
     if (!confirm(t("train.discardConfirm"))) return;
     startTransition(async () => {
-      await discardWorkout(sessionId);
+      try {
+        await discardWorkout(sessionId);
+      } catch {
+        return offline();
+      }
+      pendingSets.clear(sessionId);
       timer.stop();
       router.push("/train");
     });
   }
 
-  const workingSets = sets.filter((s) => !s.isWarmup).length;
-  const exerciseCount = new Set(sets.map((s) => s.exerciseId)).size;
+  const workingSets = shown.filter((s) => !s.isWarmup).length;
+  const exerciseCount = new Set(shown.map((s) => s.exerciseId)).size;
   const currentId = currentExercise(
     blocks.map((b) => ({ id: b.exercise.id, targetSets: b.target?.sets ?? null })),
-    sets,
+    shown,
   );
   const current = blocks.find((b) => b.exercise.id === currentId);
   // Coral goes to the next thing to do: that exercise's Log set, or Finish once the plan is done.
@@ -151,7 +279,7 @@ export function WorkoutLogger({
 
   let next: { label: string; onGo?: () => void } | undefined;
   if (current) {
-    const n = sets.filter((s) => s.exerciseId === current.exercise.id && !s.isWarmup).length + 1;
+    const n = shown.filter((s) => s.exerciseId === current.exercise.id && !s.isWarmup).length + 1;
     const exercise = exerciseName(t, { slug: current.exercise.slug ?? "", name: current.exercise.name });
     next = {
       label: current.target ? t("train.upNext", { exercise, n, total: current.target.sets }) : t("train.upNextOpen", { exercise, n }),
@@ -172,8 +300,17 @@ export function WorkoutLogger({
           <p className="num text-[13px] text-steel">
             {t("train.elapsed", { time: elapsed, sets: t.plural("train.workingSets", workingSets) })}
           </p>
+          {queued.length > 0 && (
+            <p className="flex items-center gap-1 text-[13px] font-medium" role="status">
+              <CloudOff className="size-3.5 shrink-0" aria-hidden /> {t.plural("train.waitingToSync", queued.length)}
+            </p>
+          )}
         </div>
-        <Button variant={planDone ? "primary" : "secondary"} onClick={() => setFinishing(true)} disabled={pending}>
+        <Button
+          variant={planDone ? "primary" : "secondary"}
+          onClick={() => startTransition(async () => void ((await syncedForFinish()) && setFinishing(true)))}
+          disabled={pending}
+        >
           <Check className="size-4" /> {t("train.finish")}
         </Button>
       </header>
@@ -184,12 +321,13 @@ export function WorkoutLogger({
           key={block.exercise.id}
           block={block}
           current={block.exercise.id === currentId}
-          sessionId={sessionId}
-          sets={sets.filter((s) => s.exerciseId === block.exercise.id)}
+          sets={shown.filter((s) => s.exerciseId === block.exercise.id)}
           units={units}
-          onLogged={onLogged}
+          onLog={(values) => log(block, values)}
+          onSwap={() => setSwapping(block)}
           onRemove={() => removeExercise(block)}
           removing={pending}
+          onDeletePending={(id) => pendingSets.remove(sessionId, [id])}
           onDeleted={(id) => setSets((cur) => {
             const removed = cur.find((s) => s.id === id);
             return cur
@@ -208,6 +346,16 @@ export function WorkoutLogger({
       </Button>
 
       {picking && <ExercisePicker exercises={library} onPick={addExercise} onClose={() => setPicking(false)} />}
+      {swapping && (
+        <ExercisePicker
+          exercises={library.filter((e) => e.id !== swapping.exercise.id)}
+          title={t("train.swapTitle", { exercise: exerciseName(t, { slug: swapping.exercise.slug ?? "", name: swapping.exercise.name }) })}
+          initialMuscle={swapping.exercise.primaryMuscle}
+          suggested={swapOptions(swapping.exercise, library, equipment, new Set(blocks.map((b) => b.exercise.id)))}
+          onPick={(ex) => swapTo(swapping, ex)}
+          onClose={() => setSwapping(null)}
+        />
+      )}
 
       {finishing && (
         <div role="dialog" aria-modal="true" aria-label={t("train.finishTitle").replace(/[?？]$/, "")} className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
@@ -241,22 +389,24 @@ export function WorkoutLogger({
 function ExerciseBlock({
   block,
   current,
-  sessionId,
   sets,
   units,
-  onLogged,
+  onLog,
+  onSwap,
   onRemove,
   removing,
+  onDeletePending,
   onDeleted,
 }: {
   block: Block;
   current: boolean;
-  sessionId: string;
-  sets: LoggedSet[];
+  sets: ShownSet[];
   units: UnitSystem;
-  onLogged: (set: LoggedSet, records: { type: RecordType; value: number }[], restSec: number) => void;
+  onLog: (values: SetValues) => Promise<boolean>;
+  onSwap: () => void;
   onRemove: () => void;
   removing: boolean;
+  onDeletePending: (id: string) => void;
   onDeleted: (id: string) => void;
 }) {
   const t = useT();
@@ -288,26 +438,29 @@ function ExerciseBlock({
       return;
     }
     startTransition(async () => {
-      const res = await logSet({
-        sessionId,
-        exerciseId: exercise.id,
+      const ok = await onLog({
         weightKg: inputWeightToKg(w, units),
         reps: r,
         rpe: rpe ? Math.min(10, Math.max(1, Number(rpe))) : null,
         isWarmup: warmup,
       });
-      if (!res.ok) return void toast.error(res.error);
-      onLogged(res.set, res.records, target?.restSec ?? DEFAULT_REST);
+      if (!ok) return;
       setWarmup(false);
       setRpe("");
     });
   }
 
-  function remove(id: string) {
+  function remove(set: ShownSet) {
+    // A set still on the phone was never saved: just drop it.
+    if (set.pending) return onDeletePending(set.id);
     startTransition(async () => {
-      const res = await deleteSet(id);
-      if (res.ok) onDeleted(id);
-      else toast.error(res.error);
+      try {
+        const res = await deleteSet(set.id);
+        if (res.ok) onDeleted(set.id);
+        else toast.error(res.error);
+      } catch {
+        toast.error(t("train.offline"));
+      }
     });
   }
 
@@ -382,7 +535,15 @@ function ExerciseBlock({
         </div>
         {sets.map((s) => (
           <div role="row" key={s.id} className={cn(cols, "border-b border-line py-1.5")}>
-            <span role="cell" className={cn("text-sm font-semibold", s.isWarmup ? "text-steel" : "")}>{s.isWarmup ? t("train.warmupMark") : s.setIndex}</span>
+            <span role="cell" className={cn("inline-flex items-center justify-center gap-0.5 text-sm font-semibold", s.isWarmup ? "text-steel" : "")}>
+              {s.isWarmup ? t("train.warmupMark") : s.setIndex}
+              {s.pending && (
+                <>
+                  <CloudOff className="size-3 text-steel" aria-hidden />
+                  <span className="sr-only">{t("train.pendingSet")}</span>
+                </>
+              )}
+            </span>
             <span role="cell" className="score text-[24px]">{displayWeight(s.weightKg, units)}</span>
             <span role="cell" className="score text-[24px]">{s.reps}</span>
             <span role="cell" className="num text-sm text-steel">{s.rpe ?? "–"}</span>
@@ -390,7 +551,7 @@ function ExerciseBlock({
               <button
                 type="button"
                 aria-label={t("train.deleteSet", { set: s.isWarmup ? t("train.warmupWord") : s.setIndex })}
-                onClick={() => remove(s.id)}
+                onClick={() => remove(s)}
                 disabled={pending}
                 className="mx-auto grid size-11 place-items-center rounded-full text-steel hover:bg-wash hover:text-alert"
               >
@@ -425,16 +586,25 @@ function ExerciseBlock({
         </div>
       </div>
       {exercise.equipment === "barbell" && Number(weight) > 0 && <PlateLoad weight={Number(weight)} units={units} />}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <label className="flex w-fit items-center gap-2 text-[13px] text-steel">
           <input type="checkbox" checked={warmup} onChange={(e) => setWarmup(e.target.checked)} className="size-4 accent-[var(--iron)]" />
           {t("train.warmupCheckbox")}
         </label>
-        {/* Words, not a bin icon: the bins in the rows above delete single sets. */}
-        <Button variant="ghost" size="sm" edge="end" onClick={onRemove} disabled={removing} className="hover:text-alert">
-          {t("train.removeExercise")}
-          <span className="sr-only"> {name}</span>
-        </Button>
+        <div className="ml-auto flex">
+          {/* Swap only before the first set: after that, the sets belong to this exercise. */}
+          {sets.length === 0 && (
+            <Button variant="ghost" size="sm" onClick={onSwap} disabled={removing}>
+              {t("train.swap")}
+              <span className="sr-only"> {name}</span>
+            </Button>
+          )}
+          {/* Words, not a bin icon: the bins in the rows above delete single sets. */}
+          <Button variant="ghost" size="sm" edge="end" onClick={onRemove} disabled={removing} className="hover:text-alert">
+            {t("train.removeExercise")}
+            <span className="sr-only"> {name}</span>
+          </Button>
+        </div>
       </div>
     </section>
   );

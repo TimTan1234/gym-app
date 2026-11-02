@@ -1,7 +1,9 @@
 "use client";
 
 // A client component only so it can read the language from context; it has no state.
+import { Footprints } from "lucide-react";
 import type { Nutrients } from "@/lib/nutrition/totals";
+import type { StepBonus } from "@/lib/activity";
 import { Plate, cn } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { SugarMeter } from "./Sugar";
@@ -77,9 +79,25 @@ function Barbell({ totals, target, compact }: { totals: Nutrients; target: numbe
   );
 }
 
-/** `past`: a finished day, where the kcal still to go is what was left under the target, not "left today". */
-export function MacroSummary({ totals, targets, compact = false, past = false }: { totals: Nutrients; targets: Targets; compact?: boolean; past?: boolean }) {
+/**
+ * `past`: a finished day, where the kcal still to go is what was left under the target, not "left today".
+ * `bonus`: extra calories for a busier-than-usual day of steps, added to that day's calorie target only.
+ */
+export function MacroSummary({
+  totals,
+  targets: base,
+  compact = false,
+  past = false,
+  bonus = null,
+}: {
+  totals: Nutrients;
+  targets: Targets;
+  compact?: boolean;
+  past?: boolean;
+  bonus?: StepBonus | null;
+}) {
   const t = useT();
+  const targets = bonus ? { ...base, targetKcal: base.targetKcal + bonus.kcal } : base;
   const remaining = Math.round(targets.targetKcal - totals.kcal);
   const over = remaining < 0;
   // Keep the number styled inside translated sentences: split the template at its placeholder.
@@ -103,6 +121,13 @@ export function MacroSummary({ totals, targets, compact = false, past = false }:
           {targetAfter}
         </p>
       </div>
+
+      {bonus && (
+        <p className="-mt-2 flex items-center gap-1.5 text-[13px] text-steel" data-testid="step-bonus">
+          <Footprints className="size-3.5 shrink-0" aria-hidden />
+          {t("nutrition.stepBonus", { kcal: fmt(bonus.kcal), steps: fmt(bonus.extraSteps) })}
+        </p>
+      )}
 
       <Barbell totals={totals} target={targets.targetKcal} compact={compact} />
 

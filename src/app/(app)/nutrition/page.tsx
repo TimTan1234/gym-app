@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Plus, ShoppingBasket } from "lucide-react";
 import { requireProfile } from "@/lib/session";
-import { getDayNutrition } from "@/lib/queries";
+import { getActivity, getDayNutrition, getLatestWeight, stepBonusWindow } from "@/lib/queries";
+import { stepBonusFor } from "@/lib/activity";
 import { addDays, isLocalDate, todayLocal } from "@/lib/dates";
 import { MacroSummary } from "@/components/nutrition/MacroSummary";
 import { MealCard } from "@/components/nutrition/MealCard";
@@ -24,7 +25,15 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
   const today = todayLocal(profile.timezone);
   const raw = (await searchParams).date;
   const date = typeof raw === "string" && isLocalDate(raw) && raw <= today ? raw : today;
-  const [{ meals, totals }, dayBefore, t] = await Promise.all([getDayNutrition(user.id, date), getDayNutrition(user.id, addDays(date, -1)), getT()]);
+  const [{ meals, totals }, dayBefore, activity, weight, t] = await Promise.all([
+    getDayNutrition(user.id, date),
+    getDayNutrition(user.id, addDays(date, -1)),
+    profile.targetsManual ? [] : getActivity(user.id, ...stepBonusWindow(date)),
+    getLatestWeight(user.id),
+    getT(),
+  ]);
+  // A busier-than-usual day of steps (from the linked phone) raises that day's calorie target.
+  const bonus = stepBonusFor(activity, date, weight?.weightKg);
   const diabetes = profile.diabetesMode;
   const budget = diabetes ? carbBudget(profile.sex, profile.activityLevel) : null;
   const [glucoseByMeal, dueForCheck] = diabetes
@@ -114,7 +123,7 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
           <DateNav date={date} today={today} basePath="/nutrition" />
         </div>
       </header>
-      <MacroSummary totals={totals} targets={profile} past={date !== today} />
+      <MacroSummary totals={totals} targets={profile} past={date !== today} bonus={bonus} />
       {dueForCheck && (
         <div className="mt-6">
           <AfterMealPrompt meal={dueForCheck} />

@@ -160,7 +160,8 @@ export function TrendChart({
               {/* Sized to its widest label: "2,800" kcal or "40,000" lb of volume must not be clipped. */}
               <YAxis tick={AXIS} tickLine={false} axisLine={false} domain={["auto", "auto"]} width="auto" tickFormatter={(v: number) => fmt(v, axisDecimals)} />
               {target !== undefined && (
-                <ReferenceLine y={target} stroke="var(--steel)" strokeDasharray="4 4" />
+                // The axis stretches to the target, so a target above every day still shows as a line.
+                <ReferenceLine y={target} stroke="var(--steel)" strokeDasharray="4 4" ifOverflow="extendDomain" />
               )}
               <Tooltip
                 cursor={{ stroke: "var(--steel)", strokeWidth: 1 }}
@@ -231,6 +232,7 @@ export function DailyBars({
   target,
   color = "var(--steel)",
   height = 180,
+  decimals = 0,
 }: {
   title: string;
   data: { date: string; value: number }[];
@@ -238,6 +240,8 @@ export function DailyBars({
   target?: number;
   color?: string;
   height?: number;
+  /** Decimal places for values (axis, tooltip and table), e.g. 1 for hours of sleep. */
+  decimals?: number;
 }) {
   const [table, setTable] = useState(false);
   const { t, shortDate, longDate } = useChartText();
@@ -253,7 +257,7 @@ export function DailyBars({
       {table ? (
         <DataTable
           head={[t("progress.chart.date"), `${title} (${unit})`, ...(target ? [t("progress.chart.target")] : [])]}
-          rows={[...data].reverse().map((d) => [shortDate(d.date), fmt(d.value, 0), ...(target ? [fmt(target, 0)] : [])])}
+          rows={[...data].reverse().map((d) => [shortDate(d.date), fmt(d.value, decimals), ...(target ? [fmt(target, decimals)] : [])])}
         />
       ) : (
         <div style={{ height }}>
@@ -262,17 +266,18 @@ export function DailyBars({
               <CartesianGrid stroke="var(--line)" vertical={false} />
               <XAxis dataKey="date" tickFormatter={shortDate} tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
               {/* Sized to its widest label, as in TrendChart. */}
-              <YAxis tick={AXIS} tickLine={false} axisLine={false} width="auto" tickFormatter={(v: number) => fmt(v, 0)} />
+              <YAxis tick={AXIS} tickLine={false} axisLine={false} width="auto" tickFormatter={(v: number) => fmt(v, decimals)} />
               {target !== undefined && (
-                <ReferenceLine y={target} stroke="var(--steel)" strokeDasharray="4 4" />
+                // The axis stretches to the target, so a target above every day still shows as a line.
+                <ReferenceLine y={target} stroke="var(--steel)" strokeDasharray="4 4" ifOverflow="extendDomain" />
               )}
               <Tooltip
                 cursor={{ fill: "var(--wash)" }}
                 content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;
                   const v = Number(payload[0].value);
-                  const rows: TooltipRow[] = [{ label: title, value: `${fmt(v, 0)} ${unit}`, color }];
-                  if (target) rows.push({ label: t("progress.chart.target"), value: `${fmt(target, 0)} ${unit}` });
+                  const rows: TooltipRow[] = [{ label: title, value: `${fmt(v, decimals)} ${unit}`, color }];
+                  if (target) rows.push({ label: t("progress.chart.target"), value: `${fmt(target, decimals)} ${unit}` });
                   return <TooltipBox title={longDate(String(label))} rows={rows} />;
                 }}
               />

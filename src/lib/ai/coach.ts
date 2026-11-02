@@ -11,6 +11,7 @@ import { createT } from "@/i18n/translate";
 import { getCheckin } from "@/lib/queries";
 import { sumNutrients } from "@/lib/nutrition/totals";
 import { best1RM } from "@/lib/training/summary";
+import { stepBonusFor } from "@/lib/activity";
 import { isAiMock, models, openai, reasoningOptions, reserveAiCall, AiLimitError } from "./client";
 import { analyzeMeal } from "./meal";
 import { GetMealsParams, MealDeleteParams, MealLogParams, MealUpdateParams, diffPlans, editMealItems, planShapeOf, type ItemValues, type PlanChange } from "./coach-edits";
@@ -98,6 +99,12 @@ async function buildTools(ctx: CoachContext) {
     zodResponsesFunction({ name: "get_recent_workouts", parameters: Count, description: "Most recent finished workouts with exercises and sets." }),
     zodResponsesFunction({ name: "get_active_plan", parameters: Empty, description: "The user's active training plan." }),
     zodResponsesFunction({ name: "get_body_metrics", parameters: Days, description: "Body weight / body fat / waist entries." }),
+    zodResponsesFunction({
+      name: "get_activity",
+      parameters: Days,
+      description:
+        "Daily steps and sleep (sleep belongs to the day the user woke up) from their linked Android phone, with their usual (median) steps and today's extra calories for a busier-than-usual day. Empty if no phone is linked.",
+    }),
     ...(ctx.diabetes
       ? [
           zodResponsesFunction({
@@ -321,6 +328,25 @@ async function buildTools(ctx: CoachContext) {
           // bodyFatSource tells a scale reading from a rough photo estimate.
           select: { localDate: true, weightKg: true, bodyFatPct: true, bodyFatSource: true, waistCm: true },
         });
+      }
+      case "get_activity": {
+        const { days } = Days.parse(args);
+        const from = addDays(today, -(days - 1));
+        const [rows, weight, profile] = await Promise.all([
+          db.dailyActivity.findMany({
+            where: { userId: ctx.userId, localDate: { gte: addDays(from, -28), lte: today } },
+            orderBy: { localDate: "asc" },
+            select: { localDate: true, steps: true, sleepMinutes: true },
+          }),
+          db.bodyMetric.findFirst({ where: { userId: ctx.userId }, orderBy: { localDate: "desc" }, select: { weightKg: true } }),
+          db.profile.findUnique({ where: { userId: ctx.userId }, select: { targetsManual: true } }),
+        ]);
+        const usual = rows.filter((r) => r.localDate < today && (r.steps ?? 0) > 0).map((r) => r.steps!).sort((a, b) => a - b);
+        return {
+          days: rows.filter((r) => r.localDate >= from).map((r) => ({ date: r.localDate, steps: r.steps, sleepHours: r.sleepMinutes === null ? null : Math.round(r.sleepMinutes / 6) / 10 })),
+          usualSteps: usual.length ? usual[Math.floor(usual.length / 2)] : null,
+          todayStepBonus: profile?.targetsManual ? null : stepBonusFor(rows, today, weight?.weightKg),
+        };
       }
       case "get_exercise_history": {
         const { exerciseName } = ExerciseQuery.parse(args);
@@ -621,6 +647,12 @@ async function runMockCoach(
   } else if (ctx.diabetes && (question.includes("glucose") || question.includes("血糖"))) {
     const g = (await execute("get_glucose", JSON.stringify({ days: 14 }), proposals)) as { summary: { inTarget: number; rated: number }; unit: string };
     text += `\n\nGlucose: ${g.summary.inTarget} of ${g.summary.rated} readings in target (${g.unit}).`;
+  } else if (/sleep|steps|tired|睡|步/.test(question)) {
+    const a = (await execute("get_activity", JSON.stringify({ days: 7 }), proposals)) as { days: { date: string; steps: number | null; sleepHours: number | null }[] };
+    const last = a.days.at(-1);
+    text += last
+      ? `\n\nFrom your phone: ${last.steps ?? "no"} steps and ${last.sleepHours ?? "no"} hours of sleep on ${last.date}.`
+      : "\n\nNo steps or sleep from a linked phone yet.";
   } else if (question.includes("swap")) {
     // Swap day 1's first exercise for a chest press it doesn't already have.
     const plan = (await execute("get_active_plan", "{}", proposals)) as {

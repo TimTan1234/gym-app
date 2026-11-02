@@ -14,6 +14,7 @@ export const en = {
   kcalLeft: "kcal left today",
   kcalOver: "kcal over your target",
   kcalUnder: "kcal under your target",
+  stepBonus: "+{kcal} kcal for {steps} more steps than usual",
   eaten: "{kcal} eaten",
   ofTarget: "of {kcal} target",
   gLeft: "{g} g left",
@@ -84,6 +85,7 @@ export const en = {
   removeNamed: "Remove {name}",
   item: "item",
   gramsField: "Grams",
+  editNutrients: "Edit nutrients",
   roughEstimate: "Rough estimate.",
   confident: "{pct}% confident.",
 
@@ -143,6 +145,7 @@ export const zh: typeof en = {
   kcalLeft: "今日剩余（千卡）",
   kcalOver: "超出目标（千卡）",
   kcalUnder: "低于目标（千卡）",
+  stepBonus: "比平时多走 {steps} 步，目标增加 {kcal} 千卡",
   eaten: "已摄入 {kcal}",
   ofTarget: "目标 {kcal}",
   gLeft: "还差 {g} g",
@@ -212,6 +215,7 @@ export const zh: typeof en = {
   removeNamed: "移除 {name}",
   item: "食物",
   gramsField: "克数",
+  editNutrients: "编辑营养数据",
   roughEstimate: "粗略估算。",
   confident: "可信度 {pct}%。",
 

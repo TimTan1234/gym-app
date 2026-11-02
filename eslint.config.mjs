@@ -23,6 +23,8 @@ const eslintConfig = defineConfig([
     "playwright-report/**",
     // Third-party files copied from node_modules (scripts/copy-vendor.mjs).
     "public/vendor/**",
+    // The Android companion app is Kotlin, built with Gradle.
+    "android/**",
   ]),
 ]);
 

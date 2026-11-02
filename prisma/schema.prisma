@@ -35,6 +35,9 @@ model User {
   chatThreads      ChatThread[]
   aiUsage          AiUsage[]
   procurementPlans ProcurementPlan[]
+  dailyActivity    DailyActivity[]
+  linkedDevices    LinkedDevice[]
+  deviceLinkCodes  DeviceLinkCode[]
 
   @@map("user")
 }
@@ -498,6 +501,8 @@ model WorkoutSession {
   sets      WorkoutSet[]
   /// Planned exercises taken out of this workout, so a reload or resume doesn't bring them back.
   skippedExerciseIds String[] @default([])
+  /// Planned exercise id → the exercise done in its place this workout; it keeps the plan's target and position.
+  exerciseSwaps Json @default("{}")
 
   @@index([userId, localDate])
 }
@@ -585,4 +590,46 @@ model AiUsage {
   count     Int    @default(0)
 
   @@unique([userId, kind, localDate])
+}
+
+/// Steps and sleep for one day, sent by the user's linked Android phone from Health Connect.
+/// Only the day's totals are kept, never the raw records.
+model DailyActivity {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The phone's local date (YYYY-MM-DD); sleep belongs to the day you woke up.
+  localDate    String
+  steps        Int?
+  sleepMinutes Int?
+  sleepStart   DateTime?
+  sleepEnd     DateTime?
+  source       String    @default("health_connect")
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([userId, localDate])
+}
+
+/// An Android phone allowed to send health data, by a long-lived token (only its SHA-256 is stored).
+model LinkedDevice {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastSyncAt DateTime?
+
+  @@index([userId])
+}
+
+/// A short single-use code shown in Settings and typed into the phone to link it (SHA-256 stored).
+model DeviceLinkCode {
+  codeHash  String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

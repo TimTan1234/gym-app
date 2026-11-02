@@ -28,6 +28,10 @@ export async function startWorkout(planDayId?: string): Promise<ActionResult & {
 }
 
 const SetSchema = z.object({
+  /** Made on the phone, so a set re-sent after a lost reply (or from the offline queue) is saved once. */
+  id: z.string().regex(/^[A-Za-z0-9-]{8,64}$/),
+  /** When it was logged on the phone; a set sent later from the offline queue keeps its real time. */
+  completedAt: z.iso.datetime().optional(),
   sessionId: z.string().min(1),
   exerciseId: z.string().min(1),
   weightKg: z.number().min(0).max(1000),
@@ -35,6 +39,8 @@ const SetSchema = z.object({
   rpe: z.number().min(1).max(10).nullable(),
   isWarmup: z.boolean(),
 });
+
+export type SetInput = z.infer<typeof SetSchema>;
 
 export interface LoggedSet {
   id: string;
@@ -64,22 +70,29 @@ export async function logSet(
   const parsed = SetSchema.safeParse(input);
   const t = await getT();
   if (!parsed.success) return { ok: false, error: t("train.errors.invalidSet") };
-  const s = parsed.data;
+  const { id, completedAt, ...s } = parsed.data;
 
   const [session, exercise] = await Promise.all([
-    db.workoutSession.findFirst({ where: { id: s.sessionId, userId: user.id }, select: { id: true, skippedExerciseIds: true } }),
+    db.workoutSession.findFirst({ where: { id: s.sessionId, userId: user.id }, select: { id: true, startedAt: true, skippedExerciseIds: true } }),
     db.exercise.findFirst({ where: { id: s.exerciseId, OR: [{ userId: null }, { userId: user.id }] }, select: { id: true } }),
   ]);
   if (!session) return { ok: false, error: t("train.errors.workoutNotFound") };
   if (!exercise) return { ok: false, error: t("train.errors.exerciseNotFound") };
 
+  // Already saved (the reply was lost, or the queue sent it twice): return it as it is.
+  const saved = () => db.workoutSet.findFirst({ where: { id, sessionId: s.sessionId } });
+  const existing = await saved();
+  if (existing) return { ok: true, set: toLogged(existing), records: [] };
+  // A queued set keeps the time it was logged, within the workout and not in the future.
+  const at = completedAt ? new Date(Math.min(Date.now(), Math.max(session.startedAt.getTime(), Date.parse(completedAt)))) : new Date();
+
   const bests = await currentBests(user.id, s.exerciseId);
   const records = detectRecords(s, bests);
 
-  const set = await db.$transaction(async (tx) => {
+  const create = () => db.$transaction(async (tx) => {
     const count = await tx.workoutSet.count({ where: { sessionId: s.sessionId, exerciseId: s.exerciseId } });
     const created = await tx.workoutSet.create({
-      data: { ...s, setIndex: count + 1 },
+      data: { ...s, id, completedAt: at, setIndex: count + 1 },
     });
     // Logging an exercise that was taken out of this workout puts it back in.
     if (session.skippedExerciseIds.includes(s.exerciseId)) {
@@ -102,14 +115,63 @@ export async function logSet(
     }
     return created;
   });
+  let set;
+  try {
+    set = await create();
+  } catch (e) {
+    // Two copies of the same set arrived together: the other one won, which is the same set.
+    const other = await saved();
+    if (other) return { ok: true, set: toLogged(other), records: [] };
+    throw e;
+  }
 
   // First-ever sets set a baseline rather than a "PR" worth celebrating.
   const celebrate = Object.keys(bests).length > 0 ? records : [];
   return {
     ok: true,
-    set: { id: set.id, exerciseId: set.exerciseId, setIndex: set.setIndex, weightKg: set.weightKg, reps: set.reps, rpe: set.rpe, isWarmup: set.isWarmup },
+    set: toLogged(set),
     records: celebrate,
   };
+}
+
+function toLogged(set: LoggedSet): LoggedSet {
+  return { id: set.id, exerciseId: set.exerciseId, setIndex: set.setIndex, weightKg: set.weightKg, reps: set.reps, rpe: set.rpe, isWarmup: set.isWarmup };
+}
+
+type Swaps = Record<string, string>;
+const swapsOf = (v: unknown): Swaps => (v && typeof v === "object" && !Array.isArray(v) ? (v as Swaps) : {});
+/** The planned exercise whose slot `exerciseId` fills: the one it was swapped in for, or itself. */
+const plannedSlot = (swaps: Swaps, exerciseId: string) => Object.keys(swaps).find((k) => swaps[k] === exerciseId) ?? exerciseId;
+
+/**
+ * Does another exercise in place of one in a workout in progress, before any of its sets are logged.
+ * A planned exercise's slot remembers the swap, so the new one keeps the plan's target and position
+ * when the workout is reopened. Swapping back to the planned exercise clears it.
+ */
+export async function swapWorkoutExercise(sessionId: string, fromId: string, toId: string): Promise<ActionResult> {
+  const { user } = await requireProfile();
+  const t = await getT();
+  const [session, to, logged] = await Promise.all([
+    db.workoutSession.findFirst({
+      where: { id: sessionId, userId: user.id, endedAt: null },
+      select: { exerciseSwaps: true, planDay: { select: { exercises: { select: { exerciseId: true } } } } },
+    }),
+    db.exercise.findFirst({ where: { id: toId, OR: [{ userId: null }, { userId: user.id }] }, select: { id: true } }),
+    db.workoutSet.count({ where: { sessionId, exerciseId: fromId } }),
+  ]);
+  if (!session) return { ok: false, error: t("train.errors.workoutNotFound") };
+  if (!to) return { ok: false, error: t("train.errors.exerciseNotFound") };
+  if (logged > 0) return { ok: false, error: t("train.errors.swapAfterSets") };
+  const swaps = swapsOf(session.exerciseSwaps);
+  const slot = plannedSlot(swaps, fromId);
+  // Not a planned exercise: it lives only on the phone until a set is logged, so there's nothing to keep.
+  if (!session.planDay?.exercises.some((e) => e.exerciseId === slot)) return { ok: true };
+  const { [slot]: _old, ...rest } = swaps;
+  await db.workoutSession.update({
+    where: { id: sessionId },
+    data: { exerciseSwaps: toId === slot ? rest : { ...rest, [slot]: toId } },
+  });
+  return { ok: true };
 }
 
 export async function deleteSet(setId: string): Promise<ActionResult> {
@@ -135,14 +197,18 @@ export async function removeWorkoutExercise(sessionId: string, exerciseId: strin
   const { user } = await requireProfile();
   const session = await db.workoutSession.findFirst({
     where: { id: sessionId, userId: user.id, endedAt: null },
-    select: { skippedExerciseIds: true },
+    select: { skippedExerciseIds: true, exerciseSwaps: true },
   });
   if (!session) return { ok: false, error: (await getT())("train.errors.workoutNotFound") };
+  // A swapped-in exercise gives up its planned slot: skip the planned one and forget the swap.
+  const swaps = swapsOf(session.exerciseSwaps);
+  const slot = plannedSlot(swaps, exerciseId);
+  const { [slot]: _gone, ...rest } = swaps;
   await db.$transaction([
     db.workoutSet.deleteMany({ where: { sessionId, exerciseId } }),
     db.workoutSession.update({
       where: { id: sessionId },
-      data: { skippedExerciseIds: [...new Set([...session.skippedExerciseIds, exerciseId])] },
+      data: { skippedExerciseIds: [...new Set([...session.skippedExerciseIds, slot])], exerciseSwaps: rest },
     }),
   ]);
   return { ok: true };

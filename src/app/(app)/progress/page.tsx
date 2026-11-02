@@ -41,7 +41,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
   const start = addDays(today, -(rangeDays - 1));
   const units = profile.unitSystem;
 
-  const [metrics, mealDays, sessions, prs, streakDays, checkin, t] = await Promise.all([
+  const [metrics, mealDays, sessions, prs, streakDays, checkin, activity, t] = await Promise.all([
     db.bodyMetric.findMany({ where: { userId: user.id, localDate: { gte: start } }, orderBy: { localDate: "asc" } }),
     db.meal.groupBy({
       by: ["localDate"],
@@ -68,6 +68,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
       select: { localDate: true },
     }),
     getCheckin(user.id, profile),
+    db.dailyActivity.findMany({ where: { userId: user.id, localDate: { gte: start, lte: today } }, select: { localDate: true, steps: true, sleepMinutes: true } }),
     getT(),
   ]);
 
@@ -97,6 +98,13 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
   );
   const logStreak = currentStreak(new Map(streakDays.map((d) => [d.localDate, true])), today);
   const barStart = rangeDays > 30 ? addDays(today, -29) : start;
+
+  // Steps and sleep from the linked phone
+  const stepsByDay = new Map(activity.flatMap((a) => (a.steps ? [[a.localDate, a.steps] as const] : [])));
+  const sleepByDay = new Map(activity.flatMap((a) => (a.sleepMinutes ? [[a.localDate, Math.round(a.sleepMinutes / 6) / 10] as const] : [])));
+  const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  const avgSteps = avg([...stepsByDay.values()]);
+  const avgSleep = avg([...sleepByDay.values()]);
 
   // Training
   const weekStart = addDays(today, -6);
@@ -218,6 +226,27 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
           <EmptyState title={t("progress.noWorkouts")} />
         )}
       </section>
+
+      {activity.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="display text-[22px]">{t("progress.activity.title")}</h2>
+          <div className="grid grid-cols-2 gap-x-4 border-y border-line [&>*:nth-child(2n)]:border-l [&>*:nth-child(2n)]:border-line [&>*:nth-child(2n)]:pl-4">
+            <Stat label={t("progress.activity.avgSteps")} value={avgSteps === null ? "–" : Math.round(avgSteps).toLocaleString("en-US")} sub={t("progress.activity.perDay")} />
+            <Stat
+              label={t("progress.activity.avgSleep")}
+              value={avgSleep === null ? "–" : `${avgSleep.toFixed(1)} ${t("progress.activity.hours")}`}
+              sub={t("progress.activity.perNight")}
+            />
+          </div>
+          <div className="space-y-8 pt-2">
+            {stepsByDay.size > 0 && <DailyBars title={t("progress.activity.steps")} data={fillDays(stepsByDay, barStart, today)} unit={t("progress.activity.stepsUnit")} />}
+            {sleepByDay.size > 0 && (
+              // 7 hours: the least most adults need.
+              <DailyBars title={t("progress.activity.sleep")} data={fillDays(sleepByDay, barStart, today)} unit={t("progress.activity.hours")} target={7} decimals={1} />
+            )}
+          </div>
+        </section>
+      )}
 
       {prs.length > 0 && (
         <section className="space-y-3">

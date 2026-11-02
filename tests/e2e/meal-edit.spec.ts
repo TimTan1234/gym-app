@@ -10,6 +10,7 @@ test("sugar shows in the analysis and the day; a logged meal can be edited", asy
 
   // Each analysed item has editable total and added sugar (the mock sambal: 4 g, 3 g added)
   const sambal = page.getByTestId("draft-item").filter({ has: page.getByLabel("Food name").and(page.locator('[value="Sambal"]')) });
+  await sambal.getByRole("button", { name: /^Edit nutrients/ }).click();
   await expect(sambal.getByLabel("Sugar", { exact: true })).toHaveValue("4");
   await expect(sambal.getByLabel("Added sugar")).toHaveValue("3");
 

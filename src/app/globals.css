@@ -172,6 +172,12 @@ body {
   outline-offset: 2px;
 }
 
+/* Recharts focuses an internal layer (tabindex="-1") when a bar or point is tapped, and the browser
+   outlines it as a box around the bars. Keyboard users never reach it; the chart itself keeps its ring. */
+.recharts-wrapper [tabindex="-1"]:focus {
+  outline: none;
+}
+
 /* Native selects without the browser's arrow and inner indent, so their text
    lines up with inputs; the chevron is drawn in the steel ink. */
 .select {

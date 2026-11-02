@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="canvas">#181715</color>
+    <color name="ink">#FAF9F5</color>
+    <color name="steel">#A8A399</color>
+    <color name="coral">#D98B6F</color>
+    <style name="Theme.GymPalHealth" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/canvas</item>
+        <item name="android:textColorPrimary">@color/ink</item>
+        <item name="android:textColorSecondary">@color/steel</item>
+        <item name="android:colorAccent">@color/coral</item>
+        <item name="android:statusBarColor">@color/canvas</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

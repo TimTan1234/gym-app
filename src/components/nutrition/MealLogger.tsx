@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { History, Loader2, Plus, ScanBarcode, Sparkles, Star, Trash2, X } from "lucide-react";
+import { ChevronDown, History, Loader2, Plus, ScanBarcode, Sparkles, Star, Trash2, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { deleteSavedFood, saveMeal, markSavedFoodsUsed, updateMeal } from "@/server/nutrition";
 import { scaleItem, sumNutrients } from "@/lib/nutrition/totals";
@@ -141,6 +141,10 @@ export function MealLogger({
   const mealType = chosenType ?? guessedType;
   const [text, setText] = useState(initialText);
   const [images, setImages] = useState<string[]>([]);
+  // Photos already read by the AI: shown beside the meal they became, to check portions against.
+  const [readPhotos, setReadPhotos] = useState<string[]>([]);
+  const reviewRef = useRef<HTMLElement>(null);
+  const [reads, setReads] = useState(0);
   const [analyzing, setAnalyzing] = useState(false);
   const [items, setItems] = useState<DraftItem[]>(() => editing?.items.map((i) => ({ ...i, key: newKey() })) ?? []);
   const [title, setTitle] = useState(editing?.description ?? "");
@@ -188,12 +192,24 @@ export function MealLogger({
       setTitle((cur) => cur || a.title);
       setNotes(a.notes);
       setSource(images.length ? "AI_PHOTO" : "AI_TEXT");
+      // What was read moves up into the meal; the box below starts empty for anything else to add.
+      setReadPhotos((cur) => [...cur, ...images].slice(0, MAX_MEAL_PHOTOS));
+      setImages([]);
+      setText("");
+      setReads((n) => n + 1);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("nutrition.analysisFailed"));
     } finally {
       setAnalyzing(false);
     }
   }
+
+  // Bring the AI's reading into view: it lands above the box the analyse button was in.
+  useEffect(() => {
+    if (!reads) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    reviewRef.current?.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+  }, [reads]);
 
   function update(key: string, patch: Partial<DraftItem>) {
     setItems((cur) =>
@@ -287,6 +303,7 @@ export function MealLogger({
       setItems([]);
       setText("");
       setImages([]);
+      setReadPhotos([]);
       setTitle("");
       setNotes(null);
       setSource("MANUAL");
@@ -297,13 +314,15 @@ export function MealLogger({
   }
 
   const totals = sumNutrients(items);
+  // Once there's food in the meal, the meal leads and the ways to add more follow, as when editing.
+  const drafting = Boolean(editing) || items.length > 0;
 
   /** Ways to put food into the draft: AI, barcode, recent meals, saved foods. */
   const adders = (
     <>
       <Card className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold">
-          <Sparkles className="size-4 text-iron" /> {editing ? t("nutrition.describeToAdd") : t("nutrition.describeTitle")}
+          <Sparkles className="size-4 text-iron" /> {drafting ? t("nutrition.describeToAdd") : t("nutrition.describeTitle")}
         </div>
         {/* Photos first: the quickest way to log what's on the table. */}
         <MealPhotos images={images} onPick={onPickImages} onRemove={(i) => setImages((cur) => cur.filter((_, j) => j !== i))} />
@@ -316,8 +335,8 @@ export function MealLogger({
           aria-label={t("nutrition.mealDescription")}
           className="min-h-16"
         />
-        {/* Secondary until there's a photo or words to analyse, so the camera leads when the card is empty. */}
-        <Button type="button" variant={images.length || text.trim() ? "primary" : "secondary"} className="w-full" onClick={analyze} disabled={analyzing}>
+        {/* Coral once there's something to read, and only until there's a meal: then Save meal has it. */}
+        <Button type="button" variant={!items.length && (images.length || text.trim()) ? "primary" : "secondary"} className="w-full" onClick={analyze} disabled={analyzing}>
           {analyzing ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
           {analyzing ? t("nutrition.analysing") : t("nutrition.analyse")}
         </Button>
@@ -410,22 +429,30 @@ export function MealLogger({
   const review = (
     <>
       {items.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
+        <section ref={reviewRef} className="scroll-mt-4 space-y-3">
+          <div>
             <h2 className="display text-[22px]">{editing ? t("nutrition.inThisMeal") : t("nutrition.review")}</h2>
-            {source !== "MANUAL" && <span className="text-[13px] text-steel">{t("nutrition.aiEstimateHint")}</span>}
+            {source !== "MANUAL" && <p className="text-[13px] text-steel">{t("nutrition.aiEstimateHint")}</p>}
           </div>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("nutrition.mealName")} aria-label={t("nutrition.mealName")} maxLength={120} />
-          {items.map((item) => (
-            <DraftRow
-              key={item.key}
-              item={item}
-              showGi={carbBudget !== null}
-              onChange={update}
-              onGrams={changeGrams}
-              onRemove={(k) => setItems((cur) => cur.filter((i) => i.key !== k))}
-            />
-          ))}
+          <div className="flex items-center gap-2">
+            {readPhotos.map((src, i) => (
+              // eslint-disable-next-line @next/next/no-img-element -- local data URL preview
+              <img key={i} src={src} alt={t("nutrition.photoN", { n: i + 1 })} className="size-11 shrink-0 rounded-field object-cover" />
+            ))}
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("nutrition.mealName")} aria-label={t("nutrition.mealName")} maxLength={120} className="font-medium" />
+          </div>
+          <div>
+            {items.map((item) => (
+              <DraftRow
+                key={item.key}
+                item={item}
+                showGi={carbBudget !== null}
+                onChange={update}
+                onGrams={changeGrams}
+                onRemove={(k) => setItems((cur) => cur.filter((i) => i.key !== k))}
+              />
+            ))}
+          </div>
           {notes && <p className="text-xs text-steel">{notes}</p>}
         </section>
       )}
@@ -460,8 +487,8 @@ export function MealLogger({
         </label>
       )}
 
-      {editing ? (
-        // Editing: the meal itself comes first, ways to add more food after it.
+      {drafting ? (
+        // The meal itself comes first, ways to add more food after it.
         <>
           {review}
           <section className="space-y-5 border-t border-line pt-6" aria-labelledby="add-food">
@@ -533,30 +560,48 @@ function DraftRow({
   onRemove: (key: string) => void;
 }) {
   const t = useT();
+  // Grams are what you usually correct; the other numbers open on request. A blank item starts open.
+  const [open, setOpen] = useState(() => !item.name);
+  const name = item.name || t("nutrition.item");
   return (
-    // Two columns: the name, numbers and notes share one edge; delete has its own column.
-    <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-2 border-t border-line py-4" data-testid="draft-item">
-      <Input
-        value={item.name}
-        onChange={(e) => onChange(item.key, { name: e.target.value })}
-        placeholder={t("nutrition.foodName")}
-        aria-label={t("nutrition.foodName")}
-        className="font-medium"
-      />
-      <IconButton tone="danger" edge="end" aria-label={t("nutrition.removeNamed", { name: item.name || t("nutrition.item") })} onClick={() => onRemove(item.key)} className="self-center">
-        <Trash2 className="size-4" />
-      </IconButton>
-      <div className="col-start-1 grid grid-cols-4 items-end gap-2 sm:grid-cols-7">
-        <NumField label={t("nutrition.gramsField")} value={item.grams} onChange={(v) => onGrams(item.key, v)} className="[&_input]:border-iron/60" />
-        <NumField label={t("common.kcal")} value={item.kcal} onChange={(v) => onChange(item.key, { kcal: v })} />
-        <NumField label={t("common.protein")} value={item.proteinG} onChange={(v) => onChange(item.key, { proteinG: v })} />
-        <NumField label={t("common.carbs")} value={item.carbsG} onChange={(v) => onChange(item.key, { carbsG: v })} />
-        <NumField label={t("common.fat")} value={item.fatG} onChange={(v) => onChange(item.key, { fatG: v })} />
-        <NumField label={t("nutrition.sugar")} value={item.sugarG} onChange={(v) => onChange(item.key, { sugarG: v })} />
-        <NumField label={t("nutrition.addedSugar")} value={item.addedSugarG} onChange={(v) => onChange(item.key, { addedSugarG: v })} />
+    // The "Edit nutrients" button's own height pads the bottom of the row.
+    <div className="space-y-2 border-t border-line pb-1 pt-3" data-testid="draft-item">
+      <div className="flex items-center gap-1">
+        <Input
+          value={item.name}
+          onChange={(e) => onChange(item.key, { name: e.target.value })}
+          placeholder={t("nutrition.foodName")}
+          aria-label={t("nutrition.foodName")}
+          className="-ml-2 h-10 border-transparent bg-transparent px-2 font-medium hover:border-line focus:border-iron focus:bg-chalk"
+        />
+        <IconButton tone="danger" edge="end" aria-label={t("nutrition.removeNamed", { name })} onClick={() => onRemove(item.key)}>
+          <Trash2 className="size-4" />
+        </IconButton>
+      </div>
+      <div className="flex items-center gap-3">
+        <label className="relative">
+          <span className="sr-only">{t("nutrition.gramsField")}</span>
+          <Input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="any"
+            value={Number.isFinite(item.grams) ? item.grams : 0}
+            onChange={(e) => onGrams(item.key, Math.max(0, Number(e.target.value) || 0))}
+            className="num h-10 w-24 border-iron/60 pr-7"
+          />
+          <span aria-hidden className="pointer-events-none absolute inset-y-0 right-3 grid place-items-center text-sm text-steel">
+            g
+          </span>
+        </label>
+        <MacroLine p={item.proteinG} c={item.carbsG} f={item.fatG} className="min-w-0 flex-1" />
+        <p className="shrink-0 text-right">
+          <span className="score text-[22px]">{Math.round(item.kcal)}</span>
+          <span className="ml-1 text-[13px] text-steel">{t("common.kcal")}</span>
+        </p>
       </div>
       {(item.assumptions || item.confidence !== null || (showGi && item.gi !== null)) && (
-        <p className="col-start-1 text-xs text-steel">
+        <p className="text-xs text-steel">
           {showGi && <GiTag gi={item.gi} />}{" "}
           {item.confidence !== null && (
             <span className={cn("mr-1.5", item.confidence < 0.6 ? "font-semibold text-iron" : "")}>
@@ -566,6 +611,25 @@ function DraftRow({
           {item.assumptions}
         </p>
       )}
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="-ml-1 flex min-h-9 items-center gap-1 rounded-field px-1 text-[13px] font-medium text-steel hover:text-iron"
+      >
+        {t("nutrition.editNutrients")}
+        <span className="sr-only"> {name}</span>
+        <ChevronDown className={cn("size-4 transition-transform motion-reduce:transition-none", open && "rotate-180")} aria-hidden />
+      </button>
+      {/* Kept mounted when closed, so the numbers stay part of the form. */}
+      <div className={cn("grid grid-cols-3 items-end gap-2 sm:grid-cols-6", !open && "hidden")}>
+        <NumField label={t("common.kcal")} value={item.kcal} onChange={(v) => onChange(item.key, { kcal: v })} />
+        <NumField label={t("common.protein")} value={item.proteinG} onChange={(v) => onChange(item.key, { proteinG: v })} />
+        <NumField label={t("common.carbs")} value={item.carbsG} onChange={(v) => onChange(item.key, { carbsG: v })} />
+        <NumField label={t("common.fat")} value={item.fatG} onChange={(v) => onChange(item.key, { fatG: v })} />
+        <NumField label={t("nutrition.sugar")} value={item.sugarG} onChange={(v) => onChange(item.key, { sugarG: v })} />
+        <NumField label={t("nutrition.addedSugar")} value={item.addedSugarG} onChange={(v) => onChange(item.key, { addedSugarG: v })} />
+      </div>
     </div>
   );
 }

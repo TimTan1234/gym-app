@@ -9,7 +9,7 @@ import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Workout" };
 
-const exerciseSelect = { id: true, slug: true, name: true, primaryMuscle: true, equipment: true, isLowerBody: true } as const;
+const exerciseSelect = { id: true, slug: true, name: true, primaryMuscle: true, equipment: true, isLowerBody: true, category: true } as const;
 
 async function Workout({ params }: { params: PageProps<"/train/workout/[id]">["params"] }) {
   const { id } = await params;
@@ -36,12 +36,15 @@ async function Workout({ params }: { params: PageProps<"/train/workout/[id]">["p
     select: exerciseSelect,
   });
 
-  // Planned exercises first, then any extra exercises in the order first logged.
+  // Planned exercises first (or what was swapped in for them, in their place), then any extra
+  // exercises in the order first logged.
+  const swaps = (session.exerciseSwaps ?? {}) as Record<string, string>;
   const ordered = new Map<string, Omit<Block, "last">>();
   for (const pe of session.planDay?.exercises ?? []) {
     if (session.skippedExerciseIds.includes(pe.exerciseId)) continue;
-    ordered.set(pe.exerciseId, {
-      exercise: pe.exercise,
+    const exercise = library.find((e) => e.id === swaps[pe.exerciseId]) ?? pe.exercise;
+    ordered.set(exercise.id, {
+      exercise,
       target: { sets: pe.sets, repMin: pe.repMin, repMax: pe.repMax, restSec: pe.restSec, targetRpe: pe.targetRpe, notes: pe.notes },
     });
   }
@@ -70,6 +73,7 @@ async function Workout({ params }: { params: PageProps<"/train/workout/[id]">["p
         isWarmup: s.isWarmup,
       }))}
       library={library}
+      equipment={profile.equipment}
       units={profile.unitSystem}
     />
   );

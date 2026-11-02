@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GymPal Health</string>
+    <string name="intro">Sends your daily steps and sleep from Health Connect to GymPal, so it can adjust your calorie target and suggest a lighter session after a short night.</string>
+    <string name="server_label">Server address</string>
+    <string name="code_label">Link code</string>
+    <string name="link_help">In GymPal, open Settings, then Phone health data, and tap Link an Android phone. Enter the code and address it shows.</string>
+    <string name="link">Link this phone</string>
+    <string name="linking">Linking…</string>
+    <string name="need_https">The address must start with https://</string>
+    <string name="bad_code">That code didn\'t work. Codes work once, for 10 minutes: make a new one in GymPal.</string>
+    <string name="no_connection">Couldn\'t reach %1$s. Check the address and your connection.</string>
+    <string name="linked_as">Linked to %1$s as %2$s.</string>
+    <string name="grant_help">Allow GymPal Health to read steps and sleep. It never writes to Health Connect.</string>
+    <string name="grant">Allow access to steps and sleep</string>
+    <string name="sync_now">Sync now</string>
+    <string name="syncing">Syncing…</string>
+    <string name="last_sync">Last synced %1$s.</string>
+    <string name="never_synced">Not synced yet.</string>
+    <plurals name="synced_days">
+        <item quantity="one">Sent %1$d day of steps and sleep.</item>
+        <item quantity="other">Sent %1$d days of steps and sleep.</item>
+    </plurals>
+    <string name="background_on">Syncs about every 3 hours in the background.</string>
+    <string name="background_off">Your Health Connect version can\'t share data in the background, so open this app now and then to send new data.</string>
+    <string name="unlink">Unlink</string>
+    <string name="unlinked_remote">This phone was unlinked in GymPal. Link it again with a new code.</string>
+    <string name="hc_missing">Health Connect isn\'t on this phone. Install it from the Play Store, then come back.</string>
+    <string name="hc_update">Health Connect needs an update before it can share data.</string>
+    <string name="open_play">Open the Play Store</string>
+    <string name="privacy_title">How GymPal Health uses your data</string>
+    <string name="privacy_body">GymPal Health reads two things from Health Connect: your step count and your sleep sessions. It adds them up into one total per day and sends only those daily totals to the GymPal server you linked, over HTTPS. It never reads other health data, never writes to Health Connect, and never shares your data with anyone else. GymPal uses the totals to show your steps and sleep, to raise your calorie target on busier days, to suggest a lighter workout after a short night, and to let the AI coach answer questions about them. Unlinking the phone in GymPal stops it sending anything more.</string>
+</resources>

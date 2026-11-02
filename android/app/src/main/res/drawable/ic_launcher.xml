@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A plain mark: a coral disc with a white footstep-like pair of dots. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path android:fillColor="#B05E44" android:pathData="M24,0a24,24 0,1 1,0 48a24,24 0,1 1,0 -48z" />
+    <path android:fillColor="#FAF9F5" android:pathData="M18,14a4,6 0,1 1,0 12a4,6 0,1 1,0 -12z" />
+    <path android:fillColor="#FAF9F5" android:pathData="M30,22a4,6 0,1 1,0 12a4,6 0,1 1,0 -12z" />
+</vector>

@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { CalendarCheck, ChevronRight, Plus, Scale, Settings, Sparkles, Trophy, Utensils } from "lucide-react";
+import { CalendarCheck, ChevronRight, Footprints, Plus, Scale, Settings, Sparkles, Trophy, Utensils } from "lucide-react";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
-import { getActiveWorkout, getCheckin, getDayNutrition, getLatestWeight, getNextPlanDay } from "@/lib/queries";
+import { getActiveWorkout, getActivity, getCheckin, getDayNutrition, getLatestWeight, getNextPlanDay, stepBonusWindow } from "@/lib/queries";
+import { hoursAndMinutes, sleepSignal, stepBonusFor } from "@/lib/activity";
 import { addDays, formatLocalDate, todayLocal } from "@/lib/dates";
 import { muscleLoad, trainingLoad } from "@/lib/progress";
 import { formatWeight } from "@/lib/units";
@@ -33,7 +34,7 @@ async function Today() {
   const today = todayLocal(profile.timezone, now);
   const hour = Number(new Intl.DateTimeFormat("en-US", { timeZone: profile.timezone, hour: "numeric", hourCycle: "h23" }).format(now));
 
-  const [{ totals }, latestWeight, next, active, recentPRs, checkin, weekSessions, t] = await Promise.all([
+  const [{ totals }, latestWeight, next, active, recentPRs, checkin, weekSessions, activity, t] = await Promise.all([
     getDayNutrition(user.id, today),
     getLatestWeight(user.id),
     getNextPlanDay(user.id),
@@ -54,9 +55,16 @@ async function Today() {
         sets: { select: { isWarmup: true, exercise: { select: { primaryMuscle: true, secondaryMuscles: true } } } },
       },
     }),
+    getActivity(user.id, ...stepBonusWindow(today)),
     getT(),
   ]);
   const intl = INTL_LOCALE[t.locale];
+
+  // From the linked phone: today's steps, last night's sleep (it belongs to the day you woke up), and
+  // extra calories when today is busier than usual. Fixed (Custom) targets stay as they are.
+  const todayActivity = activity.find((a) => a.localDate === today);
+  const sleep = sleepSignal(todayActivity?.sleepMinutes);
+  const bonus = profile.targetsManual ? null : stepBonusFor(activity, today, latestWeight?.weightKg);
 
   // Each set that beats the last best is its own record row; show only the latest per exercise.
   const seenExercises = new Set<string>();
@@ -85,7 +93,7 @@ async function Today() {
         </Link>
       </header>
 
-      <BodyMap sex={profile.sex} today={today} load={bodyLoad} trainingLoad={load} />
+      <BodyMap sex={profile.sex} today={today} load={bodyLoad} trainingLoad={load} sleep={sleep} />
 
       {checkin.status === "adjust" && checkin.suggested && (
         <Link href="/progress" className="flex items-center gap-3 rounded-card border border-line p-4 active:bg-wash">
@@ -104,7 +112,7 @@ async function Today() {
         <p aria-hidden className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <Utensils className="size-4 text-steel" /> {t("nav.food")}
         </p>
-        <MacroSummary totals={totals} targets={profile} compact />
+        <MacroSummary totals={totals} targets={profile} compact bonus={bonus} />
       </Link>
 
       <div className="grid grid-cols-2 gap-2">
@@ -154,6 +162,35 @@ async function Today() {
           </div>
         )}
       </section>
+
+      {activity.length > 0 && (
+        <Card className="space-y-3" data-testid="steps-sleep">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <Footprints className="size-4 text-steel" aria-hidden /> {t("today.activity.title")}
+          </h2>
+          <dl className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col-reverse">
+              <dt className="text-[13px] text-steel">{t("today.activity.stepsToday")}</dt>
+              <dd className="score text-[32px]">{todayActivity?.steps != null ? todayActivity.steps.toLocaleString("en-US") : "–"}</dd>
+            </div>
+            <div className="flex flex-col-reverse">
+              <dt className="text-[13px] text-steel">{t("today.activity.lastNight")}</dt>
+              <dd>
+                {sleep ? (
+                  <>
+                    <span className="score text-[32px]">{hoursAndMinutes(sleep.minutes).h}</span>
+                    <span className="text-sm text-steel"> {t("today.activity.h")} </span>
+                    <span className="score text-[32px]">{hoursAndMinutes(sleep.minutes).m}</span>
+                    <span className="text-sm text-steel"> {t("today.activity.min")}</span>
+                  </>
+                ) : (
+                  <span className="score text-[32px]">–</span>
+                )}
+              </dd>
+            </div>
+          </dl>
+        </Card>
+      )}
 
       <Card className="space-y-4">
         <h2 className="flex items-center gap-2 text-sm font-semibold">

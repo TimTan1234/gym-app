@@ -1,5 +1,6 @@
-import { Gauge } from "lucide-react";
+import { Gauge, Moon } from "lucide-react";
 import type { MuscleLoad, TrainingLoad } from "@/lib/progress";
+import { hoursAndMinutes, type SleepSignal } from "@/lib/activity";
 import { formatLocalDate } from "@/lib/dates";
 import { labelOf } from "@/i18n/labels";
 import { INTL_LOCALE } from "@/i18n/config";
@@ -75,11 +76,14 @@ export async function BodyMap({
   sex,
   today,
   trainingLoad,
+  sleep = null,
 }: {
   load: Map<string, MuscleLoad>;
   sex: "MALE" | "FEMALE";
   today: string;
   trainingLoad: TrainingLoad | null;
+  /** Last night, from the linked phone; a short night asks for a lighter session. */
+  sleep?: SleepSignal | null;
 }) {
   const t = await getT();
   const intl = INTL_LOCALE[t.locale];
@@ -109,7 +113,7 @@ export async function BodyMap({
   // This week against the usual week, in words (img3's fitness/fatigue idea, from logged sets only).
   const lead = { heavier: "today.loadHeavierLead", usual: "today.loadUsualLead", lighter: "today.loadLighterLead" } as const;
   const body = { heavier: "today.loadHeavier", usual: "today.loadUsual", lighter: "today.loadLighter" } as const;
-  const note = trainingLoad && (
+  const loadNote = trainingLoad && (
     <p className="flex gap-2.5 rounded-field border border-line px-3 py-2.5 text-sm">
       <Gauge className="mt-0.5 size-4 shrink-0 text-steel" aria-hidden />
       <span>
@@ -124,6 +128,23 @@ export async function BodyMap({
       </span>
     </p>
   );
+  const { h, m } = hoursAndMinutes(sleep?.minutes ?? 0);
+  const sleepNote = sleep?.short && (
+    <p className="flex gap-2.5 rounded-field border border-line px-3 py-2.5 text-sm" data-testid="short-sleep">
+      <Moon className="mt-0.5 size-4 shrink-0 text-steel" aria-hidden />
+      <span>
+        <span className="font-semibold">{t("today.shortSleepLead")}</span>{" "}
+        <span className="text-steel">{t("today.shortSleep", { h, m })}</span>
+      </span>
+    </p>
+  );
+  const note =
+    loadNote || sleepNote ? (
+      <div className="space-y-2">
+        {sleepNote}
+        {loadNote}
+      </div>
+    ) : null;
   const label = t("today.bodyMapLabel", {
     list: trained.length ? trained.map((i) => `${i.label} ${sets(i.sets)}`).join(listSep) : t("today.bodyMapNone"),
   });

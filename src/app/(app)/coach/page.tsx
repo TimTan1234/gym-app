@@ -40,13 +40,13 @@ async function Coach({ searchParams }: { searchParams: PageProps<"/coach">["sear
   return (
     <>
       <header className="mb-3 flex items-center justify-between gap-2">
-        <h1 className="display text-[32px]">{t("coach.title")}</h1>
+        <h1 className="display text-[34px]">{t("coach.title")}</h1>
         <Link href="/coach" className={buttonClass("secondary", "sm")}>
           <Plus className="size-4" /> {t("coach.newChat")}
         </Link>
       </header>
       {threads.length > 0 && (
-        <details className="mb-3 rounded-field border border-line bg-paper px-3 py-2 text-sm">
+        <details className="mb-3 rounded-card bg-paper px-4 py-2.5 text-sm">
           <summary className="flex cursor-pointer items-center gap-2 font-medium text-steel">
             <History className="size-4" /> {t("coach.pastConversations")}
           </summary>

@@ -102,7 +102,7 @@ test("live AI: text meal, photo meal, plan, coach tools + proposal", async ({ pa
   await page.getByLabel("Message the coach").fill("What is my daily protein target, and how much protein have I eaten today so far?");
   await page.getByRole("button", { name: "Send" }).click();
   const chat = page.getByTestId("chat-log");
-  const answer = page.locator("div.rounded-bl-md").last();
+  const answer = page.getByTestId("assistant-message").last();
   await expect(chat).toHaveAttribute("aria-busy", "true");
   await expect(chat).toHaveAttribute("aria-busy", "false", { timeout: AI_TIMEOUT });
   await expect(page).toHaveURL(/thread=/);
@@ -116,7 +116,7 @@ test("live AI: text meal, photo meal, plan, coach tools + proposal", async ({ pa
   const proposal = page.getByTestId("proposal").last();
   await expect(chat).toHaveAttribute("aria-busy", "false", { timeout: AI_TIMEOUT });
   await expect(proposal).toBeVisible();
-  console.log("COACH 2", await page.locator("div.rounded-bl-md").last().innerText());
+  console.log("COACH 2", await page.getByTestId("assistant-message").last().innerText());
   await expect(proposal.locator("dd").first()).toHaveText((kcalTarget - 200).toLocaleString("en-US"));
   await expect(proposal.getByRole("button", { name: "Apply" })).toBeEnabled({ timeout: AI_TIMEOUT });
   await proposal.getByRole("button", { name: "Apply" }).click();

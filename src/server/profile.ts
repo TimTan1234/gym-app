@@ -132,18 +132,26 @@ async function recomputeTargets(userId: string) {
   await db.profile.update({ where: { userId }, data: targets });
 }
 
+// Leaving bodyFatPct or waistCm out keeps the day's existing value (a quick weigh-in mustn't wipe them).
 const MetricSchema = z.object({
   localDate: z.string().refine(isLocalDate, "invalidDate"),
   weightKg: z.number().min(30).max(350),
-  bodyFatPct: z.number().min(2).max(70).nullable(),
-  waistCm: z.number().min(40).max(250).nullable(),
+  bodyFatPct: z.number().min(2).max(70).nullable().optional(),
+  /** Only with bodyFatPct; a number without it is a measurement. */
+  bodyFatSource: z.enum(["MEASURED", "PHOTO_ESTIMATE"]).optional(),
+  waistCm: z.number().min(40).max(250).nullable().optional(),
 });
 
 export async function logBodyMetric(input: z.infer<typeof MetricSchema>): Promise<ActionResult> {
   const user = await requireUser();
   const parsed = MetricSchema.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const { localDate, ...values } = parsed.data;
+  const { localDate, bodyFatSource, ...rest } = parsed.data;
+  const values = {
+    ...rest,
+    // The source always travels with the number: cleared with it, measured unless marked otherwise.
+    ...(rest.bodyFatPct === undefined ? {} : { bodyFatSource: rest.bodyFatPct === null ? null : (bodyFatSource ?? "MEASURED") }),
+  };
   await db.bodyMetric.upsert({
     where: { userId_localDate: { userId: user.id, localDate } },
     create: { userId: user.id, localDate, ...values },

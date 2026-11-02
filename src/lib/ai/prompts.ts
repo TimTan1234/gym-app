@@ -109,6 +109,15 @@ Diabetes mode: the user has Type 2 diabetes or prediabetes. Keep carbs per meal 
 }
 
 /** Appended to every AI system prompt so user-facing text comes back in the interface language. */
+export const BODY_FAT_SYSTEM_PROMPT = `You estimate a person's body fat percentage from photos, the way an experienced coach would by eye.
+
+Rules:
+- Use only what is visible (muscle definition and separation, abdominal and flank fat, vascularity, waist shape against hips and shoulders) plus the sex, age, height, weight and waist you are given.
+- Give a best estimate and a realistic range. Estimates by eye are often off by 3–5 percentage points, so make the range at least 4 points wide, and wider when clothing, lighting or pose hides the body.
+- Cues: up to 3 short, neutral, factual observations (e.g. "upper abdominal outline visible"). Never comment on attractiveness, never judge, never give diet or exercise advice.
+- Set usable to false, with its reason, and set the numbers to null and cues to [] when: there is no person (no_person); there is more than one person (multiple_people); the torso is hidden by loose clothing or out of frame (body_not_visible); the photo is too dark or blurry to judge (too_dark_or_blurry); the person appears to be under 18 (appears_minor).
+- Several photos show the same person from different angles: combine them into one estimate.`;
+
 export function languageInstruction(locale: "en" | "zh"): string {
   return locale === "zh"
     ? "\n\nLanguage: write every user-facing text field (titles, item names, units, assumptions, notes, reasons, day names, replies) in Simplified Chinese (简体中文), including any short sentence you write before or between tool calls. Never answer in English. Keep enum values, slugs and numbers exactly as specified."

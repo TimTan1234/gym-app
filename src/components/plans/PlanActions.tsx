@@ -22,7 +22,7 @@ export function PlanActions({ planId, isActive }: { planId: string; isActive: bo
           {t("plans.actions.deactivate")}
         </Button>
       ) : (
-        <Button size="sm" disabled={pending} onClick={() => run(() => setActivePlan(planId), t("plans.actions.activated"))}>
+        <Button variant="secondary" size="sm" disabled={pending} onClick={() => run(() => setActivePlan(planId), t("plans.actions.activated"))}>
           {t("plans.actions.activate")}
         </Button>
       )}

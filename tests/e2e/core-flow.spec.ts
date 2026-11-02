@@ -83,6 +83,11 @@ test("sign up → onboarding → log meal → log workout → history", async ({
   await page.getByRole("link", { name: "Train" }).click();
   await page.getByRole("button", { name: "Empty workout" }).first().click();
   await expect(page).toHaveURL(/\/train\/workout\//);
+  // A toast left from logging the meal can sit over Add exercise in an empty workout, and the test's
+  // pointer hovering it pauses its timer (a touch screen has no hover): move the pointer off the toasts
+  // at the top and let them go first.
+  await page.mouse.move(10, page.viewportSize()!.height - 10);
+  await expect(page.locator("[data-sonner-toast]")).toHaveCount(0, { timeout: 10_000 });
   await page.getByRole("button", { name: "Add exercise" }).click();
   await page.getByLabel("Search exercises").fill("barbell bench");
   await page.getByRole("button", { name: /^Barbell Bench Press/ }).click();
@@ -95,6 +100,7 @@ test("sign up → onboarding → log meal → log workout → history", async ({
   }
   await expect(block.getByRole("button", { name: /^Delete set/ })).toHaveCount(3);
   await expect(page.getByRole("timer")).toBeVisible(); // rest timer started
+  await expect(page.getByRole("timer").getByRole("button", { name: "Next: Barbell Bench Press, set 4" })).toBeVisible();
 
   await page.getByRole("button", { name: "Finish" }).click();
   await page.getByRole("button", { name: "Save workout" }).click();
@@ -105,4 +111,12 @@ test("sign up → onboarding → log meal → log workout → history", async ({
   // Volume 60×8 + 60×8 + 62.5×6 = 1,335 kg
   const volume = page.locator("dl > div", { hasText: "kg lifted" });
   await expect(volume.locator("dd")).toHaveText("1,335");
+
+  // Today's body map counts the bench sets on the chest, and shows what helped
+  await page.getByRole("link", { name: "Today" }).click();
+  await expect(page.getByRole("img", { name: /^Body map\. .*Chest 3 sets/ })).toBeVisible();
+  await page.getByRole("button", { name: "Chest 3" }).click();
+  await expect(page.getByText("3 sets, last worked today")).toBeVisible();
+  await page.getByTestId("body-map").locator('g[data-muscle="triceps"] path').first().click();
+  await expect(page.getByText("helped in 3 sets, last worked today")).toBeVisible();
 });

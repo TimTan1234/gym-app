@@ -196,16 +196,24 @@ model GlucoseReading {
 }
 
 model BodyMetric {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  localDate  String // YYYY-MM-DD in the user's timezone
-  weightKg   Float
-  bodyFatPct Float?
-  waistCm    Float?
-  createdAt  DateTime @default(now())
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  localDate     String // YYYY-MM-DD in the user's timezone
+  weightKg      Float
+  bodyFatPct    Float?
+  /// Where bodyFatPct came from; null (older rows) means measured.
+  bodyFatSource BodyFatSource?
+  waistCm       Float?
+  createdAt     DateTime       @default(now())
 
   @@unique([userId, localDate])
+}
+
+/// A scale or calipers reading, or the AI's estimate from photos (a rough range, kept apart).
+enum BodyFatSource {
+  MEASURED
+  PHOTO_ESTIMATE
 }
 
 // ---------- Nutrition ----------
@@ -563,6 +571,7 @@ enum AiKind {
   PLAN
   CHAT
   PROCUREMENT
+  BODY
 }
 
 model AiUsage {

@@ -19,6 +19,8 @@
   /* One step stronger than DESIGN.md's hairline, so dividers still show on the cream card. */
   --line: #ded6c8;
   --wash: #e8e0d2;
+  /* The selected segment of a pill control: lifted off the wash track. */
+  --segment-on: #faf9f5;
   --primary: #b05e44;
   --primary-fg: #ffffff;
   --primary-active: #8f4631;
@@ -50,6 +52,7 @@
     --steel: #a9a69f;
     --line: #3a3631;
     --wash: #312e29;
+    --segment-on: #4a453e;
     --primary: #b05e44;
     --primary-fg: #ffffff;
     --primary-active: #8f4631;
@@ -73,6 +76,7 @@
   --steel: #a9a69f;
   --line: #3a3631;
   --wash: #312e29;
+  --segment-on: #4a453e;
   --primary: #b05e44;
   --primary-fg: #ffffff;
   --primary-active: #8f4631;
@@ -106,6 +110,7 @@
   --color-alert: var(--alert);
   --color-panel: var(--panel);
   --color-panel-fg: var(--panel-fg);
+  --color-segment-on: var(--segment-on);
   --color-primary: var(--primary);
   --color-primary-fg: var(--primary-fg);
   --color-primary-active: var(--primary-active);
@@ -151,6 +156,15 @@ body {
 :lang(zh) .display {
   font-weight: 600;
   letter-spacing: 0;
+}
+
+/*
+ * Toasts appear top-centre. A sticky header holding the page's main action
+ * (the workout's Finish) marks itself data-toasts-below, and toasts then start
+ * under it. It sits below the page's 24px top padding until scrolled, so clear that too.
+ */
+:root:has([data-toasts-below]) {
+  --toast-top: 104px;
 }
 
 :focus-visible {

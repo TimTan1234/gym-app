@@ -85,6 +85,8 @@ export interface TrendPoint {
   date: string;
   value: number | null;
   avg?: number | null;
+  /** A rough estimate (e.g. body fat from photos): a hollow dot, "≈" in the table. */
+  estimated?: boolean;
 }
 
 /**
@@ -109,24 +111,32 @@ export function TrendChart({
   const [table, setTable] = useState(false);
   const { t, shortDate, longDate } = useChartText();
   const hasAvg = data.some((d) => d.avg !== undefined && d.avg !== null);
+  const hasEstimate = data.some((d) => d.estimated);
+  const shown = (d: TrendPoint) => `${d.estimated && d.value !== null ? "≈" : ""}${fmt(d.value, decimals)}`;
   // A flat series (e.g. weight within 1 kg) needs a decimal on the axis or every tick reads the same.
   const values = data.flatMap((d) => [d.value, d.avg ?? d.value]).filter((v): v is number => v !== null);
   const axisDecimals = values.length > 0 && Math.max(...values) - Math.min(...values) < 5 ? 1 : 0;
 
   return (
     <figure className="space-y-2">
-      <figcaption className="flex items-center justify-between">
-        <span className="text-sm font-semibold">{title}</span>
-        <span className="flex items-center gap-3">
+      {/* On a narrow phone the keys wrap under the title as whole items rather than breaking words. */}
+      <figcaption className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <span className="whitespace-nowrap text-sm font-semibold">{title}</span>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 whitespace-nowrap">
           {target !== undefined && <TargetKey t={t} value={target} unit={unit} />}
           {hasAvg && (
-            <span className="flex items-center gap-3 text-xs text-steel">
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-steel">
               <span className="flex items-center gap-1">
                 <span className="inline-block size-2 rounded-full bg-steel opacity-40" /> {t("progress.chart.daily")}
               </span>
               <span className="flex items-center gap-1">
                 <span className="inline-block h-0.5 w-3 bg-steel" /> {t("progress.chart.avg7")}
               </span>
+              {hasEstimate && (
+                <span className="flex items-center gap-1">
+                  <span className="inline-block size-2.5 rounded-full border-[1.5px] border-steel" /> {t("progress.photo.legendEstimate")}
+                </span>
+              )}
             </span>
           )}
           <TableToggle t={t} open={table} onToggle={() => setTable((v) => !v)} />
@@ -139,15 +149,16 @@ export function TrendChart({
               ? [t("progress.chart.date"), t("progress.chart.value", { unit }), t("progress.chart.avgColumn", { unit })]
               : [t("progress.chart.date"), t("progress.chart.value", { unit })]
           }
-          rows={[...data].reverse().map((d) => (hasAvg ? [shortDate(d.date), fmt(d.value, decimals), fmt(d.avg, decimals)] : [shortDate(d.date), fmt(d.value, decimals)]))}
+          rows={[...data].reverse().map((d) => (hasAvg ? [shortDate(d.date), shown(d), fmt(d.avg, decimals)] : [shortDate(d.date), shown(d)]))}
         />
       ) : (
         <div style={{ height }}>
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+            <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <CartesianGrid stroke="var(--line)" vertical={false} />
               <XAxis dataKey="date" tickFormatter={shortDate} tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
-              <YAxis tick={AXIS} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={48} tickFormatter={(v: number) => fmt(v, axisDecimals)} />
+              {/* Sized to its widest label: "2,800" kcal or "40,000" lb of volume must not be clipped. */}
+              <YAxis tick={AXIS} tickLine={false} axisLine={false} domain={["auto", "auto"]} width="auto" tickFormatter={(v: number) => fmt(v, axisDecimals)} />
               {target !== undefined && (
                 <ReferenceLine y={target} stroke="var(--steel)" strokeDasharray="4 4" />
               )}
@@ -157,7 +168,11 @@ export function TrendChart({
                   if (!active || !payload?.length) return null;
                   const p = payload[0].payload as TrendPoint;
                   const rows: TooltipRow[] = [
-                    { label: hasAvg ? t("progress.chart.daily") : title, value: `${fmt(p.value, decimals)} ${unit}`, color: "var(--steel)" },
+                    {
+                      label: p.estimated ? t("progress.photo.legendEstimate") : hasAvg ? t("progress.chart.daily") : title,
+                      value: `${shown(p)} ${unit}`,
+                      color: "var(--steel)",
+                    },
                   ];
                   if (hasAvg) rows.push({ label: t("progress.chart.avg7"), value: `${fmt(p.avg, decimals)} ${unit}`, color: "var(--steel)" });
                   return <TooltipBox title={longDate(String(label))} rows={rows} />;
@@ -165,7 +180,18 @@ export function TrendChart({
               />
               {hasAvg ? (
                 <>
-                  <Scatter dataKey="value" fill="var(--steel)" fillOpacity={0.35} isAnimationActive={false} />
+                  <Scatter
+                    dataKey="value"
+                    isAnimationActive={false}
+                    // Measured: a soft filled dot. Estimated: a hollow ring.
+                    shape={(props: { cx?: number; cy?: number; payload?: TrendPoint }) =>
+                      props.payload?.estimated ? (
+                        <circle cx={props.cx} cy={props.cy} r={3.5} fill="var(--paper)" stroke="var(--steel)" strokeWidth={1.5} />
+                      ) : (
+                        <circle cx={props.cx} cy={props.cy} r={3.5} fill="var(--steel)" fillOpacity={0.35} />
+                      )
+                    }
+                  />
                   <Line dataKey="avg" stroke="var(--steel)" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
                 </>
               ) : (
@@ -232,10 +258,11 @@ export function DailyBars({
       ) : (
         <div style={{ height }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }} barCategoryGap={2}>
+            <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barCategoryGap={2}>
               <CartesianGrid stroke="var(--line)" vertical={false} />
               <XAxis dataKey="date" tickFormatter={shortDate} tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
-              <YAxis tick={AXIS} tickLine={false} axisLine={false} width={48} tickFormatter={(v: number) => fmt(v, 0)} />
+              {/* Sized to its widest label, as in TrendChart. */}
+              <YAxis tick={AXIS} tickLine={false} axisLine={false} width="auto" tickFormatter={(v: number) => fmt(v, 0)} />
               {target !== undefined && (
                 <ReferenceLine y={target} stroke="var(--steel)" strokeDasharray="4 4" />
               )}

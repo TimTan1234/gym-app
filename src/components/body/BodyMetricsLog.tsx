@@ -1,20 +1,24 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { ScanLine, Trash2 } from "lucide-react";
 import { deleteBodyMetric, logBodyMetric } from "@/server/profile";
 import { formatLocalDate } from "@/lib/dates";
 import { cmToIn, displayWeight, inToCm, inputWeightToKg, round, weightUnit, type UnitSystem } from "@/lib/units";
 import { Button, IconButton, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
+import { BodyFatPhoto } from "./BodyFatPhoto";
 import { INTL_LOCALE } from "@/i18n/config";
+
+const SHOWN = 5;
 
 interface Entry {
   id: string;
   localDate: string;
   weightKg: number;
   bodyFatPct: number | null;
+  bodyFatSource: "MEASURED" | "PHOTO_ESTIMATE" | null;
   waistCm: number | null;
 }
 
@@ -22,6 +26,11 @@ export function BodyMetricsLog({ today, units, entries }: { today: string; units
   const [pending, startTransition] = useTransition();
   const t = useT();
   const lenUnit = units === "IMPERIAL" ? "in" : "cm";
+  // Body fat is controlled so a photo estimate can fill it; typing over it makes it a measurement again.
+  const [bodyFat, setBodyFat] = useState("");
+  const [fromPhoto, setFromPhoto] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -34,11 +43,14 @@ export function BodyMetricsLog({ today, units, entries }: { today: string; units
         localDate: String(f.get("date")),
         weightKg: inputWeightToKg(Number(f.get("weight")), units),
         bodyFatPct: opt("bodyFat"),
+        bodyFatSource: fromPhoto ? "PHOTO_ESTIMATE" : "MEASURED",
         waistCm: waist === null ? null : units === "IMPERIAL" ? inToCm(waist) : waist,
       });
       if (!res.ok) return void toast.error(res.error);
       toast.success(t("progress.log.saved"));
       form.reset();
+      setBodyFat("");
+      setFromPhoto(false);
     });
   }
 
@@ -55,7 +67,20 @@ export function BodyMetricsLog({ today, units, entries }: { today: string; units
         </label>
         <label className="text-[11px] font-medium text-steel">
           {t("progress.log.bodyFat")}
-          <Input name="bodyFat" type="number" step="0.1" inputMode="decimal" placeholder={t("common.optional")} className="num mt-0.5" />
+          <Input
+            name="bodyFat"
+            type="number"
+            step="0.1"
+            inputMode="decimal"
+            placeholder={t("common.optional")}
+            value={bodyFat}
+            onChange={(e) => {
+              setBodyFat(e.target.value);
+              setFromPhoto(false);
+            }}
+            aria-describedby={fromPhoto ? "body-fat-source" : undefined}
+            className="num mt-0.5"
+          />
         </label>
         <label className="text-[11px] font-medium text-steel">
           {t("progress.log.waist", { unit: lenUnit })}
@@ -65,15 +90,46 @@ export function BodyMetricsLog({ today, units, entries }: { today: string; units
           {t("common.save")}
         </Button>
       </form>
+      {photoOpen ? (
+        <BodyFatPhoto
+          onUse={(pct) => {
+            setBodyFat(String(pct));
+            setFromPhoto(true);
+            setPhotoOpen(false);
+          }}
+          onClose={() => setPhotoOpen(false)}
+        />
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-3">
+          <Button type="button" variant="ghost" size="sm" edge="start" onClick={() => setPhotoOpen(true)}>
+            <ScanLine className="size-4" /> {t("progress.photo.open")}
+          </Button>
+          {fromPhoto && (
+            <span id="body-fat-source" className="text-[13px] text-steel">
+              ≈ {bodyFat}% · {t("progress.log.estimateTag")}
+            </span>
+          )}
+        </div>
+      )}
       {entries.length > 0 && (
-        <ul className="num max-h-56 divide-y divide-line overflow-y-auto text-sm">
-          {entries.map((e) => (
+        <ul className="num divide-y divide-line text-sm">
+          {(showAll ? entries : entries.slice(0, SHOWN)).map((e) => (
             <li key={e.id} className="flex items-center gap-3 py-0.5">
               <span className="w-24 text-steel">{formatLocalDate(e.localDate, undefined, INTL_LOCALE[t.locale])}</span>
-              <span className="flex-1 font-semibold">
+              <span className="flex-1 whitespace-nowrap font-semibold">
                 {displayWeight(e.weightKg, units)} {weightUnit(units)}
               </span>
-              {e.bodyFatPct !== null && <span className="text-steel">{e.bodyFatPct}%</span>}
+              {e.bodyFatPct !== null &&
+                (e.bodyFatSource === "PHOTO_ESTIMATE" ? (
+                  // Short in the row: "≈" and the photo icon; the words are for screen readers.
+                  <span className="flex items-center gap-1 whitespace-nowrap text-steel" title={t("progress.log.estimateTag")}>
+                    ≈{e.bodyFatPct}%
+                    <ScanLine className="size-3.5" aria-hidden />
+                    <span className="sr-only"> · {t("progress.log.estimateTag")}</span>
+                  </span>
+                ) : (
+                  <span className="whitespace-nowrap text-steel">{e.bodyFatPct}%</span>
+                ))}
               {e.waistCm !== null && (
                 <span className="text-steel">
                   {round(units === "IMPERIAL" ? cmToIn(e.waistCm) : e.waistCm, 1)} {lenUnit}
@@ -91,6 +147,12 @@ export function BodyMetricsLog({ today, units, entries }: { today: string; units
             </li>
           ))}
         </ul>
+      )}
+      {/* The whole list in the page's own scroll, not a box that cuts a row in half. */}
+      {entries.length > SHOWN && (
+        <Button type="button" variant="ghost" size="sm" edge="start" aria-expanded={showAll} onClick={() => setShowAll((v) => !v)}>
+          {showAll ? t("progress.log.showFewer") : t("progress.log.showAll", { count: entries.length })}
+        </Button>
       )}
     </div>
   );

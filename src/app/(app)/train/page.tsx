@@ -93,7 +93,7 @@ async function Train() {
           <Link key={href} href={href} className="flex items-center gap-3 py-3.5 hover:bg-wash">
             <Icon className="size-5 text-steel" aria-hidden />
             <span className="flex-1">
-              <span className="display block text-[18px]">{label}</span>
+              <span className="block font-medium">{label}</span>
               <span className="block text-[13px] text-steel">{hint}</span>
             </span>
             <ChevronRight className="size-4 text-steel" aria-hidden />
@@ -110,7 +110,7 @@ async function Train() {
               <li key={w.id}>
                 <Link href={`/train/history/${w.id}`} className="flex items-center justify-between gap-3 py-3 hover:bg-wash">
                   <span>
-                    <span className="display block text-[18px]">{w.planDay?.name ?? t("train.workout")}</span>
+                    <span className="block font-medium">{w.planDay?.name ?? t("train.workout")}</span>
                     <span className="block text-[13px] text-steel">
                       {formatLocalDate(w.localDate, undefined, INTL_LOCALE[t.locale])}, {t("train.minutesShort", { n: durationMinutes(w.startedAt, w.endedAt) ?? "–" })},{" "}
                       {t.plural("train.exerciseCount", new Set(w.sets.map((s) => s.exerciseId)).size)}

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Check, Plus, Trash2, TrendingUp, Trophy, History } from "lucide-react";
 import { deleteSet, discardWorkout, finishWorkout, getLastSets, logSet, type LoggedSet } from "@/server/training";
 import { suggestNext } from "@/lib/training/progression";
+import { currentExercise } from "@/lib/training/summary";
 import type { RecordType } from "@/lib/training/records";
 import { displayWeight, formatWeight, inputWeightToKg, weightUnit, type UnitSystem } from "@/lib/units";
 import { formatLocalDate } from "@/lib/dates";
@@ -122,17 +123,39 @@ export function WorkoutLogger({
 
   const workingSets = sets.filter((s) => !s.isWarmup).length;
   const exerciseCount = new Set(sets.map((s) => s.exerciseId)).size;
+  const currentId = currentExercise(
+    blocks.map((b) => ({ id: b.exercise.id, targetSets: b.target?.sets ?? null })),
+    sets,
+  );
+  const current = blocks.find((b) => b.exercise.id === currentId);
+  // Coral goes to the next thing to do: that exercise's Log set, or Finish once the plan is done.
+  const planDone = blocks.length > 0 && !current;
+
+  let next: { label: string; onGo?: () => void } | undefined;
+  if (current) {
+    const n = sets.filter((s) => s.exerciseId === current.exercise.id && !s.isWarmup).length + 1;
+    const exercise = exerciseName(t, { slug: current.exercise.slug ?? "", name: current.exercise.name });
+    next = {
+      label: current.target ? t("train.upNext", { exercise, n, total: current.target.sets }) : t("train.upNextOpen", { exercise, n }),
+      onGo: () => {
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        document.getElementById(`log-${current.exercise.id}`)?.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+      },
+    };
+  } else if (planDone) next = { label: t("train.allPlannedDone") };
 
   return (
-    <div className="pb-16">
-      <header className="sticky top-0 z-30 -mx-4 flex items-center justify-between gap-3 border-b border-line bg-chalk px-4 py-3">
+    // Room under the last block for the rest timer when it's up.
+    <div className={timer.running ? "pb-36" : "pb-16"}>
+      {/* data-toasts-below: a new-record toast mustn't land on Finish. */}
+      <header data-toasts-below className="sticky top-0 z-30 -mx-4 flex items-center justify-between gap-3 border-b border-line bg-chalk px-4 py-3">
         <div className="min-w-0">
           <h1 className="display truncate text-[22px]">{title}</h1>
           <p className="num text-[13px] text-steel">
             {t("train.elapsed", { time: elapsed, sets: t.plural("train.workingSets", workingSets) })}
           </p>
         </div>
-        <Button onClick={() => setFinishing(true)} disabled={pending}>
+        <Button variant={planDone ? "primary" : "secondary"} onClick={() => setFinishing(true)} disabled={pending}>
           <Check className="size-4" /> {t("train.finish")}
         </Button>
       </header>
@@ -142,6 +165,7 @@ export function WorkoutLogger({
         <ExerciseBlock
           key={block.exercise.id}
           block={block}
+          current={block.exercise.id === currentId}
           sessionId={sessionId}
           sets={sets.filter((s) => s.exerciseId === block.exercise.id)}
           units={units}
@@ -189,13 +213,14 @@ export function WorkoutLogger({
         </div>
       )}
 
-      <RestTimerBar timer={timer} />
+      <RestTimerBar timer={timer} next={next} />
     </div>
   );
 }
 
 function ExerciseBlock({
   block,
+  current,
   sessionId,
   sets,
   units,
@@ -203,6 +228,7 @@ function ExerciseBlock({
   onDeleted,
 }: {
   block: Block;
+  current: boolean;
   sessionId: string;
   sets: LoggedSet[];
   units: UnitSystem;
@@ -342,7 +368,7 @@ function ExerciseBlock({
                 aria-label={t("train.deleteSet", { set: s.isWarmup ? t("train.warmupWord") : s.setIndex })}
                 onClick={() => remove(s.id)}
                 disabled={pending}
-                className="rounded-field p-2 text-steel hover:bg-wash hover:text-alert"
+                className="mx-auto grid size-11 place-items-center rounded-full text-steel hover:bg-wash hover:text-alert"
               >
                 <Trash2 className="size-4" />
               </button>
@@ -350,7 +376,7 @@ function ExerciseBlock({
           </div>
         ))}
         {/* The entry row is the next line of the log. */}
-        <div role="row" className={cn(cols, "pt-2")}>
+        <div role="row" id={`log-${exercise.id}`} className={cn(cols, "pt-2")}>
           <span role="cell" className="text-sm font-semibold text-steel">{nextIndex}</span>
           <span role="cell">
             <Input aria-label={unit} type="number" inputMode="decimal" step="any" min={0} value={weight} onChange={(e) => setWeight(e.target.value)} className="score h-12 px-1 text-center text-[24px]" />
@@ -362,7 +388,13 @@ function ExerciseBlock({
             <Input aria-label={t("train.rpe")} type="number" inputMode="decimal" min={1} max={10} step={0.5} value={rpe} onChange={(e) => setRpe(e.target.value)} placeholder="–" className="num h-12 px-1 text-center" />
           </span>
           <span role="cell">
-            <Button onClick={log} disabled={pending} className="h-12 w-full px-0" aria-label={t("train.logSetFor", { exercise: name })}>
+            <Button
+              variant={current ? "primary" : "secondary"}
+              onClick={log}
+              disabled={pending}
+              className="h-12 w-full px-0"
+              aria-label={t("train.logSetFor", { exercise: name })}
+            >
               <Check className="size-5" />
             </Button>
           </span>

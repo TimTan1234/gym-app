@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { estimate1RM } from "@/lib/training/oneRepMax";
 import { suggestNext } from "@/lib/training/progression";
 import { detectRecords } from "@/lib/training/records";
+import { currentExercise } from "@/lib/training/summary";
 
 describe("estimate1RM", () => {
   it("uses Epley and returns weight for single reps", () => {
@@ -65,5 +66,37 @@ describe("detectRecords", () => {
   it("ignores warm-ups and empty sets", () => {
     expect(detectRecords({ weightKg: 200, reps: 5, isWarmup: true }, {})).toEqual([]);
     expect(detectRecords({ weightKg: 0, reps: 5, isWarmup: false }, {})).toEqual([]);
+  });
+});
+
+describe("currentExercise", () => {
+  const plan = [
+    { id: "bench", targetSets: 2 },
+    { id: "row", targetSets: 2 },
+    { id: "curl", targetSets: 1 },
+  ];
+  const set = (exerciseId: string, isWarmup = false) => ({ exerciseId, isWarmup });
+
+  it("starts at the first exercise and stays until its target is met", () => {
+    expect(currentExercise(plan, [])).toBe("bench");
+    expect(currentExercise(plan, [set("bench", true), set("bench")])).toBe("bench");
+    expect(currentExercise(plan, [set("bench"), set("bench")])).toBe("row");
+  });
+
+  it("follows the exercise last logged, then picks up what was skipped", () => {
+    expect(currentExercise(plan, [set("row")])).toBe("row");
+    expect(currentExercise(plan, [set("row"), set("row")])).toBe("curl");
+    expect(currentExercise(plan, [set("row"), set("row"), set("curl")])).toBe("bench");
+  });
+
+  it("is null once every planned set is done", () => {
+    expect(currentExercise(plan, [set("bench"), set("bench"), set("row"), set("row"), set("curl")])).toBeNull();
+  });
+
+  it("keeps an exercise without a target until another is started", () => {
+    const free = [{ id: "bench", targetSets: null }, { id: "dip", targetSets: null }];
+    expect(currentExercise(free, [set("bench"), set("bench")])).toBe("bench");
+    expect(currentExercise(free, [set("dip")])).toBe("dip");
+    expect(currentExercise(free, [])).toBe("bench");
   });
 });

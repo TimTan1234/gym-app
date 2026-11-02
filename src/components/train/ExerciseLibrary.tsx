@@ -113,7 +113,7 @@ export function ExerciseLibrary({ exercises, muscles, equipment }: { exercises: 
       <ul className="divide-y divide-line border-y border-line">
         {filtered.map((e) => (
           <li key={e.id}>
-            <Link href={`/train/exercises/${e.id}`} className="flex items-center justify-between gap-2 py-3 hover:text-steel">
+            <Link href={`/train/exercises/${e.id}`} className="flex items-center justify-between gap-2 py-3 hover:bg-wash">
               <span className="font-medium">
                 {nameOf(e)} {e.custom && <Badge className="ml-1">{t("train.customBadge")}</Badge>}
               </span>

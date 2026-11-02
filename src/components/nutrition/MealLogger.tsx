@@ -8,7 +8,7 @@ import dynamic from "next/dynamic";
 import { deleteSavedFood, saveMeal, markSavedFoodsUsed, updateMeal } from "@/server/nutrition";
 import { scaleItem, sumNutrients } from "@/lib/nutrition/totals";
 import { MAX_MEAL_PHOTOS, type MealAnalysis } from "@/lib/ai/schemas";
-import { Button, Card, IconButton, Input, Textarea, cn } from "@/components/ui";
+import { Button, Card, IconButton, Input, Textarea, cn, segmentClass, segmentTrack } from "@/components/ui";
 import { MacroLine } from "@/components/MacroLine";
 import { HIGH_SUGAR_MEAL_G, SugarTag } from "./Sugar";
 import { MealPhotos } from "./MealPhotos";
@@ -438,7 +438,7 @@ export function MealLogger({
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label={t("nutrition.mealType")}>
+      <div className={segmentTrack(true)} role="radiogroup" aria-label={t("nutrition.mealType")}>
         {MEAL_TYPES.map((type) => (
           <button
             key={type}
@@ -446,10 +446,7 @@ export function MealLogger({
             role="radio"
             aria-checked={mealType === type}
             onClick={() => setMealType(type)}
-            className={cn(
-              "rounded-field border py-2 text-xs font-semibold sm:text-sm",
-              mealType === type ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
-            )}
+            className={cn(segmentClass(mealType === type, true), "text-[13px] sm:text-sm")}
           >
             {t(`labels.mealType.${type}`)}
           </button>

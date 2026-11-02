@@ -318,7 +318,8 @@ async function buildTools(ctx: CoachContext) {
         return db.bodyMetric.findMany({
           where: { userId: ctx.userId, localDate: { gte: addDays(today, -(days - 1)) } },
           orderBy: { localDate: "asc" },
-          select: { localDate: true, weightKg: true, bodyFatPct: true, waistCm: true },
+          // bodyFatSource tells a scale reading from a rough photo estimate.
+          select: { localDate: true, weightKg: true, bodyFatPct: true, bodyFatSource: true, waistCm: true },
         });
       }
       case "get_exercise_history": {

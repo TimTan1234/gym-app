@@ -6,7 +6,7 @@ import { LOCALES, LOCALE_NAMES, type Locale } from "@/i18n/config";
 import { useLocale, useT } from "@/i18n/client";
 import { setLocale } from "@/server/preferences";
 import { setThemePref, useThemePref, type ThemePref } from "@/lib/theme";
-import { cn } from "@/components/ui";
+import { segmentClass, segmentTrack } from "@/components/ui";
 
 function Segmented<V extends string>({
   label,
@@ -22,7 +22,7 @@ function Segmented<V extends string>({
   disabled?: boolean;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="grid auto-cols-fr grid-flow-col gap-2">
+    <div role="radiogroup" aria-label={label} className={segmentTrack(true)}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -32,10 +32,7 @@ function Segmented<V extends string>({
           lang={o.lang}
           disabled={disabled}
           onClick={() => value !== o.value && onChange(o.value)}
-          className={cn(
-            "h-10 rounded-field border text-sm font-semibold disabled:opacity-50",
-            value === o.value ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
-          )}
+          className={segmentClass(value === o.value, true)}
         >
           {o.label}
         </button>

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { saveDiabetesSettings } from "@/server/profile";
 import { DEFAULT_GLUCOSE_TARGETS, toDisplay, toMmol, unitLabel, type GlucoseUnit } from "@/lib/glucose";
 import type { CarbBudget } from "@/lib/nutrition/diabetes";
-import { Button, Input, Label, cn } from "@/components/ui";
+import { Button, Input, Label, cn, segmentClass, segmentTrack } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
 export interface DiabetesSettingsValues {
@@ -21,7 +21,7 @@ export interface DiabetesSettingsValues {
 /** Segmented choice, styled like the rest of settings. */
 function Choice<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: [T, string][]; onChange: (v: T) => void }) {
   return (
-    <div role="radiogroup" aria-label={label} className="grid grid-cols-2 gap-2">
+    <div role="radiogroup" aria-label={label} className={segmentTrack(true)}>
       {options.map(([v, text]) => (
         <button
           key={v}
@@ -29,7 +29,7 @@ function Choice<T extends string>({ label, value, options, onChange }: { label: 
           role="radio"
           aria-checked={value === v}
           onClick={() => onChange(v)}
-          className={cn("rounded-field border px-3 py-2 text-sm font-semibold", value === v ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}
+          className={segmentClass(value === v, true)}
         >
           {text}
         </button>

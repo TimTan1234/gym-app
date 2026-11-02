@@ -4,15 +4,9 @@ import { getUserForApi } from "@/lib/session";
 import { AiLimitError, reserveAiCall } from "@/lib/ai/client";
 import { analyzeMeal } from "@/lib/ai/meal";
 import { MAX_MEAL_PHOTOS } from "@/lib/ai/schemas";
+import { ImageSchema } from "@/lib/ai/image-input";
 import { todayLocal } from "@/lib/dates";
 import { getLocale, getT } from "@/i18n/server";
-
-const MAX_IMAGE_CHARS = 2_800_000; // ~2 MB binary as base64
-
-const ImageSchema = z
-  .string()
-  .max(MAX_IMAGE_CHARS, "imageTooLarge")
-  .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/, "imageFormat");
 
 const BodySchema = z
   .object({

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { logGlucose } from "@/server/glucose";
 import { GLUCOSE_CONTEXTS, unitLabel, type GlucoseContext, type GlucoseStatus, type GlucoseUnit } from "@/lib/glucose";
 import { toLocalTime } from "@/lib/dates";
-import { Button, Input, Label, Select, cn } from "@/components/ui";
+import { Button, Input, Label, Select, chipClass } from "@/components/ui";
 import { SafetyCard } from "./GlucoseBits";
 import { useT } from "@/i18n/client";
 
@@ -104,7 +104,7 @@ export function GlucoseLogger({
         </div>
         <div className="space-y-1.5">
           <p className="text-sm font-medium">{t("glucose.log.when")}</p>
-          <div role="radiogroup" aria-label={t("glucose.log.when")} className="grid grid-cols-3 gap-2">
+          <div role="radiogroup" aria-label={t("glucose.log.when")} className="flex flex-wrap gap-2">
             {GLUCOSE_CONTEXTS.map((c) => (
               <button
                 key={c}
@@ -112,10 +112,7 @@ export function GlucoseLogger({
                 role="radio"
                 aria-checked={context === c}
                 onClick={() => pickContext(c)}
-                className={cn(
-                  "rounded-field border px-2 py-2 text-xs font-semibold sm:text-sm",
-                  context === c ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
-                )}
+                className={chipClass(context === c)}
               >
                 {t(`glucose.context.${c}`)}
               </button>

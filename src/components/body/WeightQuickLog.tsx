@@ -18,7 +18,7 @@ export function WeightQuickLog({ date, units, current }: { date: string; units: 
     const n = Number(value);
     if (!n) return;
     startTransition(async () => {
-      const res = await logBodyMetric({ localDate: date, weightKg: inputWeightToKg(n, units), bodyFatPct: null, waistCm: null });
+      const res = await logBodyMetric({ localDate: date, weightKg: inputWeightToKg(n, units) });
       if (res.ok) toast.success(t("today.weightLogged"));
       else toast.error(res.error);
     });

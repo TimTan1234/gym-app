@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, PencilRuler, Sparkles } from "lucide-react";
+import { Check, Loader2, PencilRuler, Sparkles } from "lucide-react";
 import type { PlanRequest } from "@/lib/ai/schemas";
 import type { ResolvedPlanDraft } from "@/lib/ai/plan";
 import type { PickerExercise } from "@/components/train/ExercisePicker";
 import { EQUIPMENT_OPTIONS } from "@/components/profile/options";
-import { Button, Card, Label, Select, Textarea, cn } from "@/components/ui";
+import { Button, Card, Label, Select, Textarea, chipClass, cn, segmentClass, segmentTrack } from "@/components/ui";
 import { PlanEditor, editorKey, type EditorPlan } from "./PlanEditor";
 import { useT } from "@/i18n/client";
 
@@ -91,16 +91,13 @@ export function NewPlan({
     );
   }
 
-  const chip = (on: boolean) =>
-    cn("rounded-full border px-3 py-1.5 text-sm", on ? "border-iron bg-iron font-semibold text-iron-fg" : "border-line text-steel hover:border-iron");
-
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" aria-pressed={mode === "ai"} onClick={() => setMode("ai")} className={cn("flex items-center justify-center gap-2 rounded-field border py-2.5 text-sm font-semibold", mode === "ai" ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}>
+      <div className={segmentTrack(true)}>
+        <button type="button" aria-pressed={mode === "ai"} onClick={() => setMode("ai")} className={segmentClass(mode === "ai", true)}>
           <Sparkles className="size-4" /> {t("plans.generator.withAi")}
         </button>
-        <button type="button" aria-pressed={mode === "manual"} onClick={() => setMode("manual")} className={cn("flex items-center justify-center gap-2 rounded-field border py-2.5 text-sm font-semibold", mode === "manual" ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron")}>
+        <button type="button" aria-pressed={mode === "manual"} onClick={() => setMode("manual")} className={segmentClass(mode === "manual", true)}>
           <PencilRuler className="size-4" /> {t("plans.generator.manually")}
         </button>
       </div>
@@ -118,7 +115,7 @@ export function NewPlan({
             <legend className="mb-1.5 text-sm font-medium">{t("plans.generator.goal")}</legend>
             <div className="flex flex-wrap gap-2">
               {GOALS.map((g) => (
-                <button key={g} type="button" aria-pressed={goal === g} onClick={() => setGoal(g)} className={chip(goal === g)}>
+                <button key={g} type="button" aria-pressed={goal === g} onClick={() => setGoal(g)} className={chipClass(goal === g)}>
                   {t(`plans.goals.${g}`)}
                 </button>
               ))}
@@ -152,7 +149,8 @@ export function NewPlan({
               {EQUIPMENT_OPTIONS.filter((o) => o.value !== "cardio_machine").map(({ value }) => {
                 const on = equipment.includes(value);
                 return (
-                  <button key={value} type="button" aria-pressed={on} onClick={() => setEquipment((c) => (on ? c.filter((x) => x !== value) : [...c, value]))} className={chip(on)}>
+                  <button key={value} type="button" aria-pressed={on} onClick={() => setEquipment((c) => (on ? c.filter((x) => x !== value) : [...c, value]))} className={chipClass(on)}>
+                    {on && <Check className="-ml-1 size-3.5" aria-hidden />}
                     {t(`labels.equipmentOption.${value}`)}
                   </button>
                 );
@@ -165,7 +163,8 @@ export function NewPlan({
               {FOCUS.map((m) => {
                 const on = focus.includes(m);
                 return (
-                  <button key={m} type="button" aria-pressed={on} onClick={() => setFocus((c) => (on ? c.filter((x) => x !== m) : [...c, m]))} className={cn(chip(on), "capitalize")}>
+                  <button key={m} type="button" aria-pressed={on} onClick={() => setFocus((c) => (on ? c.filter((x) => x !== m) : [...c, m]))} className={cn(chipClass(on), "capitalize")}>
+                    {on && <Check className="-ml-1 size-3.5" aria-hidden />}
                     {t(`plans.focusMuscle.${m}`)}
                   </button>
                 );

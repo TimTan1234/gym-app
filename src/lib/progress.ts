@@ -63,3 +63,62 @@ export function setsPerMuscle(sets: { isWarmup: boolean; primaryMuscle: string }
   for (const s of sets) if (!s.isWarmup) counts.set(s.primaryMuscle, (counts.get(s.primaryMuscle) ?? 0) + 1);
   return [...counts].map(([muscle, value]) => ({ muscle, value })).sort((a, b) => b.value - a.value);
 }
+
+export interface MuscleLoad {
+  /** Working sets with this as the primary muscle: the same count as setsPerMuscle. */
+  sets: number;
+  /** Working sets where it only helped (a secondary muscle). Never added to `sets`. */
+  assisted: number;
+  /** The last day it was worked either way. */
+  lastDate: string;
+}
+
+/** Per muscle, how it was worked across the given sessions (the body map's data). */
+export function muscleLoad(
+  sessions: { localDate: string; sets: { isWarmup: boolean; primaryMuscle: string; secondaryMuscles: string[] }[] }[],
+) {
+  const load = new Map<string, MuscleLoad>();
+  const add = (muscle: string, date: string, field: "sets" | "assisted") => {
+    const cur = load.get(muscle) ?? { sets: 0, assisted: 0, lastDate: date };
+    cur[field]++;
+    if (date > cur.lastDate) cur.lastDate = date;
+    load.set(muscle, cur);
+  };
+  for (const session of sessions)
+    for (const set of session.sets) {
+      if (set.isWarmup) continue;
+      add(set.primaryMuscle, session.localDate, "sets");
+      for (const m of set.secondaryMuscles) if (m !== set.primaryMuscle) add(m, session.localDate, "assisted");
+    }
+  return load;
+}
+
+export interface TrainingLoad {
+  /** Working sets in the last 7 days. */
+  week: number;
+  /** Average working sets per week over the 4 weeks before that. */
+  usual: number;
+  /** week vs usual, as a fraction (0.35 = 35% more). */
+  change: number;
+  status: "heavier" | "usual" | "lighter";
+}
+
+/**
+ * This week's working sets against the lifter's own usual week: a plain-language
+ * stand-in for fitness/fatigue models, built only from logged sets. Null until
+ * at least 2 of the 4 earlier weeks had training, so a new user isn't told off.
+ */
+export function trainingLoad(days: { date: string; sets: number }[], today: string, band = 0.3): TrainingLoad | null {
+  const weekStart = addDays(today, -6);
+  const historyStart = addDays(weekStart, -28);
+  const week = days.filter((d) => d.date >= weekStart && d.date <= today).reduce((a, d) => a + d.sets, 0);
+  const earlier = [0, 1, 2, 3].map((i) => {
+    const from = addDays(historyStart, i * 7);
+    const to = addDays(from, 6);
+    return days.filter((d) => d.date >= from && d.date <= to).reduce((a, d) => a + d.sets, 0);
+  });
+  if (earlier.filter((n) => n > 0).length < 2) return null;
+  const usual = earlier.reduce((a, b) => a + b, 0) / 4;
+  const change = week / usual - 1;
+  return { week, usual, change, status: change > band ? "heavier" : change < -band ? "lighter" : "usual" };
+}

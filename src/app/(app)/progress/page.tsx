@@ -11,7 +11,7 @@ import { CategoryBars, DailyBars, TrendChart } from "@/components/charts";
 import { BodyMetricsLog } from "@/components/body/BodyMetricsLog";
 import { getCheckin } from "@/lib/queries";
 import { WeeklyCheckin } from "@/components/progress/WeeklyCheckin";
-import { EmptyState, PageHeader, PageSkeleton, cn } from "@/components/ui";
+import { EmptyState, PageHeader, PageSkeleton, segmentClass, segmentTrack } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { exerciseName, labelOf } from "@/i18n/labels";
 
@@ -81,6 +81,12 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
   // Body weight
   const weightTrend = movingAverage(metrics.map((m) => ({ date: m.localDate, value: displayWeight(m.weightKg, units) })));
   const weightChange = weightTrend.length >= 2 ? weightTrend.at(-1)!.avg - weightTrend[0].avg : null;
+  // Body fat on its own chart under weight, on the same dates: one scale per chart, never two.
+  const photoEstimates = new Set(metrics.filter((m) => m.bodyFatSource === "PHOTO_ESTIMATE").map((m) => m.localDate));
+  const bodyFatTrend = movingAverage(metrics.flatMap((m) => (m.bodyFatPct === null ? [] : [{ date: m.localDate, value: m.bodyFatPct }]))).map((p) => ({
+    ...p,
+    estimated: photoEstimates.has(p.date),
+  }));
 
   // Nutrition
   const kcalByDay = new Map(mealDays.map((d) => [d.localDate, d._sum.kcal ?? 0]));
@@ -113,23 +119,25 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
 
   return (
     <div className="space-y-10">
-      <PageHeader title={t("progress.title")} />
+      {/* The range sets every chart and total below; the check-in always covers the last two weeks. */}
+      <PageHeader
+        title={t("progress.title")}
+        action={
+          <nav aria-label={t("progress.range")} className={segmentTrack()}>
+            {RANGES.map((r) => (
+              <Link
+                key={r.days}
+                href={`/progress?range=${r.days}`}
+                aria-current={r.days === rangeDays ? "true" : undefined}
+                className={segmentClass(r.days === rangeDays)}
+              >
+                {t(r.label)}
+              </Link>
+            ))}
+          </nav>
+        }
+      />
       <WeeklyCheckin checkin={checkin} targetKcal={profile.targetKcal} units={units} />
-      <nav aria-label={t("progress.range")} className="flex gap-2">
-        {RANGES.map((r) => (
-          <Link
-            key={r.days}
-            href={`/progress?range=${r.days}`}
-            aria-current={r.days === rangeDays ? "true" : undefined}
-            className={cn(
-              "rounded-full border px-3 py-1.5 text-sm",
-              r.days === rangeDays ? "border-iron bg-iron font-semibold text-iron-fg" : "border-line text-steel hover:border-iron",
-            )}
-          >
-            {t(r.label)}
-          </Link>
-        ))}
-      </nav>
 
       <section className="space-y-3">
         <h2 className="display text-[22px]">{t("progress.body")}</h2>
@@ -150,6 +158,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
           ) : (
             <p className="text-sm text-steel">{t("progress.needTwoWeighIns")}</p>
           )}
+          {bodyFatTrend.length >= 2 && <TrendChart title={t("progress.bodyFatTrend")} data={bodyFatTrend} unit="%" />}
           <BodyMetricsLog today={today} units={units} entries={[...metrics].reverse()} />
         </div>
       </section>

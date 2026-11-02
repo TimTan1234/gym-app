@@ -4,13 +4,15 @@ import { CalendarCheck, ChevronRight, Plus, Scale, Settings, Sparkles, Trophy, U
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import { getActiveWorkout, getCheckin, getDayNutrition, getLatestWeight, getNextPlanDay } from "@/lib/queries";
-import { formatLocalDate, todayLocal } from "@/lib/dates";
+import { addDays, formatLocalDate, todayLocal } from "@/lib/dates";
+import { muscleLoad, trainingLoad } from "@/lib/progress";
 import { formatWeight } from "@/lib/units";
 import { MacroSummary } from "@/components/nutrition/MacroSummary";
 import { WeightQuickLog } from "@/components/body/WeightQuickLog";
 import { StartWorkoutButton } from "@/components/train/StartWorkoutButton";
 import { GlucoseToday } from "@/components/glucose/GlucoseToday";
 import { PreExerciseCheck } from "@/components/glucose/PreExerciseCheck";
+import { BodyMap } from "@/components/body/BodyMap";
 import { Card, PageSkeleton, buttonClass, tonalIconClass } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
@@ -31,7 +33,7 @@ async function Today() {
   const today = todayLocal(profile.timezone, now);
   const hour = Number(new Intl.DateTimeFormat("en-US", { timeZone: profile.timezone, hour: "numeric", hourCycle: "h23" }).format(now));
 
-  const [{ totals }, latestWeight, next, active, recentPRs, checkin, t] = await Promise.all([
+  const [{ totals }, latestWeight, next, active, recentPRs, checkin, weekSessions, t] = await Promise.all([
     getDayNutrition(user.id, today),
     getLatestWeight(user.id),
     getNextPlanDay(user.id),
@@ -43,6 +45,15 @@ async function Today() {
       include: { exercise: { select: { name: true, slug: true } } },
     }),
     getCheckin(user.id, profile),
+    // Finished sessions over 5 weeks: the last 7 days for the body map (the same window and rule as
+    // Progress's sets per muscle), the 4 weeks before for the usual training load.
+    db.workoutSession.findMany({
+      where: { userId: user.id, endedAt: { not: null }, localDate: { gte: addDays(today, -34) } },
+      select: {
+        localDate: true,
+        sets: { select: { isWarmup: true, exercise: { select: { primaryMuscle: true, secondaryMuscles: true } } } },
+      },
+    }),
     getT(),
   ]);
   const intl = INTL_LOCALE[t.locale];
@@ -52,6 +63,14 @@ async function Today() {
   const latestPRs = recentPRs.filter((pr) => !seenExercises.has(pr.exerciseId) && seenExercises.add(pr.exerciseId)).slice(0, 3);
 
   const proteinLeft = Math.max(0, Math.round(profile.targetProteinG - totals.proteinG));
+  const weekStart = addDays(today, -6);
+  const bodyLoad = muscleLoad(
+    weekSessions.filter((s) => s.localDate >= weekStart).map((s) => ({ localDate: s.localDate, sets: s.sets.map((x) => ({ isWarmup: x.isWarmup, ...x.exercise })) })),
+  );
+  const load = trainingLoad(
+    weekSessions.map((s) => ({ date: s.localDate, sets: s.sets.filter((x) => !x.isWarmup).length })),
+    today,
+  );
 
   return (
     <div className="space-y-4">
@@ -65,6 +84,8 @@ async function Today() {
           <Settings className="size-5" />
         </Link>
       </header>
+
+      <BodyMap sex={profile.sex} today={today} load={bodyLoad} trainingLoad={load} />
 
       {checkin.status === "adjust" && checkin.suggested && (
         <Link href="/progress" className="flex items-center gap-3 rounded-card border border-line p-4 active:bg-wash">

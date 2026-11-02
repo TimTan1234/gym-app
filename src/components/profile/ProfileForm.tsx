@@ -5,7 +5,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { saveProfile, type ProfileInput } from "@/server/profile";
 import { cmToIn, inToCm, displayWeight, inputWeightToKg, round, weightUnit } from "@/lib/units";
-import { Button, Input, Label, Select, cn } from "@/components/ui";
+import { Check } from "lucide-react";
+import { Button, Input, Label, Select, chipClass, segmentClass, segmentTrack } from "@/components/ui";
 import { useClientValue } from "@/lib/use-client";
 import { useT } from "@/i18n/client";
 import { ACTIVITY_LEVELS, EQUIPMENT_OPTIONS, EXPERIENCE_LEVELS, GOALS } from "./options";
@@ -120,17 +121,14 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
 
       <fieldset>
         <legend className="mb-1.5 text-sm font-medium">{t("settings.form.goal")}</legend>
-        <div className="grid grid-cols-3 gap-2">
+        <div className={segmentTrack(true)}>
           {GOALS.map((g) => (
             <button
               type="button"
               key={g}
               onClick={() => setGoal(g)}
               aria-pressed={goal === g}
-              className={cn(
-                "rounded-field border px-3 py-2.5 text-sm font-semibold",
-                goal === g ? "border-iron bg-iron text-iron-fg" : "border-line bg-paper text-steel hover:border-iron",
-              )}
+              className={segmentClass(goal === g, true)}
             >
               {t(`labels.goal.${g}`)}
             </button>
@@ -155,11 +153,10 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
                 key={value}
                 aria-pressed={on}
                 onClick={() => setEquipment((cur) => (on ? cur.filter((x) => x !== value) : [...cur, value]))}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-sm",
-                  on ? "border-iron bg-iron font-semibold text-iron-fg" : "border-line text-steel hover:border-iron",
-                )}
+                className={chipClass(on)}
               >
+                {/* Several can be on: the tick says so without relying on the fill. */}
+                {on && <Check className="-ml-1 size-3.5" aria-hidden />}
                 {t(`labels.equipmentOption.${value}`)}
               </button>
             );

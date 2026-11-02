@@ -9,8 +9,8 @@ export const CHECKIN_DAYS = 14;
 const KCAL_PER_KG = 7700;
 /** Days with less than this share of the target are treated as partly logged. */
 const PARTIAL_DAY_SHARE = 0.5;
-const MIN_LOGGED_DAYS = 10;
-const MIN_WEIGH_INS = 4;
+export const MIN_LOGGED_DAYS = 10;
+export const MIN_WEIGH_INS = 4;
 const MIN_WEIGHT_SPAN_DAYS = 10;
 /** Largest change one check-in may make, so a noisy week can't swing targets. */
 export const MAX_STEP_KCAL = 250;

@@ -60,7 +60,7 @@ async function SessionDetail({ params }: { params: PageProps<"/train/history/[id
       {session.notes && <p className="border-l-2 border-iron pl-3 text-[15px] italic">{session.notes}</p>}
       {[...byExercise].map(([exerciseId, g]) => (
         <section key={exerciseId} className="space-y-2">
-          <Link href={`/train/exercises/${exerciseId}`} className="display text-[20px] hover:underline">
+          <Link href={`/train/exercises/${exerciseId}`} className="block text-[17px] font-semibold hover:underline">
             {g.name}
           </Link>
           <table className="w-full text-left">

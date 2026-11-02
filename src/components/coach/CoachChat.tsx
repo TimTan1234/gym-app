@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowRight, Check, Loader2, Minus, Plus, Send, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Loader2, Minus, Plus, Send } from "lucide-react";
 import type { MealDraft, MealSnapshot, Proposal } from "@/lib/ai/coach";
 import { HIGH_SUGAR_MEAL_G, SugarTag } from "@/components/nutrition/Sugar";
 import type { PlanChange } from "@/lib/ai/coach-edits";
@@ -260,13 +260,16 @@ function ProposalCard({ proposal, messageId, index }: { proposal: Proposal; mess
   const isDelete = proposal.kind === "mealDelete";
 
   return (
-    <div className="mt-3 space-y-3 border-t border-line pt-3 text-sm" data-testid="proposal">
-      <p className="display text-[17px]">{title}</p>
+    // The change the coach proposes is a card of its own under the reply: the one thing to act on.
+    <div className="mt-3 space-y-3 rounded-card border border-line bg-paper p-4 text-sm" data-testid="proposal">
+      <p className="display text-[19px]">{title}</p>
       {body}
       <p className="text-[13px] text-steel">{proposal.reason}</p>
       <Button
         size="sm"
-        variant={isDelete && !applied ? "danger" : "primary"}
+        variant={applied ? "ghost" : isDelete ? "danger" : "primary"}
+        // Done is a confirmation, not a greyed-out button: green text with a tick.
+        className={cn(applied && "px-0 text-good disabled:opacity-100")}
         disabled={applied || pending || !messageId}
         onClick={() =>
           startTransition(async () => {
@@ -396,28 +399,36 @@ function CoachChat({ threadId: initialThreadId, initialMessages, prefill, onThre
     <div className="flex min-h-[calc(100dvh-12rem)] flex-col">
       <div className="flex-1 space-y-4 pb-4" aria-live="polite" aria-busy={busy} data-testid="chat-log">
         {messages.length === 0 && (
-          <div className="space-y-3 py-6 text-center">
-            <Sparkles className="mx-auto size-8 text-iron" />
-            <p className="font-semibold">{t("coach.emptyTitle")}</p>
-            <p className="text-sm text-steel">{t("coach.emptyBody")}</p>
-            <div className="flex flex-wrap justify-center gap-2 pt-2">
+          <div className="space-y-4 pt-4">
+            <div>
+              <p className="display text-[24px]">{t("coach.emptyTitle")}</p>
+              <p className="mt-1 text-sm text-steel">{t("coach.emptyBody")}</p>
+            </div>
+            {/* Starter questions as a list: each is a whole question, so it reads left to right, not as a tag. */}
+            <ul className="space-y-2">
               {SUGGESTIONS.map((key) => {
                 const s = t(`coach.suggestions.${key}`);
                 return (
-                  <button key={key} type="button" onClick={() => send(s)} className="rounded-full border border-line bg-paper px-3 py-1.5 text-sm hover:border-iron">
-                    {s}
-                  </button>
+                  <li key={key}>
+                    <button
+                      type="button"
+                      onClick={() => send(s)}
+                      className="flex min-h-12 w-full items-center rounded-card border border-line px-4 py-2.5 text-left text-[15px] hover:bg-wash"
+                    >
+                      {s}
+                    </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </div>
         )}
         {messages.map((m, i) => (
-          <div key={m.id ?? `pending-${i}`} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+          <div key={m.id ?? `pending-${i}`} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")} data-testid={`${m.role}-message`}>
+            {/* Your message is a bubble; the coach's reply runs on the page like notes, with its proposals as cards. */}
             <div
               className={cn(
-                "max-w-[88%] rounded-card px-4 py-2.5 text-sm",
-                m.role === "user" ? "rounded-br-md bg-iron text-iron-fg" : "rounded-bl-md border border-line bg-paper",
+                m.role === "user" ? "max-w-[85%] rounded-card rounded-br-md bg-wash px-4 py-2.5 text-[15px]" : "w-full text-[15px] leading-relaxed",
               )}
             >
               {m.role === "assistant" && !m.content && busy && i === messages.length - 1 ? (

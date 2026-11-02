@@ -85,6 +85,32 @@ export function IconButton({
 }
 
 /**
+ * One choice of a few: a pill segmented control. Wrap the options in `segmentTrack()` and give each
+ * `segmentClass(selected)`. With `fill` the track spans its row (forms); without, it
+ * hugs its labels (page headers). Links take aria-current; buttons role="radio" with aria-checked.
+ */
+export function segmentTrack(fill = false) {
+  return cn("rounded-full bg-wash p-1", fill ? "flex w-full gap-1" : "inline-flex");
+}
+
+export function segmentClass(selected: boolean, fill = false) {
+  return cn(
+    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full text-sm transition-colors disabled:opacity-50",
+    // Filled tracks grow each segment from its label's width, so "Build muscle" keeps one line beside "Lose fat".
+    fill ? "flex-auto whitespace-nowrap px-2" : "px-3.5",
+    selected ? "bg-segment-on font-medium text-iron shadow-[0_1px_2px_rgba(20,20,19,0.12)]" : "text-steel hover:text-iron",
+  );
+}
+
+/** Options that wrap onto more lines, or where several can be on at once: standalone outlined chips. */
+export function chipClass(selected: boolean) {
+  return cn(
+    "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors",
+    selected ? "border-iron bg-wash font-medium text-iron" : "border-line text-steel hover:border-steel hover:text-iron",
+  );
+}
+
+/**
  * A round, tinted icon button for a page's header actions (refresh, settings).
  * A class, so links can wear it too.
  */

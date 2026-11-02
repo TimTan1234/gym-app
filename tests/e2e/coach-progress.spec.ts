@@ -34,18 +34,28 @@ test("coach proposes targets → apply → settings reflects it; progress render
   const log = page.locator("form", { has: page.getByLabel("Body fat %") });
   await log.getByLabel("Date").fill(new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10));
   await log.getByLabel("Weight (kg)").fill("79");
+  await log.getByLabel("Body fat %").fill("21.4");
   await log.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("figure").filter({ hasText: "Body weight" })).toBeVisible();
   const entries = page.getByRole("button", { name: /^Delete entry for/ });
   await expect(entries).toHaveCount(2);
+  // Body fat gets its own chart once two entries have it
+  const bodyFat = page.getByRole("figure").filter({ hasText: "Body fat" });
+  await expect(bodyFat).toHaveCount(0);
+  await log.getByLabel("Date").fill(new Date(Date.now() - 1 * 864e5).toISOString().slice(0, 10));
+  await log.getByLabel("Weight (kg)").fill("78.6");
+  await log.getByLabel("Body fat %").fill("21");
+  await log.getByRole("button", { name: "Save" }).click();
+  await expect(entries).toHaveCount(3);
+  await expect(bodyFat).toBeVisible();
 
   // Remove today's weigh-in; saving settings without changing weight must not recreate it
   await entries.first().click();
-  await expect(entries).toHaveCount(1);
+  await expect(entries).toHaveCount(2);
   await page.goto("/settings");
   await page.getByRole("button", { name: "Build muscle" }).click();
   await page.getByRole("button", { name: "Save profile" }).click();
   await expect(page.getByText("Profile saved")).toBeVisible();
   await page.goto("/progress");
-  await expect(page.getByRole("button", { name: /^Delete entry for/ })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /^Delete entry for/ })).toHaveCount(2);
 });

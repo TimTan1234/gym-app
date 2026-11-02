@@ -32,6 +32,25 @@ export const MealAnalysisSchema = z.object({
 /** Photos one meal analysis can take: several dishes, or one dish from different angles. */
 export const MAX_MEAL_PHOTOS = 4;
 
+// ---------- Body fat from photos ----------
+
+/** Why photos can't give an estimate; the UI shows a translated message for each. */
+export const BODY_FAT_UNUSABLE = ["no_person", "multiple_people", "body_not_visible", "too_dark_or_blurry", "appears_minor"] as const;
+
+export const BodyFatEstimateSchema = z.object({
+  usable: z.boolean().describe("false if a body-fat estimate can't responsibly be made from these photos"),
+  reason: z.enum(BODY_FAT_UNUSABLE).nullable().describe("Why not, when usable is false; otherwise null"),
+  estimatePct: z.number().nullable().describe("Best single estimate of body fat %, or null when unusable"),
+  lowPct: z.number().nullable().describe("Low end of the likely range, %"),
+  highPct: z.number().nullable().describe("High end of the likely range, %"),
+  cues: z.array(z.string().max(120)).max(3).describe("Up to 3 short, neutral visual cues the estimate rests on"),
+});
+
+export type BodyFatEstimate = z.infer<typeof BodyFatEstimateSchema>;
+
+/** Photos one body-fat estimate can take: front, side and back. */
+export const MAX_BODY_PHOTOS = 3;
+
 export type MealItemDraft = z.infer<typeof MealItemDraftSchema>;
 export type MealAnalysis = z.infer<typeof MealAnalysisSchema>;
 

@@ -21,3 +21,21 @@ export function durationMinutes(startedAt: Date, endedAt: Date | null): number |
   if (!endedAt) return null;
   return Math.max(1, Math.round((endedAt.getTime() - startedAt.getTime()) / 60000));
 }
+
+/**
+ * The exercise the next set belongs to: the one last logged until its target is met, then the next
+ * planned one with sets to go. Exercises without a target count as done once they have a set.
+ * Null once every exercise is done.
+ */
+export function currentExercise(
+  exercises: { id: string; targetSets: number | null }[],
+  sets: { exerciseId: string; isWarmup: boolean }[],
+): string | null {
+  const working = (id: string) => sets.filter((s) => s.exerciseId === id && !s.isWarmup).length;
+  const open = (e: (typeof exercises)[number]) =>
+    e.targetSets ? working(e.id) < e.targetSets : !sets.some((s) => s.exerciseId === e.id);
+  const at = exercises.findIndex((e) => e.id === sets.at(-1)?.exerciseId);
+  if (at >= 0 && (!exercises[at].targetSets || open(exercises[at]))) return exercises[at].id;
+  const after = [...exercises.slice(at + 1), ...exercises.slice(0, at + 1)];
+  return after.find(open)?.id ?? null;
+}

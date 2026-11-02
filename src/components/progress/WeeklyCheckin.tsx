@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
-import type { CheckinResult } from "@/lib/nutrition/checkin";
+import { MIN_LOGGED_DAYS, MIN_WEIGH_INS, type CheckinResult } from "@/lib/nutrition/checkin";
 import { describeMissing } from "@/lib/nutrition/checkin-text";
 import { formatLocalDate } from "@/lib/dates";
 import { displayWeight, weightUnit, type UnitSystem } from "@/lib/units";
-import { buttonClass } from "@/components/ui";
+import { ProgressBar, buttonClass } from "@/components/ui";
 import { ApplyCheckinButton } from "./ApplyCheckinButton";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
@@ -29,23 +29,58 @@ export async function WeeklyCheckin({ checkin: c, targetKcal, units }: { checkin
     </Link>
   );
 
+  const period = t("progress.checkin.window", {
+    start: formatLocalDate(c.start, { weekday: undefined }, intl),
+    end: formatLocalDate(c.end, { weekday: undefined }, intl),
+  });
+
+  // Nothing to decide yet: a quiet card showing how far along the data is. The dark panel is kept for a verdict.
+  if (c.status === "insufficient") {
+    const meters = [
+      { label: t("progress.checkin.meterDays"), n: c.daysLogged, min: MIN_LOGGED_DAYS },
+      { label: t("progress.checkin.meterWeighIns"), n: c.weighIns, min: MIN_WEIGH_INS },
+    ];
+    return (
+      <section className="space-y-4 rounded-card border border-line p-5" aria-labelledby="checkin-title" data-testid="weekly-checkin">
+        <div>
+          <p className="text-sm text-steel">{period}</p>
+          <h2 id="checkin-title" className="display mt-1 text-[22px]">
+            {t("progress.checkin.insufficient")}
+          </h2>
+        </div>
+        <dl className="grid grid-cols-2 gap-4">
+          {meters.map((m) => (
+            <div key={m.label} className="space-y-1.5">
+              <dt className="text-[13px] text-steel">{m.label}</dt>
+              <dd className="num text-sm font-medium">{t("progress.checkin.meterCount", { n: Math.min(m.n, m.min), min: m.min })}</dd>
+              <dd>
+                <ProgressBar value={m.n} max={m.min} />
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <p className="text-sm text-steel">
+          {t("progress.checkin.stillNeeded", {
+            items: c.missing.map((m) => describeMissing(t, m)).join(t("progress.checkin.listSeparator")),
+          })}
+        </p>
+        <Link href={`/coach?q=${encodeURIComponent(t("progress.checkin.coachQuestion"))}`} className={buttonClass("secondary", "sm")}>
+          <Sparkles className="size-4" /> {t("progress.checkin.askCoach")}
+        </Link>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-4 rounded-card bg-panel p-5 text-panel-fg" aria-labelledby="checkin-title" data-testid="weekly-checkin">
       <div>
-        <p className="text-sm opacity-70">
-          {t("progress.checkin.window", {
-            start: formatLocalDate(c.start, { weekday: undefined }, intl),
-            end: formatLocalDate(c.end, { weekday: undefined }, intl),
-          })}
-        </p>
+        <p className="text-sm opacity-70">{period}</p>
         <h2 id="checkin-title" className="display mt-1 text-[24px]">
-          {c.status === "insufficient"
-            ? t("progress.checkin.insufficient")
-            : c.status === "on_track"
-              ? t("progress.checkin.onTrack")
-              : c.status === "waiting"
-                ? t("progress.checkin.nextOn", { date: formatLocalDate(c.nextOn!, { weekday: "long", month: "short" }, intl) })
-                : t("progress.checkin.change", { kcal: fmt(c.suggested!.kcal) })}
+          {c.status === "on_track"
+            ? t("progress.checkin.onTrack")
+            : c.status === "waiting"
+              ? t("progress.checkin.nextOn", { date: formatLocalDate(c.nextOn!, { weekday: "long", month: "short" }, intl) })
+              : t("progress.checkin.change", { kcal: fmt(c.suggested!.kcal) })}
         </h2>
         {c.status === "waiting" && (
           <p className="mt-1 text-sm opacity-80">{t("progress.checkin.waitingBody")}</p>
@@ -62,13 +97,6 @@ export async function WeeklyCheckin({ checkin: c, targetKcal, units }: { checkin
         )}
       </div>
 
-      {c.status === "insufficient" ? (
-        <p className="text-sm opacity-80">
-          {t("progress.checkin.stillNeeded", {
-            items: c.missing.map((m) => describeMissing(t, m)).join(t("progress.checkin.listSeparator")),
-          })}
-        </p>
-      ) : (
         <dl className="grid grid-cols-3 gap-3 border-t border-panel-fg/20 pt-3">
           <div>
             <dt className="text-xs opacity-70">{t("progress.checkin.eaten")}</dt>
@@ -77,7 +105,11 @@ export async function WeeklyCheckin({ checkin: c, targetKcal, units }: { checkin
           </div>
           <div>
             <dt className="text-xs opacity-70">{t("progress.checkin.weightTrend")}</dt>
-            <dd className="score text-[26px]">{signed(c.weeklyChangeKg!, units)}</dd>
+            {/* The unit drops a size so "−0.42 kg" stays on one line in a third of a phone. */}
+            <dd className="score whitespace-nowrap text-[26px]">
+              {signed(c.weeklyChangeKg!, units).replace(/ \S+$/, "")}
+              <span className="text-[17px]"> {weightUnit(units)}</span>
+            </dd>
             <dd className="text-xs opacity-70">{t("progress.checkin.aWeek")}</dd>
             <dd className="text-xs opacity-70">{t("progress.checkin.goal", { value: signed(c.goalWeeklyChangeKg, units) })}</dd>
           </div>
@@ -87,7 +119,6 @@ export async function WeeklyCheckin({ checkin: c, targetKcal, units }: { checkin
             <dd className="text-xs opacity-70">{t("progress.checkin.kcalADay")}</dd>
           </div>
         </dl>
-      )}
 
       <div className="flex flex-wrap gap-2">
         {c.status === "adjust" && <ApplyCheckinButton kcal={c.suggested!.kcal} />}

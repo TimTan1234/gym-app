@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { GROCERY_CATEGORIES, type GroceryCategory } from "@/lib/ai/schemas";
-import { Input, Select, cn } from "@/components/ui";
+import { Input, Select, cn, segmentClass, segmentTrack } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
 /**
@@ -95,7 +95,7 @@ export function Segmented<V extends string>({
   label: string;
 }) {
   return (
-    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }} role="radiogroup" aria-label={label}>
+    <div className={segmentTrack(true)} role="radiogroup" aria-label={label}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -103,10 +103,7 @@ export function Segmented<V extends string>({
           role="radio"
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
-          className={cn(
-            "rounded-field border py-2 text-sm font-semibold",
-            value === o.value ? "border-iron bg-iron text-iron-fg" : "border-line text-steel hover:border-iron",
-          )}
+          className={segmentClass(value === o.value, true)}
         >
           {o.label}
         </button>

@@ -53,7 +53,7 @@ async function Plans() {
           <li key={p.id} className={cn("relative py-4", p.isActive && "before:absolute before:inset-y-4 before:-left-2.5 before:w-[3px] before:rounded-full before:bg-iron")}>
             <div className="flex items-start justify-between gap-2">
               <Link href={`/train/plans/${p.id}`} className="min-w-0 hover:underline">
-                <p className="display text-[20px]">{p.name}</p>
+                <p className="text-[17px] font-medium leading-snug">{p.name}</p>
               </Link>
               <div className="flex shrink-0 gap-1">
                 {p.isActive && <Badge className="bg-iron text-iron-fg">{t("plans.active")}</Badge>}

@@ -587,7 +587,7 @@ function ExerciseBlock({
       </div>
       {exercise.equipment === "barbell" && Number(weight) > 0 && <PlateLoad weight={Number(weight)} units={units} />}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <label className="flex w-fit items-center gap-2 text-[13px] text-steel">
+        <label className="flex min-h-11 w-fit items-center gap-2 text-[13px] text-steel">
           <input type="checkbox" checked={warmup} onChange={(e) => setWarmup(e.target.checked)} className="size-4 accent-[var(--iron)]" />
           {t("train.warmupCheckbox")}
         </label>

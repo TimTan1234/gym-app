@@ -10,6 +10,10 @@
     <string name="need_https">地址必须以 https:// 开头</string>
     <string name="bad_code">验证码无效。每个验证码只能用一次，10 分钟内有效，请在 GymPal 中重新生成。</string>
     <string name="no_connection">无法连接 %1$s。请检查地址和网络。</string>
+    <string name="server_error">%1$s 返回了错误（%2$d）。请确认这是你的 GymPal 服务器地址，或稍后再试。</string>
+    <string name="nothing_to_send">Health Connect 里还没有最近 7 天的步数或睡眠数据。请确认你的计步或手表应用已把数据共享给 Health Connect。</string>
+    <string name="read_failed">无法从 Health Connect 读取数据。请过一分钟再试。</string>
+    <string name="open_health_connect">打开 Health Connect</string>
     <string name="linked_as">已关联到 %1$s，账号：%2$s。</string>
     <string name="grant_help">允许 GymPal Health 读取步数和睡眠。它不会向 Health Connect 写入任何数据。</string>
     <string name="grant">允许读取步数和睡眠</string>

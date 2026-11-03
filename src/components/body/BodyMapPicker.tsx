@@ -50,7 +50,15 @@ export function BodyMapPicker({
     <div>
       {/* Outline the picked muscle on both views. Muscle names come from a fixed list. */}
       {selected && <style>{`[data-body-map] g[data-muscle="${selected.muscle}"]{stroke-opacity:1;stroke-width:2px}`}</style>}
-      <div role="img" aria-label={label} data-body-map data-testid="body-map" onClick={onFigureClick} className="flex h-64 cursor-pointer justify-center gap-5 py-2">
+      {/* With nothing to show, the figure is drawn smaller so the day's actions stay on the first screen. */}
+      <div
+        role="img"
+        aria-label={label}
+        data-body-map
+        data-testid="body-map"
+        onClick={onFigureClick}
+        className={cn("flex cursor-pointer justify-center gap-5 py-2", items.length ? "h-64" : "h-40")}
+      >
         {children}
       </div>
 

@@ -4,14 +4,18 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.text.InputType
 import android.text.format.DateUtils
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -25,6 +29,7 @@ class MainActivity : ComponentActivity() {
     private val scroll by lazy { ScrollView(this) }
     private var status: String? = null
     private var busy = false
+    private var nothingInHealthConnect = false
 
     private val requestAccess = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) {
         lifecycleScope.launch { afterAccessChange() }
@@ -35,6 +40,12 @@ class MainActivity : ComponentActivity() {
         store = Store(this)
         ui = Ui(this)
         setContentView(scroll)
+        // Android 15+ draws the app under the status and navigation bars: keep the screen clear of them and of the keyboard.
+        ViewCompat.setOnApplyWindowInsetsListener(scroll) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
     }
 
     override fun onResume() {
@@ -71,9 +82,10 @@ class MainActivity : ComponentActivity() {
                     col.add(server, top = 4)
                     col.add(body(getString(R.string.code_label), muted = true), top = 16)
                     col.add(code, top = 4)
-                    col.add(button(getString(if (busy) R.string.linking else R.string.link), primary = true) {
-                        if (!busy) lifecycleScope.launch { link(server.text.toString(), code.text.toString()) }
+                    col.add(button(getString(if (busy) R.string.linking else R.string.link), primary = true, enabled = !busy) {
+                        lifecycleScope.launch { link(server.text.toString(), code.text.toString()) }
                     }, top = 20)
+                    status?.let { col.add(body(it), top = 16) }
                 }
                 !canRead -> {
                     col.add(body(getString(R.string.linked_as, store.server, store.account)), top = 24)
@@ -96,19 +108,27 @@ class MainActivity : ComponentActivity() {
                     )
                     val background = reader.backgroundAvailable && HealthReader.BACKGROUND in reader.granted()
                     col.add(body(getString(if (background) R.string.background_on else R.string.background_off), muted = true), top = 8)
-                    col.add(button(getString(if (busy) R.string.syncing else R.string.sync_now), primary = true) {
-                        if (!busy) lifecycleScope.launch { syncNow(quiet = false) }
+                    col.add(button(getString(if (busy) R.string.syncing else R.string.sync_now), primary = true, enabled = !busy) {
+                        lifecycleScope.launch { syncNow(quiet = false) }
                     }, top = 20)
-                    col.add(button(getString(R.string.unlink), primary = false) { unlink() }, top = 12)
+                    // The result sits right under the button that asked for it.
+                    status?.let { col.add(body(it), top = 16) }
+                    if (nothingInHealthConnect && !busy) {
+                        col.add(button(getString(R.string.open_health_connect), primary = false) {
+                            startActivity(HealthConnectClient.getHealthConnectManageDataIntent(this@MainActivity))
+                        }, top = 12)
+                    }
+                    col.add(button(getString(R.string.unlink), primary = false) { unlink() }, top = 20)
                 }
             }
-            status?.let { col.add(body(it), top = 20) }
+            if (reader == null || (store.linked && !canRead)) status?.let { col.add(body(it), top = 20) }
         }
         scroll.removeAllViews()
         scroll.addView(col)
     }
 
     private suspend fun link(serverInput: String, code: String) {
+        if (busy) return
         val server = Days.normalizeServer(serverInput)
         if (server == null) {
             status = getString(R.string.need_https)
@@ -125,7 +145,8 @@ class MainActivity : ComponentActivity() {
         } catch (e: ApiException) {
             when (e.kind) {
                 ApiException.Kind.BadCode -> getString(R.string.bad_code)
-                else -> getString(R.string.no_connection, server)
+                ApiException.Kind.Network -> getString(R.string.no_connection, server)
+                else -> getString(R.string.server_error, server, e.status)
             }
         }
         busy = false
@@ -143,17 +164,35 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun syncNow(quiet: Boolean) {
+        if (busy) return
         busy = true
-        if (!quiet) render()
+        if (!quiet) {
+            status = null
+            render()
+        }
+        val server = store.server ?: ""
+        val started = SystemClock.elapsedRealtime()
         val result = Sync.run(this)
+        // A quick answer still shows "Syncing…" long enough to see that the tap did something.
+        if (!quiet) delay((MIN_BUSY_MS - (SystemClock.elapsedRealtime() - started)).coerceAtLeast(0))
         busy = false
+        nothingInHealthConnect = result == SyncResult.NothingNew
+        // Every outcome says what happened, so a tap never looks like it did nothing.
         status = when (result) {
             is SyncResult.Sent -> resources.getQuantityString(R.plurals.synced_days, result.days, result.days)
+            SyncResult.NothingNew -> getString(R.string.nothing_to_send)
             SyncResult.Unlinked -> getString(R.string.unlinked_remote)
-            is SyncResult.Failed -> getString(R.string.no_connection, store.server ?: "")
-            else -> if (quiet) status else null
+            SyncResult.ReadFailed -> getString(R.string.read_failed)
+            is SyncResult.Failed ->
+                if (result.error.kind == ApiException.Kind.Network) getString(R.string.no_connection, server)
+                else getString(R.string.server_error, server, result.error.status)
+            SyncResult.NotLinked, SyncResult.NoAccess -> null
         }
         render()
+    }
+
+    private companion object {
+        const val MIN_BUSY_MS = 700L
     }
 
     private fun unlink() {

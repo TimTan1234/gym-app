@@ -42,7 +42,7 @@ async function Train() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm opacity-70">{t("train.inProgress")}</p>
-              <p className="display text-[24px]">{t("train.pickUp")}</p>
+              <p className="display text-[24px] text-balance">{t("train.pickUp")}</p>
             </div>
             <Link href={`/train/workout/${active.id}`} className={buttonClass("inverse")}>{t("train.resume")}</Link>
           </div>

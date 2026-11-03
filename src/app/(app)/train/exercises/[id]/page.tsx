@@ -28,7 +28,11 @@ async function ExerciseDetail({ params }: { params: PageProps<"/train/exercises/
       orderBy: { completedAt: "asc" },
       select: { exerciseId: true, weightKg: true, reps: true, isWarmup: true, rpe: true, sessionId: true, session: { select: { localDate: true } } },
     }),
-    db.personalRecord.groupBy({ by: ["type"], where: { userId: user.id, exerciseId: id }, _max: { value: true } }),
+    db.personalRecord.groupBy({
+      by: ["type"],
+      where: { userId: user.id, exerciseId: id, set: { session: { endedAt: { not: null } } } },
+      _max: { value: true },
+    }),
   ]);
 
   const units = profile.unitSystem;

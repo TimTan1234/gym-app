@@ -10,6 +10,10 @@
     <string name="need_https">The address must start with https://</string>
     <string name="bad_code">That code didn\'t work. Codes work once, for 10 minutes: make a new one in GymPal.</string>
     <string name="no_connection">Couldn\'t reach %1$s. Check the address and your connection.</string>
+    <string name="server_error">%1$s answered with an error (%2$d). Check the address is your GymPal server, or try again later.</string>
+    <string name="nothing_to_send">Health Connect has no steps or sleep for the last 7 days yet. Check that your step counter or watch app shares them with Health Connect.</string>
+    <string name="read_failed">Couldn\'t read from Health Connect. Try again in a minute.</string>
+    <string name="open_health_connect">Open Health Connect</string>
     <string name="linked_as">Linked to %1$s as %2$s.</string>
     <string name="grant_help">Allow GymPal Health to read steps and sleep. It never writes to Health Connect.</string>
     <string name="grant">Allow access to steps and sleep</string>

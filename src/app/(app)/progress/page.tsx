@@ -59,7 +59,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
     }),
     db.personalRecord.groupBy({
       by: ["exerciseId"],
-      where: { userId: user.id, type: "EST_1RM" },
+      where: { userId: user.id, type: "EST_1RM", set: { session: { endedAt: { not: null } } } },
       _max: { value: true },
       orderBy: { _max: { value: "desc" } },
       take: 8,

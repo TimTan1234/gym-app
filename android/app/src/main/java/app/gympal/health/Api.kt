@@ -3,10 +3,11 @@ package app.gympal.health
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import org.json.JSONException
 import org.json.JSONObject
 
 /** Why a call to the GymPal server failed, in terms the screen can explain. */
-class ApiException(val kind: Kind) : Exception(kind.name) {
+class ApiException(val kind: Kind, val status: Int = 0) : Exception(kind.name) {
     enum class Kind { BadCode, Unauthorized, Network, Server }
 }
 
@@ -18,9 +19,9 @@ object Api {
         val body = "{\"code\":${Days.jsonString(code)},\"name\":${Days.jsonString(deviceName)}}"
         val (status, text) = post("$server/api/device/link", body, token = null)
         return when (status) {
-            200 -> JSONObject(text).let { Linked(it.getString("token"), it.optString("name")) }
-            400 -> throw ApiException(ApiException.Kind.BadCode)
-            else -> throw ApiException(ApiException.Kind.Server)
+            200 -> parse(status, text) { Linked(it.getString("token"), it.optString("name")) }
+            400 -> throw ApiException(ApiException.Kind.BadCode, status)
+            else -> throw ApiException(ApiException.Kind.Server, status)
         }
     }
 
@@ -28,10 +29,17 @@ object Api {
     fun sync(server: String, token: String, json: String): Int {
         val (status, text) = post("$server/api/device/sync", json, token)
         return when (status) {
-            200 -> JSONObject(text).optInt("saved")
-            401 -> throw ApiException(ApiException.Kind.Unauthorized)
-            else -> throw ApiException(ApiException.Kind.Server)
+            200 -> parse(status, text) { it.getInt("saved") }
+            401 -> throw ApiException(ApiException.Kind.Unauthorized, status)
+            else -> throw ApiException(ApiException.Kind.Server, status)
         }
+    }
+
+    /** Reads a 200 reply. An address that isn't a GymPal server can still answer 200, with a web page. */
+    private fun <T> parse(status: Int, text: String, read: (JSONObject) -> T): T = try {
+        read(JSONObject(text))
+    } catch (e: JSONException) {
+        throw ApiException(ApiException.Kind.Server, status)
     }
 
     private fun post(url: String, body: String, token: String?): Pair<Int, String> {

@@ -42,7 +42,8 @@ async function Today() {
     getNextPlanDay(user.id),
     getActiveWorkout(user.id),
     db.personalRecord.findMany({
-      where: { userId: user.id, type: "EST_1RM" },
+      // Records from finished workouts only, like every other count on this page.
+      where: { userId: user.id, type: "EST_1RM", set: { session: { endedAt: { not: null } } } },
       orderBy: { achievedAt: "desc" },
       take: 20,
       include: { exercise: { select: { name: true, slug: true } } },
@@ -110,9 +111,9 @@ async function Today() {
         </Link>
       )}
 
-      <Link href="/nutrition" aria-label={t("today.openNutrition")} className="block rounded-card bg-paper p-5 focus-visible:outline-offset-4">
-        <p aria-hidden className="mb-3 flex items-center gap-2 text-sm font-semibold">
-          <Utensils className="size-4 text-steel" /> {t("nav.food")}
+      <Link href="/nutrition" className="block rounded-card bg-paper p-5 focus-visible:outline-offset-4">
+        <p className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <Utensils className="size-4 text-steel" aria-hidden /> {t("nav.food")}
         </p>
         <MacroSummary totals={totals} targets={profile} compact bonus={bonus} />
       </Link>
@@ -138,7 +139,7 @@ async function Today() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm opacity-70">{t("today.workoutInProgress")}</p>
-              <p className="display text-[24px]">{t("today.pickUp")}</p>
+              <p className="display text-[24px] text-balance">{t("today.pickUp")}</p>
             </div>
             <Link href={`/train/workout/${active.id}`} className={buttonClass("inverse")}>{t("today.resume")}</Link>
           </div>

@@ -1,8 +1,10 @@
 package app.gympal.health
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.text.InputType
 import android.util.TypedValue
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -49,17 +51,21 @@ class Ui(private val context: Context) {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
     }
 
-    /** Coral for the one main action on a screen, outlined for the rest. */
-    fun button(text: String, primary: Boolean, onClick: () -> Unit) = Button(context).apply {
+    /** Coral for the one main action on a screen, outlined for the rest. A ripple shows the tap; a dimmed button is busy. */
+    fun button(text: String, primary: Boolean, enabled: Boolean = true, onClick: () -> Unit) = Button(context).apply {
         this.text = text
         isAllCaps = false
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
         minHeight = dp(52)
-        background = GradientDrawable().apply {
+        val shape = GradientDrawable().apply {
             cornerRadius = dp(12).toFloat()
             if (primary) setColor(color(R.color.coral)) else setStroke(dp(1), color(R.color.steel))
         }
+        val ripple = if (primary) 0x40FFFFFF else (color(R.color.ink) and 0x00FFFFFF) or 0x1F000000
+        background = RippleDrawable(ColorStateList.valueOf(ripple), shape, null)
         setTextColor(if (primary) 0xFFFFFFFF.toInt() else color(R.color.ink))
+        isEnabled = enabled
+        alpha = if (enabled) 1f else 0.6f
         setOnClickListener { onClick() }
     }
 

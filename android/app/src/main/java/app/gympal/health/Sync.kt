@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -19,7 +20,8 @@ sealed interface SyncResult {
     data object NotLinked : SyncResult
     data object NoAccess : SyncResult
     data object Unlinked : SyncResult
-    data class Failed(val kind: ApiException.Kind) : SyncResult
+    data object ReadFailed : SyncResult
+    data class Failed(val error: ApiException) : SyncResult
 }
 
 object Sync {
@@ -38,6 +40,11 @@ object Sync {
         } catch (e: SecurityException) {
             // Closed app without background reading: wait until it's opened.
             return SyncResult.NoAccess
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Health Connect busy, over its read quota, or restarting.
+            return SyncResult.ReadFailed
         }
         val json = Days.syncJson(days) ?: return SyncResult.NothingNew
         return try {
@@ -51,7 +58,7 @@ object Sync {
                 stop(context)
                 SyncResult.Unlinked
             } else {
-                SyncResult.Failed(e.kind)
+                SyncResult.Failed(e)
             }
         }
     }
@@ -72,7 +79,7 @@ object Sync {
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result =
         when (Sync.run(applicationContext)) {
-            is SyncResult.Failed -> Result.retry()
+            is SyncResult.Failed, SyncResult.ReadFailed -> Result.retry()
             else -> Result.success()
         }
 }

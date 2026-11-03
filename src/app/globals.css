@@ -170,6 +170,17 @@ body {
   --toast-top: 104px;
 }
 
+/* Success and error toasts in the app's own good/alert inks, which pass AA in both themes (Sonner's
+   rich colours do not). :root outranks Sonner's per-theme block, which it injects after this sheet. */
+:root [data-sonner-toaster][data-sonner-theme] {
+  --success-bg: color-mix(in oklab, var(--good) 10%, var(--chalk));
+  --success-border: color-mix(in oklab, var(--good) 30%, var(--chalk));
+  --success-text: var(--good);
+  --error-bg: color-mix(in oklab, var(--alert) 10%, var(--chalk));
+  --error-border: color-mix(in oklab, var(--alert) 30%, var(--chalk));
+  --error-text: var(--alert);
+}
+
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;

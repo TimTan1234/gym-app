@@ -83,8 +83,11 @@ export function useRestTimer() {
     persist(null);
   }, []);
 
+  // A timer restored from storage only exists on the client: report it once hydrated, so the server
+  // render and the hydration pass agree.
+  const hydrated = useHydrated();
   const remaining = endsAt ? Math.max(0, Math.ceil((endsAt - now) / 1000)) : 0;
-  return { running: endsAt !== null, remaining, total, start, adjust, stop };
+  return { running: hydrated && endsAt !== null, remaining, total, start, adjust, stop };
 }
 
 export function RestTimerBar({
@@ -95,10 +98,8 @@ export function RestTimerBar({
   /** What the rest is for: tapping it scrolls to that exercise. */
   next?: { label: string; onGo?: () => void };
 }) {
-  // The timer may be restored from storage; only render after hydration.
-  const hydrated = useHydrated();
   const t = useT();
-  if (!hydrated || !timer.running) return null;
+  if (!timer.running) return null;
   const m = Math.floor(timer.remaining / 60);
   const s = String(timer.remaining % 60).padStart(2, "0");
   const left = timer.total ? Math.min(1, timer.remaining / timer.total) : 1;

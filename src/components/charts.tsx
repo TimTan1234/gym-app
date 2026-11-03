@@ -57,7 +57,8 @@ function TooltipBox({ title, rows }: { title: string; rows: TooltipRow[] }) {
 
 function TableToggle({ t, open, onToggle }: { t: T; open: boolean; onToggle: () => void }) {
   return (
-    <button type="button" onClick={onToggle} aria-pressed={open} className="flex items-center gap-1 text-xs text-steel hover:text-iron">
+    // A 44px target that doesn't make the caption taller.
+    <button type="button" onClick={onToggle} aria-pressed={open} className="-my-3.5 -mr-2 flex min-h-11 items-center gap-1 px-2 text-xs text-steel hover:text-iron">
       <Table2 className="size-3.5" /> {open ? t("progress.chart.chart") : t("progress.chart.table")}
     </button>
   );

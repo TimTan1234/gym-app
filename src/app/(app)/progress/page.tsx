@@ -10,6 +10,8 @@ import { totalVolume } from "@/lib/training/summary";
 import { CategoryBars, DailyBars, TrendChart } from "@/components/charts";
 import { BodyMetricsLog } from "@/components/body/BodyMetricsLog";
 import { getCheckin } from "@/lib/queries";
+import { cycleEnabled } from "@/lib/cycle-queries";
+import { bandsOnDates, learnedPeriodLength } from "@/lib/cycle/predict";
 import { WeeklyCheckin } from "@/components/progress/WeeklyCheckin";
 import { EmptyState, PageHeader, PageSkeleton, segmentClass, segmentTrack } from "@/components/ui";
 import { getT } from "@/i18n/server";
@@ -41,7 +43,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
   const start = addDays(today, -(rangeDays - 1));
   const units = profile.unitSystem;
 
-  const [metrics, mealDays, sessions, prs, streakDays, checkin, activity, t] = await Promise.all([
+  const [metrics, mealDays, sessions, prs, streakDays, checkin, activity, periods, t] = await Promise.all([
     db.bodyMetric.findMany({ where: { userId: user.id, localDate: { gte: start } }, orderBy: { localDate: "asc" } }),
     db.meal.groupBy({
       by: ["localDate"],
@@ -69,6 +71,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
     }),
     getCheckin(user.id, profile),
     db.dailyActivity.findMany({ where: { userId: user.id, localDate: { gte: start, lte: today } }, select: { localDate: true, steps: true, sleepMinutes: true } }),
+    cycleEnabled(profile) ? db.period.findMany({ where: { userId: user.id }, select: { startDate: true, endDate: true } }) : [],
     getT(),
   ]);
 
@@ -82,6 +85,8 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
   // Body weight
   const weightTrend = movingAverage(metrics.map((m) => ({ date: m.localDate, value: displayWeight(m.weightKg, units) })));
   const weightChange = weightTrend.length >= 2 ? weightTrend.at(-1)!.avg - weightTrend[0].avg : null;
+  // Periods shaded behind the weight trend, where water weight often shows.
+  const periodBands = bandsOnDates(periods, learnedPeriodLength(periods, profile.periodLength), weightTrend.map((p) => p.date));
   // Body fat on its own chart under weight, on the same dates: one scale per chart, never two.
   const photoEstimates = new Set(metrics.filter((m) => m.bodyFatSource === "PHOTO_ESTIMATE").map((m) => m.localDate));
   const bodyFatTrend = movingAverage(metrics.flatMap((m) => (m.bodyFatPct === null ? [] : [{ date: m.localDate, value: m.bodyFatPct }]))).map((p) => ({
@@ -162,7 +167,7 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
         </div>
         <div className="space-y-6 pt-2">
           {weightTrend.length >= 2 ? (
-            <TrendChart title={t("progress.bodyWeight")} data={weightTrend} unit={weightUnit(units)} />
+            <TrendChart title={t("progress.bodyWeight")} data={weightTrend} unit={weightUnit(units)} bands={periodBands} bandLabel={t("cycle.calendar.period")} />
           ) : (
             <p className="text-sm text-steel">{t("progress.needTwoWeighIns")}</p>
           )}

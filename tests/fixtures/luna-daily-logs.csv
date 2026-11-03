@@ -1,0 +1,8 @@
+﻿"Date","Period Start","Period End","Flow","Symptoms","Intimacy Count","Intimacy Avg Rating","Intimacy Entries (JSON)","Notes","Health Metrics (JSON)"
+"2026-09-25","yes","no","Heavy","Cramps (Severe) [All day]; Fatigue","0","","[]","Rest day, ""easy"" walk","{""painScore"":7,""energyLevel"":1}"
+"2026-09-26","no","no","Medium","Cramps (Moderate)","1","4.00","[{""time"":null,""rating"":4,""notes"":null}]","","{}"
+"2026-09-29","no","yes","Spotting","","0","","[]","Line one
+line two","{""mood"":""Good""}"
+"2026-10-15","no","yes","","Bloating","0","","[]","","{}"
+"2026-10-23","yes","no","Medium","","0","","[]","","{}"
+"2026-02-30","no","no","Light","","0","","[]","","{}"

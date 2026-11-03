@@ -71,6 +71,25 @@ Diabetes mode: the user has ${d.type === "TYPE2" ? "Type 2 diabetes" : "prediabe
 - Encourage at least 150 minutes of exercise a week with no more than 2 days in a row without activity.${d.hypoRiskMeds ? " Before exercise (only exercise, not meals) they should check their glucose, and have extra carbs if it is under 5.6 mmol/L." : ""}`;
 }
 
+export interface CyclePromptInfo {
+  /** Null until a period is logged. */
+  today: { dayOfCycle: number; cycleLength: number; phase: string | null; nextStart: string; uncertainty: number; daysUntilNext: number } | null;
+}
+
+/** Added to the coach's instructions when cycle tracking is on. */
+export function cyclePrompt(c: CyclePromptInfo) {
+  const now = c.today
+    ? `Today is day ${c.today.dayOfCycle} of a cycle of about ${c.today.cycleLength} days${c.today.phase ? ` (${c.today.phase.toLowerCase()} phase)` : ""}; the next period is expected around ${c.today.nextStart} (±${c.today.uncertainty} days)${c.today.daysUntilNext < 0 ? `, now ${-c.today.daysUntilNext} days late` : ""}.`
+    : "No period is logged yet.";
+  return `
+
+Cycle tracking: the user tracks their menstrual cycle. ${now}
+- Use get_cycle for their periods, the prediction, and logged flow, symptoms, mood, pain and energy.
+- Use the cycle to explain changes in energy, strength, appetite or scale weight (water weight often rises in the days before and during a period). Don't change their plan or targets because of the cycle alone; suggest adjusting the load by feel.
+- Don't diagnose. For very painful or very heavy periods, bleeding between periods, or periods that stop or become much more irregular, suggest seeing a doctor.
+- Predictions are estimates, not contraception.`;
+}
+
 export const PROCUREMENT_NUTRITION_RULES = `Nutrition for each item (consumedGrams and the nutrients) is for the share ONE person eats during the plan period, not the whole purchase:
 - Divide what is bought between the people it feeds, and count only what will realistically be eaten in the period. A 5 kg bag of rice for 3 people over 7 days is about 600 g of dry rice each; a 2 L bottle of cooking oil is used up over months, so a week's share for one person is about 100 g; condiments and spices are small amounts.
 - grams are edible weight; nutrients are for consumedGrams, not per 100 g. kcal should match protein*4 + carbs*4 + fat*9.

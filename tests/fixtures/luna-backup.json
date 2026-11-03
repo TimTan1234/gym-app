@@ -1,0 +1,52 @@
+{
+  "format": "luna-backup",
+  "version": 1,
+  "exportedAt": "2026-11-03T02:00:00.000Z",
+  "profilePreferences": {
+    "displayName": "Mei",
+    "cycleLength": 28,
+    "periodDuration": 5,
+    "showFertileWindow": true,
+    "showSafeDays": false,
+    "language": "en",
+    "customSymptoms": ["Back pain"]
+  },
+  "dailyLogs": [
+    {
+      "uid": "",
+      "date": "2026-07-03",
+      "symptoms": ["Cramps"],
+      "flow": "flow_Medium",
+      "healthMetrics": { "painScore": 6, "energyLevel": 2, "mood": "Low", "basalTemperatureC": 36.6, "weightKg": 60 },
+      "intimacyEntries": [{ "rating": 4 }],
+      "schemaVersion": 2
+    },
+    {
+      "uid": "",
+      "date": "2026-07-03",
+      "symptoms": [{ "name": "Cramps", "severity": "Severe" }],
+      "flow": "Heavy",
+      "notes": "Took ibuprofen",
+      "schemaVersion": 2
+    },
+    {
+      "uid": "",
+      "date": "2026-07-29",
+      "symptoms": [
+        { "name": "Headache", "severity": "Moderate", "duration": "2 hours" },
+        { "name": "Back pain", "severity": "Mild" }
+      ],
+      "notes": "Long day",
+      "schemaVersion": 2
+    },
+    { "uid": "", "date": "2026-8-2", "symptoms": [], "flow": "light", "healthMetrics": { "mood": "Very Low" }, "schemaVersion": 2 },
+    { "uid": "", "date": "2026-08-10", "symptoms": [], "intimacyEntries": [{ "time": "22:00", "rating": 5 }], "schemaVersion": 2 },
+    { "uid": "", "date": "2026-13-01", "symptoms": ["Acne"], "schemaVersion": 2 }
+  ],
+  "cycles": [
+    { "uid": "", "startDate": "2026-07-03", "endDate": "2026-07-07", "symptoms": [{ "name": "Cramps", "severity": "Severe" }], "flow": "Heavy", "notes": "Took ibuprofen", "schemaVersion": 2 },
+    { "uid": "", "startDate": "2026-07-31", "endDate": "2026-08-04", "symptoms": [{ "name": "Tender Breasts", "severity": "Mild" }], "flow": "Medium", "schemaVersion": 2 },
+    { "uid": "", "startDate": "2026-08-28", "endDate": null, "symptoms": [], "schemaVersion": 2 },
+    { "uid": "", "startDate": "2026-02-30", "symptoms": [], "schemaVersion": 2 }
+  ]
+}

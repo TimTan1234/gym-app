@@ -38,6 +38,8 @@ model User {
   dailyActivity    DailyActivity[]
   linkedDevices    LinkedDevice[]
   deviceLinkCodes  DeviceLinkCode[]
+  periods          Period[]
+  cycleDays        CycleDay[]
 
   @@map("user")
 }
@@ -155,6 +157,14 @@ model Profile {
   glucoseFastingMin  Float         @default(4.4)
   glucoseFastingMax  Float         @default(7.0)
   glucosePostMealMax Float         @default(8.5)
+
+  // Cycle tracking (women only). Lengths are used until enough periods are logged to learn them.
+  cycleTracking     Boolean  @default(false)
+  cycleLength       Int      @default(28)
+  periodLength      Int      @default(5)
+  showFertileWindow Boolean  @default(true)
+  /// Symptoms the user added to the built-in list, as typed.
+  customSymptoms    String[] @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -632,4 +642,52 @@ model DeviceLinkCode {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+// ---------- Cycle ----------
+
+enum Flow {
+  SPOTTING
+  LIGHT
+  MEDIUM
+  HEAVY
+}
+
+enum Mood {
+  VERY_LOW
+  LOW
+  NEUTRAL
+  GOOD
+  GREAT
+}
+
+/// One period. With no end date it counts as lasting the user's usual period length.
+model Period {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate String // YYYY-MM-DD in the user's timezone
+  endDate   String?
+
+  @@unique([userId, startDate])
+}
+
+/// What the user logged about one day of their cycle.
+model CycleDay {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  localDate String // YYYY-MM-DD in the user's timezone
+  flow      Flow?
+  /// [{ name, severity }]: name is a built-in key (CRAMPS) or a custom symptom as typed; severity MILD | MODERATE | SEVERE.
+  symptoms  Json     @default("[]")
+  mood      Mood?
+  /// 0-10
+  pain      Int?
+  /// 1-5
+  energy    Int?
+  note      String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, localDate])
 }

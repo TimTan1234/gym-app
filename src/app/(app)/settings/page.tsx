@@ -8,6 +8,7 @@ import { InstallApp } from "@/components/InstallApp";
 import { Card, CardTitle, PageHeader, PageSkeleton } from "@/components/ui";
 import { DisplaySettings } from "@/components/profile/DisplaySettings";
 import { DiabetesSettings } from "@/components/profile/DiabetesSettings";
+import { CycleSettings } from "@/components/profile/CycleSettings";
 import { carbBudget } from "@/lib/nutrition/diabetes";
 import { LinkedPhones } from "@/components/profile/LinkedPhones";
 import { LINK_CODE_MINUTES } from "@/lib/devices";
@@ -68,6 +69,12 @@ async function Settings() {
         <CardTitle>{t("glucose.settings.title")}</CardTitle>
         <DiabetesSettings initial={profile} budget={carbBudget(profile.sex, profile.activityLevel)} />
       </Card>
+      {profile.sex === "FEMALE" && (
+        <Card className="space-y-3 scroll-mt-4" id="cycle">
+          <CardTitle>{t("cycle.settings.title")}</CardTitle>
+          <CycleSettings initial={profile} />
+        </Card>
+      )}
       <Card className="space-y-3" id="phone">
         <CardTitle>{t("settings.phone.title")}</CardTitle>
         <LinkedPhones phones={phones.map((p) => ({ id: p.id, name: p.name, lastSync: p.lastSyncAt ? when(p.lastSyncAt) : null }))} serverUrl={serverUrl} minutes={LINK_CODE_MINUTES} apk={apk} />

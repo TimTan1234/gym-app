@@ -110,6 +110,40 @@ export function chipClass(selected: boolean) {
   );
 }
 
+/** An on/off switch. Label it with aria-label; use it from client components. */
+export function Switch({
+  checked,
+  onChange,
+  className,
+  ...props
+}: Omit<ComponentProps<"button">, "onChange"> & { checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={cn("relative h-7 w-12 shrink-0 rounded-full border transition-colors disabled:opacity-50", checked ? "border-iron bg-iron" : "border-line bg-wash", className)}
+      {...props}
+    >
+      <span className={cn("absolute top-0.5 size-[22px] rounded-full bg-paper shadow transition-[left]", checked ? "left-[22px]" : "left-0.5")} />
+    </button>
+  );
+}
+
+/** A labelled switch on its own row; the whole row toggles it. */
+export function SwitchRow({ label, hint, checked, onChange, disabled }: { label: string; hint?: string; checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }) {
+  return (
+    <label className="flex min-h-11 items-center justify-between gap-3">
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold">{label}</span>
+        {hint && <span className="block text-xs text-steel">{hint}</span>}
+      </span>
+      <Switch checked={checked} onChange={onChange} aria-label={label} disabled={disabled} />
+    </label>
+  );
+}
+
 /**
  * A round, tinted icon button for a page's header actions (refresh, settings).
  * A class, so links can wear it too.

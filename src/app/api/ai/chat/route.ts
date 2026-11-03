@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getUserForApi } from "@/lib/session";
 import { AiLimitError, reserveAiCall } from "@/lib/ai/client";
 import { describeProposals, runCoach, type ChatTurn, type Proposal } from "@/lib/ai/coach";
+import { cycleEnabled } from "@/lib/cycle-queries";
 import { carbBudget } from "@/lib/nutrition/diabetes";
 import { todayLocal } from "@/lib/dates";
 import { getLocale } from "@/i18n/server";
@@ -85,6 +86,7 @@ export async function POST(request: Request) {
                   budget: carbBudget(profile.sex, profile.activityLevel),
                 }
               : null,
+            cycle: cycleEnabled(profile) ? profile : null,
           },
           history,
           { onDelta: (text) => send({ type: "delta", text }), onProposal: (proposal) => send({ type: "proposal", proposal }) },

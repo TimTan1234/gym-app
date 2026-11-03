@@ -270,3 +270,25 @@ export async function resetGlucoseTargets(): Promise<ActionResult> {
   refresh();
   return { ok: true };
 }
+
+const CycleSchema = z.object({
+  enabled: z.boolean(),
+  cycleLength: z.number().int().min(20).max(40),
+  periodLength: z.number().int().min(1).max(10),
+  showFertileWindow: z.boolean(),
+});
+
+export type CycleSettingsInput = z.infer<typeof CycleSchema>;
+
+export async function saveCycleSettings(input: CycleSettingsInput): Promise<ActionResult> {
+  const user = await requireUser();
+  const parsed = CycleSchema.safeParse(input);
+  if (!parsed.success) return invalidInput(parsed.error);
+  const c = parsed.data;
+  await db.profile.update({
+    where: { userId: user.id },
+    data: { cycleTracking: c.enabled, cycleLength: c.cycleLength, periodLength: c.periodLength, showFertileWindow: c.showFertileWindow },
+  });
+  refresh();
+  return { ok: true };
+}

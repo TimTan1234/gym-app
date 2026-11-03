@@ -106,6 +106,9 @@
   --color-protein: var(--plate-blue);
   --color-carbs: var(--plate-yellow);
   --color-fat: var(--plate-red);
+  /* Cycle data: logged and predicted periods, fertile window and ovulation. */
+  --color-period: var(--plate-red);
+  --color-fertile: var(--plate-blue);
   --color-good: var(--good);
   --color-alert: var(--alert);
   --color-panel: var(--panel);

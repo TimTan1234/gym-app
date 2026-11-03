@@ -6,6 +6,7 @@ import {
   BarChart,
   CartesianGrid,
   Line,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Scatter,
@@ -89,9 +90,18 @@ export interface TrendPoint {
   estimated?: boolean;
 }
 
+/** A shaded date range on a trend chart; `start` and `end` must be dates in its data. */
+export interface ChartBand {
+  start: string;
+  end: string;
+}
+
 /**
  * Change over time for one measure. Optional `avg` series (e.g. 7-day moving
- * average) is drawn as the line, with raw values as dots.
+ * average) is drawn as the line, with raw values as dots. Optional `bands`
+ * mark date ranges (periods): values inside one are drawn in the period colour,
+ * ranges spanning two or more values are shaded, and `bandLabel` names them in
+ * the legend and table.
  */
 export function TrendChart({
   title,
@@ -100,6 +110,8 @@ export function TrendChart({
   decimals = 1,
   target,
   height = 200,
+  bands = [],
+  bandLabel = "",
 }: {
   title: string;
   data: TrendPoint[];
@@ -107,6 +119,8 @@ export function TrendChart({
   decimals?: number;
   target?: number;
   height?: number;
+  bands?: ChartBand[];
+  bandLabel?: string;
 }) {
   const [table, setTable] = useState(false);
   const { t, shortDate, longDate } = useChartText();
@@ -116,6 +130,7 @@ export function TrendChart({
   // A flat series (e.g. weight within 1 kg) needs a decimal on the axis or every tick reads the same.
   const values = data.flatMap((d) => [d.value, d.avg ?? d.value]).filter((v): v is number => v !== null);
   const axisDecimals = values.length > 0 && Math.max(...values) - Math.min(...values) < 5 ? 1 : 0;
+  const inBand = (date: string) => bands.some((b) => date >= b.start && date <= b.end);
 
   return (
     <figure className="space-y-2">
@@ -124,6 +139,11 @@ export function TrendChart({
         <span className="whitespace-nowrap text-sm font-semibold">{title}</span>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 whitespace-nowrap">
           {target !== undefined && <TargetKey t={t} value={target} unit={unit} />}
+          {bands.length > 0 && (
+            <span className="flex items-center gap-1.5 text-xs text-steel">
+              <span aria-hidden className="inline-block size-2 rounded-full bg-period" /> {bandLabel}
+            </span>
+          )}
           {hasAvg && (
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-steel">
               <span className="flex items-center gap-1">
@@ -144,18 +164,26 @@ export function TrendChart({
       </figcaption>
       {table ? (
         <DataTable
-          head={
-            hasAvg
-              ? [t("progress.chart.date"), t("progress.chart.value", { unit }), t("progress.chart.avgColumn", { unit })]
-              : [t("progress.chart.date"), t("progress.chart.value", { unit })]
-          }
-          rows={[...data].reverse().map((d) => (hasAvg ? [shortDate(d.date), shown(d), fmt(d.avg, decimals)] : [shortDate(d.date), shown(d)]))}
+          head={[
+            t("progress.chart.date"),
+            t("progress.chart.value", { unit }),
+            ...(hasAvg ? [t("progress.chart.avgColumn", { unit })] : []),
+            ...(bands.length ? [bandLabel] : []),
+          ]}
+          rows={[...data]
+            .reverse()
+            .map((d) => [shortDate(d.date), shown(d), ...(hasAvg ? [fmt(d.avg, decimals)] : []), ...(bands.length ? [inBand(d.date) ? "✓" : ""] : [])])}
         />
       ) : (
         <div style={{ height }}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <CartesianGrid stroke="var(--line)" vertical={false} />
+              {bands
+                .filter((b) => b.start !== b.end)
+                .map((b) => (
+                <ReferenceArea key={b.start} x1={b.start} x2={b.end} fill="var(--plate-red)" fillOpacity={0.12} stroke="none" ifOverflow="hidden" />
+              ))}
               <XAxis dataKey="date" tickFormatter={shortDate} tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
               {/* Sized to its widest label: "2,800" kcal or "40,000" lb of volume must not be clipped. */}
               <YAxis tick={AXIS} tickLine={false} axisLine={false} domain={["auto", "auto"]} width="auto" tickFormatter={(v: number) => fmt(v, axisDecimals)} />
@@ -188,6 +216,8 @@ export function TrendChart({
                     shape={(props: { cx?: number; cy?: number; payload?: TrendPoint }) =>
                       props.payload?.estimated ? (
                         <circle cx={props.cx} cy={props.cy} r={3.5} fill="var(--paper)" stroke="var(--steel)" strokeWidth={1.5} />
+                      ) : props.payload && inBand(props.payload.date) ? (
+                        <circle cx={props.cx} cy={props.cy} r={3.5} fill="var(--plate-red)" />
                       ) : (
                         <circle cx={props.cx} cy={props.cy} r={3.5} fill="var(--steel)" fillOpacity={0.35} />
                       )
@@ -200,7 +230,17 @@ export function TrendChart({
                   dataKey="value"
                   stroke="var(--steel)"
                   strokeWidth={2}
-                  dot={{ r: 4, fill: "var(--steel)", stroke: "var(--paper)", strokeWidth: 2 }}
+                  dot={(props: { cx?: number; cy?: number; payload?: TrendPoint; index?: number }) => (
+                    <circle
+                      key={props.index}
+                      cx={props.cx}
+                      cy={props.cy}
+                      r={4}
+                      fill={props.payload && inBand(props.payload.date) ? "var(--plate-red)" : "var(--steel)"}
+                      stroke="var(--paper)"
+                      strokeWidth={2}
+                    />
+                  )}
                   activeDot={{ r: 5 }}
                   connectNulls
                   isAnimationActive={false}

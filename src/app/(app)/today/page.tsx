@@ -13,6 +13,8 @@ import { WeightQuickLog } from "@/components/body/WeightQuickLog";
 import { StartWorkoutButton } from "@/components/train/StartWorkoutButton";
 import { GlucoseToday } from "@/components/glucose/GlucoseToday";
 import { PreExerciseCheck } from "@/components/glucose/PreExerciseCheck";
+import { CycleToday } from "@/components/cycle/CycleToday";
+import { cycleEnabled } from "@/lib/cycle-queries";
 import { BodyMap } from "@/components/body/BodyMap";
 import { Card, PageSkeleton, buttonClass, tonalIconClass } from "@/components/ui";
 import { getT } from "@/i18n/server";
@@ -127,6 +129,8 @@ async function Today() {
       {profile.diabetesMode && <GlucoseToday userId={user.id} today={today} profile={profile} />}
 
       {profile.diabetesMode && !active && <PreExerciseCheck userId={user.id} hypoRiskMeds={profile.hypoRiskMeds} unit={profile.glucoseUnit} showOk={false} />}
+
+      {cycleEnabled(profile) && <CycleToday userId={user.id} today={today} profile={profile} />}
 
       {/* The one dark panel: the next thing to do in the gym. */}
       <section className="rounded-card bg-panel p-5 text-panel-fg">

@@ -15,7 +15,8 @@ import { stepBonusFor } from "@/lib/activity";
 import { isAiMock, models, openai, reasoningOptions, reserveAiCall, AiLimitError } from "./client";
 import { analyzeMeal } from "./meal";
 import { GetMealsParams, MealDeleteParams, MealLogParams, MealUpdateParams, diffPlans, editMealItems, planShapeOf, type ItemValues, type PlanChange } from "./coach-edits";
-import { coachSystemPrompt, diabetesPrompt, languageInstruction } from "./prompts";
+import { coachSystemPrompt, cyclePrompt, diabetesPrompt, languageInstruction } from "./prompts";
+import { getCycleDays, getCycleState, type CycleProfile } from "@/lib/cycle-queries";
 import { HYPO_MMOL, classifyReading, summarize, toDisplay, unitLabel, type GlucoseUnit } from "@/lib/glucose";
 import { mealResponses, targetsOf, type GlucoseProfile } from "@/lib/glucose-queries";
 import type { CarbBudget } from "@/lib/nutrition/diabetes";
@@ -69,6 +70,8 @@ export interface CoachContext {
   locale: Locale;
   /** Set in diabetes mode: adds glucose rules and the get_glucose tool. */
   diabetes: (GlucoseProfile & { type: "PREDIABETES" | "TYPE2"; hypoRiskMeds: boolean; glucoseUnit: GlucoseUnit; budget: CarbBudget }) | null;
+  /** Set when cycle tracking is on: adds the cycle phase and the get_cycle tool. */
+  cycle: CycleProfile | null;
 }
 
 // ---------- Tool schemas ----------
@@ -112,6 +115,16 @@ async function buildTools(ctx: CoachContext) {
             parameters: Days,
             description:
               "The user's glucose readings (in their unit) with their target status, the share in target, and how logged meals changed their glucose (highest after-meal reading first).",
+          }),
+        ]
+      : []),
+    ...(ctx.cycle
+      ? [
+          zodResponsesFunction({
+            name: "get_cycle",
+            parameters: Days,
+            description:
+              "The user's menstrual cycle: today's cycle day and phase, the predicted next period with its uncertainty, recent periods, and the flow, symptoms (with severity), mood, pain (0-10) and energy (1-5) they logged in the window.",
           }),
         ]
       : []),
@@ -318,6 +331,19 @@ async function buildTools(ctx: CoachContext) {
             minutesAfter: m.minutesAfter,
             status: m.status,
           })),
+        };
+      }
+      case "get_cycle": {
+        const c = ctx.cycle;
+        if (!c) return { error: "Cycle tracking is off." };
+        const { days } = Days.parse(args);
+        const [{ periods, prediction, now }, logged] = await Promise.all([getCycleState(ctx.userId, c, today), getCycleDays(ctx.userId, addDays(today, -(days - 1)), today)]);
+        return {
+          today: now && prediction ? { ...now, predictedNextStart: prediction.nextStart, uncertaintyDays: prediction.uncertainty, confidence: prediction.tier } : null,
+          usualCycleLength: prediction?.cycleLength ?? c.cycleLength,
+          usualPeriodLength: prediction?.periodLength ?? c.periodLength,
+          recentPeriods: periods.slice(-6).map((p) => ({ start: p.startDate, end: p.endDate })),
+          days: logged.map((d) => ({ date: d.localDate, flow: d.flow, symptoms: d.symptoms, mood: d.mood, pain: d.pain, energy: d.energy, note: d.note })),
         };
       }
       case "get_body_metrics": {
@@ -530,6 +556,15 @@ export interface CoachCallbacks {
 
 const MAX_TOOL_ROUNDS = 5;
 
+/** Where today sits in the user's cycle, for the coach's instructions. */
+async function cycleNow(ctx: CoachContext) {
+  if (!ctx.cycle) return null;
+  const { prediction, now } = await getCycleState(ctx.userId, ctx.cycle, todayLocal(ctx.timezone));
+  return prediction && now
+    ? { dayOfCycle: now.dayOfCycle, cycleLength: prediction.cycleLength, phase: now.phase, nextStart: prediction.nextStart, uncertainty: prediction.uncertainty, daysUntilNext: now.daysUntilNext }
+    : null;
+}
+
 /** Run one coach turn: tool loop with streamed text. Returns final text + proposals. */
 export async function runCoach(ctx: CoachContext, history: ChatTurn[], cb: CoachCallbacks) {
   const proposals: Proposal[] = [];
@@ -554,6 +589,7 @@ export async function runCoach(ctx: CoachContext, history: ChatTurn[], cb: Coach
           snackCarbs: `${d.budget.snack.min}-${d.budget.snack.max}`,
         })
       : "") +
+    (ctx.cycle ? cyclePrompt({ today: await cycleNow(ctx) }) : "") +
     languageInstruction(ctx.locale);
 
   const started = Date.now();
@@ -647,6 +683,11 @@ async function runMockCoach(
   } else if (ctx.diabetes && (question.includes("glucose") || question.includes("血糖"))) {
     const g = (await execute("get_glucose", JSON.stringify({ days: 14 }), proposals)) as { summary: { inTarget: number; rated: number }; unit: string };
     text += `\n\nGlucose: ${g.summary.inTarget} of ${g.summary.rated} readings in target (${g.unit}).`;
+  } else if (ctx.cycle && /cycle|period|经期|周期/.test(question)) {
+    const c = (await execute("get_cycle", JSON.stringify({ days: 30 }), proposals)) as { today: { dayOfCycle: number; phase: string | null; predictedNextStart: string } | null };
+    text += c.today
+      ? `\n\nCycle: today is day ${c.today.dayOfCycle}${c.today.phase ? ` (${c.today.phase.toLowerCase()} phase)` : ""}; your next period is expected around ${c.today.predictedNextStart}.`
+      : "\n\nCycle: no period logged yet.";
   } else if (/sleep|steps|tired|睡|步/.test(question)) {
     const a = (await execute("get_activity", JSON.stringify({ days: 7 }), proposals)) as { days: { date: string; steps: number | null; sleepHours: number | null }[] };
     const last = a.days.at(-1);

@@ -92,6 +92,8 @@ export const en = {
     bodyFatPct: "body fat",
     waistCm: "waist",
     localDate: "date",
+    cycleLength: "cycle length",
+    periodLength: "period length",
   },
 };
 
@@ -187,5 +189,7 @@ export const zh: typeof en = {
     bodyFatPct: "体脂率",
     waistCm: "腰围",
     localDate: "日期",
+    cycleLength: "周期长度",
+    periodLength: "经期长度",
   },
 };

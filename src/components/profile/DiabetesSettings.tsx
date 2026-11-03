@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { saveDiabetesSettings } from "@/server/profile";
 import { DEFAULT_GLUCOSE_TARGETS, toDisplay, toMmol, unitLabel, type GlucoseUnit } from "@/lib/glucose";
 import type { CarbBudget } from "@/lib/nutrition/diabetes";
-import { Button, Input, Label, cn, segmentClass, segmentTrack } from "@/components/ui";
+import { Button, Input, Label, SwitchRow, segmentClass, segmentTrack } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
 export interface DiabetesSettingsValues {
@@ -73,19 +73,7 @@ export function DiabetesSettings({ initial, budget }: { initial: DiabetesSetting
   return (
     <div className="space-y-4">
       <p className="text-sm text-steel">{t("glucose.settings.intro")}</p>
-      <label className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold">{t("glucose.settings.enable")}</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          aria-label={t("glucose.settings.enable")}
-          onClick={() => setEnabled((e) => !e)}
-          className={cn("relative h-7 w-12 shrink-0 rounded-full border transition-colors", enabled ? "border-iron bg-iron" : "border-line bg-wash")}
-        >
-          <span className={cn("absolute top-0.5 size-[22px] rounded-full bg-paper shadow transition-[left]", enabled ? "left-[22px]" : "left-0.5")} />
-        </button>
-      </label>
+      <SwitchRow label={t("glucose.settings.enable")} checked={enabled} onChange={setEnabled} />
 
       {enabled && (
         <>

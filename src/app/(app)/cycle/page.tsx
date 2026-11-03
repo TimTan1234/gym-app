@@ -154,7 +154,7 @@ async function Cycle({ searchParams }: { searchParams: PageProps<"/cycle">["sear
           <ul className="border-t border-line">
             {recent.map((d) => (
               <li key={d.localDate} className="border-b border-line">
-                <Link href={`/cycle/log?date=${d.localDate}`} className="flex items-center gap-3 py-3 active:bg-wash" data-testid="cycle-recent-day">
+                <Link href={`/cycle/log?date=${d.localDate}`} prefetch={false} className="flex items-center gap-3 py-3 active:bg-wash" data-testid="cycle-recent-day">
                   <span className="min-w-0 flex-1 space-y-1">
                     <span className="block font-medium">{formatLocalDate(d.localDate, undefined, intl)}</span>
                     <span className="flex flex-wrap items-center gap-1.5 text-[13px] text-steel">

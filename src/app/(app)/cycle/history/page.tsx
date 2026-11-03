@@ -165,7 +165,7 @@ async function CycleHistory() {
                           <ul className="flex flex-wrap gap-2">
                             {inCycle.map((d) => (
                               <li key={d.localDate}>
-                                <Link href={`/cycle/log?date=${d.localDate}`} className={buttonClass("secondary", "sm")}>
+                                <Link href={`/cycle/log?date=${d.localDate}`} prefetch={false} className={buttonClass("secondary", "sm")}>
                                   {shortDate(d.localDate)}
                                 </Link>
                               </li>

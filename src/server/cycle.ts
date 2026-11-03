@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { refresh } from "next/cache";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
 import { daysBetween, formatLocalDate, isLocalDate, todayLocal } from "@/lib/dates";
@@ -30,9 +31,9 @@ const DaySchema = z.object({
 export type CycleDayInput = z.infer<typeof DaySchema>;
 
 /**
- * Save one day: its log, and whether a period starts or ends on it. A start can't
- * fall inside another period; an end belongs to the latest period that started
- * up to 14 days before. A day with nothing logged is removed.
+ * Save one day: its log, and whether a period starts or ends on it, then open the
+ * overview. A start can't fall inside another period; an end belongs to the
+ * latest period that started up to 14 days before. A day with nothing logged is removed.
  */
 export async function saveCycleDay(input: CycleDayInput): Promise<ActionResult> {
   const { user, profile } = await requireProfile();
@@ -89,11 +90,12 @@ export async function saveCycleDay(input: CycleDayInput): Promise<ActionResult> 
   if (newCustom.length) ops.push(db.profile.update({ where: { userId: user.id }, data: { customSymptoms: [...profile.customSymptoms, ...newCustom] } }));
 
   await db.$transaction(ops);
+  // Back to the overview in the same response: the saved day and the updated cycle arrive together.
   refresh();
-  return { ok: true };
+  redirect("/cycle");
 }
 
-/** Clear everything on one day: its log, a period starting on it, and a period end on it. */
+/** Clear everything on one day (its log, a period starting on it, a period end on it), then open the overview. */
 export async function deleteCycleDay(localDate: string): Promise<ActionResult> {
   const { user } = await requireProfile();
   if (!isLocalDate(localDate)) return { ok: false, error: (await getT())("settings.errors.invalidDate") };
@@ -103,7 +105,7 @@ export async function deleteCycleDay(localDate: string): Promise<ActionResult> {
     db.period.updateMany({ where: { userId: user.id, endDate: localDate }, data: { endDate: null } }),
   ]);
   refresh();
-  return { ok: true };
+  redirect("/cycle");
 }
 
 export async function deletePeriod(id: string): Promise<ActionResult> {

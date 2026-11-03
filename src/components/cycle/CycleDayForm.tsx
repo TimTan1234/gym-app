@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Check, Plus } from "lucide-react";
 import { deleteCycleDay, saveCycleDay } from "@/server/cycle";
@@ -78,7 +77,6 @@ function Field({ title, hint, children }: { title: string; hint?: string; childr
 
 export function CycleDayForm({ date, initial, exists, customSymptoms }: { date: string; initial: CycleDayValues; exists: boolean; customSymptoms: string[] }) {
   const t = useT();
-  const router = useRouter();
   const [v, setV] = useState(initial);
   const [custom, setCustom] = useState(customSymptoms);
   const [newSymptom, setNewSymptom] = useState("");
@@ -110,22 +108,16 @@ export function CycleDayForm({ date, initial, exists, customSymptoms }: { date: 
     e.preventDefault();
     setError(null);
     startTransition(async () => {
+      // On success the action opens the overview itself; only a refusal comes back.
       const res = await saveCycleDay({ localDate: date, ...v, note: v.note.trim() || null });
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      toast.success(t("cycle.log.saved"));
-      router.push("/cycle");
+      if (!res.ok) setError(res.error);
     });
   }
 
   const remove = useConfirmTap(() =>
     startTransition(async () => {
       const res = await deleteCycleDay(date);
-      if (!res.ok) return void toast.error(res.error);
-      toast.success(t("cycle.log.deleted"));
-      router.push("/cycle");
+      if (!res.ok) toast.error(res.error);
     }),
   );
 

@@ -133,12 +133,13 @@ export function CycleCalendar({
             </>
           );
           const cell = "relative grid h-11 place-items-center";
+          // Day links aren't prefetched: a month has dozens, each its own server render, and the log page loads fast on tap.
           return date > today ? (
             <span key={date} className={cell} aria-label={label} role="img">
               {content}
             </span>
           ) : (
-            <Link key={date} href={`/cycle/log?date=${date}`} className={cn(cell, "rounded-field active:bg-wash")} aria-label={label}>
+            <Link key={date} href={`/cycle/log?date=${date}`} prefetch={false} className={cn(cell, "rounded-field active:bg-wash")} aria-label={label}>
               {content}
             </Link>
           );

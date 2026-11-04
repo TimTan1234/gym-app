@@ -36,6 +36,10 @@
   /* Chinese has no matching serif here, so both stacks fall back to the system CJK sans. */
   --type-body: var(--font-inter), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
   --type-display: var(--font-serif4), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", Georgia, serif;
+  /* The wallpaper for the theme showing; the per-theme photos are set on <html> (see background.ts). */
+  --bg-photo: var(--bg-photo-light, none);
+  /* How much canvas colour washes over a background photo. */
+  --bg-wash: 55%;
   color-scheme: light;
 }
 
@@ -65,6 +69,7 @@
     /* Raised warm graphite rather than an inverted cream slab in the dark. */
     --panel: #38342e;
     --panel-fg: #faf9f5;
+    --bg-photo: var(--bg-photo-dark, none);
     color-scheme: dark;
   }
 }
@@ -89,6 +94,7 @@
   /* Raised warm graphite rather than an inverted cream slab in the dark. */
   --panel: #38342e;
   --panel-fg: #faf9f5;
+  --bg-photo: var(--bg-photo-dark, none);
   color-scheme: dark;
 }
 :root[data-theme="light"] {
@@ -122,6 +128,45 @@
   /* Buttons and fields; cards. */
   --radius-field: 8px;
   --radius-card: 12px;
+}
+
+/*
+ * The background photos picked in Settings → Display, one per theme, behind a
+ * wash of the canvas colour so headings between cards stay readable. A theme
+ * without a photo gets the wash over nothing, which is the plain canvas. A fixed
+ * layer rather than background-attachment: fixed, which iOS Safari ignores.
+ */
+:root[data-bg-photo] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(color-mix(in srgb, var(--chalk) var(--bg-wash), transparent), color-mix(in srgb, var(--chalk) var(--bg-wash), transparent)),
+    var(--bg-photo) center / cover no-repeat;
+}
+
+/*
+ * The wallpaper previews in Settings draw each theme in its own colours whichever
+ * theme is showing. Values match the light and dark token blocks above.
+ */
+.wallpaper-preview[data-mode="light"] {
+  --pv-canvas: #faf9f5;
+  --pv-paper: #efe9de;
+  --pv-ink: #141413;
+  --pv-muted: #625f58;
+  --pv-line: #ded6c8;
+}
+.wallpaper-preview[data-mode="dark"] {
+  --pv-canvas: #181715;
+  --pv-paper: #252320;
+  --pv-ink: #faf9f5;
+  --pv-muted: #a9a69f;
+  --pv-line: #3a3631;
+}
+.wallpaper-preview .wallpaper-wash {
+  background: color-mix(in srgb, var(--pv-canvas) var(--bg-wash), transparent);
 }
 
 body {

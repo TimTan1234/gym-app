@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Source_Serif_4 } from "next/font/google";
+import localFont from "next/font/local";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import { ThemedToaster } from "@/components/ThemedToaster";
 import { THEME_SCRIPT } from "@/lib/theme-script";
@@ -7,8 +7,9 @@ import "./globals.css";
 
 // Inter for reading and UI; Source Serif 4 (standing in for DESIGN.md's display serif)
 // for headings and the big numbers. Its optical-size axis keeps large sizes crisp.
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
-const serif = Source_Serif_4({ variable: "--font-serif4", subsets: ["latin"], axes: ["opsz"] });
+// Both are Google Fonts' Latin variable files, kept in the repo so builds need no network.
+const inter = localFont({ src: "./fonts/inter-latin-var.woff2", weight: "100 900", variable: "--font-inter" });
+const serif = localFont({ src: "./fonts/source-serif-4-latin-var.woff2", weight: "200 900", variable: "--font-serif4" });
 
 export const metadata: Metadata = {
   title: { default: "GymPal", template: "%s | GymPal" },

@@ -513,6 +513,8 @@ model WorkoutSession {
   skippedExerciseIds String[] @default([])
   /// Planned exercise id → the exercise done in its place this workout; it keeps the plan's target and position.
   exerciseSwaps Json @default("{}")
+  /// How the user felt when starting a planned workout; sets the day's working sets per exercise.
+  readiness Readiness?
 
   @@index([userId, localDate])
 }
@@ -533,6 +535,12 @@ model WorkoutSet {
 
   @@index([sessionId])
   @@index([exerciseId])
+}
+
+enum Readiness {
+  TIRED
+  NORMAL
+  GREAT
 }
 
 enum RecordType {

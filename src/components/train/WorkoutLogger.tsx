@@ -21,7 +21,9 @@ import { RestTimerBar, useRestTimer } from "./RestTimer";
 import { PlateLoad } from "./PlateLoad";
 
 export interface Target {
+  /** Working sets for today: the plan's, adjusted for how the user felt at the start. */
   sets: number;
+  plannedSets: number;
   repMin: number;
   repMax: number;
   restSec: number;
@@ -479,6 +481,7 @@ function ExerciseBlock({
           {target && (
             <p className="num mt-0.5 text-[13px] text-steel">
               {t("train.targetLine", { sets: target.sets, min: target.repMin, max: target.repMax })}
+              {target.sets !== target.plannedSets ? t("train.targetPlanned", { sets: target.plannedSets }) : ""}
               {target.targetRpe ? t("train.targetRpe", { rpe: target.targetRpe }) : ""}
               {t("train.targetRest", { min: Math.round((target.restSec / 60) * 10) / 10 })}
             </p>

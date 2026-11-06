@@ -10,6 +10,7 @@ async function startUpperA(page: Page) {
   await expect(page).toHaveURL(/\/train\/plans$/);
   await page.goto("/train");
   await page.getByRole("button", { name: "Start Upper A" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Start with these sets" }).click();
   await expect(page).toHaveURL(/\/train\/workout\//);
   await expect(page.getByTestId("exercise-block")).toHaveCount(5);
 }

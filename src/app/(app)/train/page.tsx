@@ -63,7 +63,7 @@ async function Train() {
               ))}
             </ol>
             <div className="flex flex-wrap gap-2">
-              <StartWorkoutButton planDayId={next.day.id} label={t("train.startDay", { day: next.day.name })} variant="inverse" />
+              <StartWorkoutButton day={next.day} label={t("train.startDay", { day: next.day.name })} variant="inverse" />
               <StartWorkoutButton label={t("train.emptyWorkout")} variant="inverse-ghost" />
             </div>
           </div>

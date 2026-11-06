@@ -20,15 +20,20 @@ test("generate AI plan → activate → start planned workout", async ({ page })
   // Today offers the first plan day
   await page.getByRole("link", { name: "Today" }).click();
   await page.getByRole("button", { name: "Start Upper A" }).click();
+  // Asks how the user feels and recommends the sets: tired takes about a third off.
+  const checkIn = page.getByRole("dialog", { name: "How do you feel today" });
+  await checkIn.getByRole("radio", { name: "Tired or sore" }).click();
+  await expect(checkIn.getByRole("listitem").filter({ hasText: "Barbell Bench Press" })).toContainText("4 → 3 sets");
+  await checkIn.getByRole("button", { name: "Start with these sets" }).click();
   await expect(page).toHaveURL(/\/train\/workout\//);
   await expect(page.getByTestId("exercise-block")).toHaveCount(5);
-  await expect(page.getByText("4 sets of 5–8, RPE 8")).toBeVisible();
+  await expect(page.getByText("3 sets of 5–8 (plan: 4), RPE 8")).toBeVisible();
 
   const bench = page.getByTestId("exercise-block").filter({ hasText: "Barbell Bench Press" });
   await bench.getByLabel("kg").fill("80");
   await bench.getByLabel("Reps").fill("6");
   await bench.getByRole("button", { name: /Log set/ }).click();
-  await expect(bench.getByRole("img", { name: "1 of 4 sets done" })).toBeVisible();
+  await expect(bench.getByRole("img", { name: "1 of 3 sets done" })).toBeVisible();
 
   await page.getByRole("button", { name: "Finish" }).click();
   await page.getByRole("button", { name: "Save workout" }).click();

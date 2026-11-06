@@ -79,6 +79,7 @@ test("coach edits the active plan in place", async ({ page }) => {
   await expect(page.getByText("Active", { exact: true })).toHaveCount(1);
   await page.getByRole("link", { name: "Today" }).click();
   await page.getByRole("button", { name: "Start Upper A" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Start with these sets" }).click();
   await expect(page.getByTestId("exercise-block").filter({ hasText: "Dumbbell Bench Press" })).toHaveCount(1);
   await expect(page.getByTestId("exercise-block").filter({ hasText: "Barbell Bench Press" })).toHaveCount(0);
 });

@@ -6,12 +6,14 @@ import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
 import { todayLocal } from "@/lib/dates";
 import { lastSessionSets } from "@/lib/queries";
+import { READINESS, type Readiness } from "@/lib/training/readiness";
 import { detectRecords, type Bests, type NewRecord, type RecordType } from "@/lib/training/records";
 import { getT } from "@/i18n/server";
 import type { ActionResult } from "./profile";
 
-export async function startWorkout(planDayId?: string): Promise<ActionResult & { sessionId?: string }> {
+export async function startWorkout(planDayId?: string, readiness?: Readiness): Promise<ActionResult & { sessionId?: string }> {
   const { user, profile } = await requireProfile();
+  const feel = z.enum(READINESS).optional().safeParse(readiness);
 
   const active = await db.workoutSession.findFirst({ where: { userId: user.id, endedAt: null } });
   if (active) return { ok: true, sessionId: active.id };
@@ -22,7 +24,13 @@ export async function startWorkout(planDayId?: string): Promise<ActionResult & {
   }
   const now = new Date();
   const session = await db.workoutSession.create({
-    data: { userId: user.id, startedAt: now, localDate: todayLocal(profile.timezone, now), planDayId: planDayId ?? null },
+    data: {
+      userId: user.id,
+      startedAt: now,
+      localDate: todayLocal(profile.timezone, now),
+      planDayId: planDayId ?? null,
+      readiness: planDayId && feel.success ? (feel.data ?? null) : null,
+    },
   });
   return { ok: true, sessionId: session.id };
 }

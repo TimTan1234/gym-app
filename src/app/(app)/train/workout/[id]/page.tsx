@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import { lastSessionSets } from "@/lib/queries";
+import { setsForReadiness } from "@/lib/training/readiness";
 import { WorkoutLogger, type Block } from "@/components/train/WorkoutLogger";
 import { PageSkeleton } from "@/components/ui";
 import { getT } from "@/i18n/server";
@@ -45,7 +46,15 @@ async function Workout({ params }: { params: PageProps<"/train/workout/[id]">["p
     const exercise = library.find((e) => e.id === swaps[pe.exerciseId]) ?? pe.exercise;
     ordered.set(exercise.id, {
       exercise,
-      target: { sets: pe.sets, repMin: pe.repMin, repMax: pe.repMax, restSec: pe.restSec, targetRpe: pe.targetRpe, notes: pe.notes },
+      target: {
+        sets: setsForReadiness(pe.sets, pe.exercise.category, session.readiness),
+        plannedSets: pe.sets,
+        repMin: pe.repMin,
+        repMax: pe.repMax,
+        restSec: pe.restSec,
+        targetRpe: pe.targetRpe,
+        notes: pe.notes,
+      },
     });
   }
   for (const s of session.sets) {

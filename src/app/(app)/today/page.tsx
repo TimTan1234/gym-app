@@ -150,7 +150,7 @@ async function Today() {
               <p className="score mt-1 text-[40px] [overflow-wrap:anywhere]">{next.day.name}</p>
               <p className="mt-2 text-sm opacity-80">{next.day.exercises.map((e) => exerciseName(t, e.exercise)).join(t("progress.checkin.listSeparator"))}</p>
             </div>
-            <StartWorkoutButton planDayId={next.day.id} label={t("today.startDay", { day: next.day.name })} variant="inverse" />
+            <StartWorkoutButton day={next.day} label={t("today.startDay", { day: next.day.name })} variant="inverse" />
           </div>
         ) : (
           <div className="space-y-4">

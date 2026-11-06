@@ -25,6 +25,7 @@ test("workout: remove an exercise, and it stays removed until logged again", asy
 
   await page.goto("/train");
   await page.getByRole("button", { name: "Start Upper A" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Start with these sets" }).click();
   await expect(page).toHaveURL(/\/train\/workout\//);
   const blocks = page.getByTestId("exercise-block");
   await expect(blocks).toHaveCount(5);

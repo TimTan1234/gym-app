@@ -11,7 +11,6 @@ export const en = {
   starting: "Starting…",
   readiness: {
     title: "How do you feel today?",
-    hint: "Your answer sets today's number of sets.",
     TIRED: "Tired or sore",
     TIRED_hint: "About a third fewer sets",
     NORMAL: "Normal",
@@ -19,6 +18,9 @@ export const en = {
     GREAT: "Strong",
     GREAT_hint: "One more set on compound lifts",
     recommended: "Recommended sets",
+    totalOne: "{n} set today",
+    totalOther: "{n} sets today",
+    planSuffix: ", plan {planned}",
     start: "Start with these sets",
   },
   emptyWorkout: "Empty workout",
@@ -132,7 +134,7 @@ export const en = {
   identify: {
     photo: "Photo of the equipment",
     working: "Looking at the equipment…",
-    looksLike: "Looks like: {equipment}",
+    looksLike: "Looks like",
     matches: "Matching exercises",
     noMatch: "None of your exercises match. Try searching for it by name.",
     clear: "Clear matches",
@@ -239,7 +241,6 @@ export const zh: typeof en = {
   starting: "正在开始…",
   readiness: {
     title: "今天状态怎么样？",
-    hint: "根据你的状态，推荐今天每个动作的组数。",
     TIRED: "疲劳或酸痛",
     TIRED_hint: "组数减少约三分之一",
     NORMAL: "正常",
@@ -247,6 +248,9 @@ export const zh: typeof en = {
     GREAT: "状态很好",
     GREAT_hint: "复合动作各加一组",
     recommended: "推荐组数",
+    totalOne: "今天共 {n} 组",
+    totalOther: "今天共 {n} 组",
+    planSuffix: "，计划 {planned} 组",
     start: "按推荐组数开始",
   },
   emptyWorkout: "自由训练",
@@ -354,7 +358,7 @@ export const zh: typeof en = {
   identify: {
     photo: "拍照识别器械",
     working: "正在识别器械…",
-    looksLike: "看起来是：{equipment}",
+    looksLike: "看起来是",
     matches: "匹配的动作",
     noMatch: "你的动作库里没有匹配的动作，试试按名称搜索。",
     clear: "清除识别结果",

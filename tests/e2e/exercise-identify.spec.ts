@@ -11,7 +11,7 @@ test("add exercise: identify it from a photo or a description of the equipment",
   await page.getByRole("button", { name: "Add exercise" }).click();
   const picker = page.getByRole("dialog", { name: "Add exercise" });
   await picker.getByTestId("identify-photo-input").setInputFiles("tests/fixtures/grocery-list.jpg");
-  const found = picker.getByRole("region", { name: "Looks like: Leg press machine" });
+  const found = picker.getByRole("region", { name: "Looks like Leg press machine" });
   await expect(found.getByRole("button", { name: /^Leg Press/ })).toHaveCount(2);
   await found.getByRole("button", { name: /^Leg Press/ }).first().click();
   await expect(page.getByTestId("exercise-block").filter({ hasText: "Leg Press" })).toHaveCount(1);
@@ -20,5 +20,5 @@ test("add exercise: identify it from a photo or a description of the equipment",
   await page.getByRole("button", { name: "Add exercise" }).click();
   await picker.getByLabel("Search exercises").fill("sit and push a platform with my feet");
   await picker.getByRole("button", { name: /^Ask AI what/ }).click();
-  await expect(picker.getByRole("region", { name: "Looks like: Leg press machine" }).getByRole("button", { name: /^Leg Press Calf Raise/ })).toBeVisible();
+  await expect(picker.getByRole("region", { name: "Looks like Leg press machine" }).getByRole("button", { name: /^Leg Press Calf Raise/ })).toBeVisible();
 });

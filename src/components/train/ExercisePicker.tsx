@@ -51,6 +51,8 @@ export function ExercisePicker({
   const cameraRef = useRef<HTMLInputElement>(null);
   const [identifying, setIdentifying] = useState(false);
   const [identified, setIdentified] = useState<Identified | null>(null);
+  // The photo being identified, shown beside the answer so it's clear what was looked at.
+  const [photo, setPhoto] = useState<string | null>(null);
   const muscles = useMemo(() => [...new Set(exercises.map((e) => e.primaryMuscle))].sort(), [exercises]);
   const nameOf = (e: PickerExercise) => exerciseName(t, { slug: e.slug ?? "", name: e.name });
   const query = q.trim().toLowerCase();
@@ -64,6 +66,7 @@ export function ExercisePicker({
   const matches = identified ? identified.exerciseIds.map((id) => exercises.find((e) => e.id === id)).filter((e): e is PickerExercise => !!e) : [];
 
   async function identify(input: { image?: string; text?: string }) {
+    setPhoto(input.image ?? null);
     setIdentifying(true);
     setIdentified(null);
     try {
@@ -105,8 +108,8 @@ export function ExercisePicker({
   );
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={heading} className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
-      <div className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-[14px] bg-paper p-4 sm:rounded-card">
+    <div role="dialog" aria-modal="true" aria-label={heading} onKeyDown={(e) => e.key === "Escape" && onClose()} className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
+      <div className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-[14px] bg-paper p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-card">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="display text-[22px]">{heading}</h2>
           <button type="button" aria-label={t("train.close")} onClick={onClose} className="rounded-field p-2 text-steel hover:bg-wash">
@@ -127,26 +130,40 @@ export function ExercisePicker({
         </div>
         {/* Knows the machine, not the exercise: a photo of it finds the exercises done on it. */}
         <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhoto} data-testid="identify-photo-input" />
-        <Button variant="secondary" size="sm" className="mb-3 self-start" onClick={() => cameraRef.current?.click()} disabled={identifying}>
+        <Button variant="secondary" className="mb-3 shrink-0 self-start" onClick={() => cameraRef.current?.click()} disabled={identifying}>
           <Camera className="size-4" aria-hidden /> {t("train.identify.photo")}
         </Button>
         <div className="-mx-2 flex-1 overflow-y-auto">
-          {identifying && (
-            <p role="status" className="flex items-center gap-2 px-3 pb-3 text-sm text-steel">
-              <Loader2 className="size-4 animate-spin" aria-hidden /> {t("train.identify.working")}
-            </p>
-          )}
-          {identified && (
-            <section aria-labelledby="picker-identified" className="mb-2 border-b border-line pb-2">
-              <div className="flex items-center justify-between gap-2 px-3 pb-1">
-                <h3 id="picker-identified" className="text-[13px] font-medium text-steel">
-                  {identified.equipment ? t("train.identify.looksLike", { equipment: identified.equipment }) : t("train.identify.matches")}
+          {(identifying || identified) && (
+            <section aria-labelledby="picker-identified" aria-busy={identifying} className="mb-2 border-b border-line pb-2">
+              <div className="flex items-center gap-3 px-3 pb-2">
+                {photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- local data URL preview
+                  <img src={photo} alt="" className="size-12 shrink-0 rounded-field bg-wash object-cover" />
+                ) : (
+                  <span className="grid size-12 shrink-0 place-items-center rounded-field bg-wash text-steel">
+                    <Sparkles className="size-5" aria-hidden />
+                  </span>
+                )}
+                <h3 id="picker-identified" className="min-w-0 flex-1">
+                  {identifying ? (
+                    <span role="status" className="flex items-center gap-2 text-sm text-steel">
+                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden /> {t("train.identify.working")}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="block text-[13px] text-steel">{t("train.identify.looksLike")}</span>
+                      <span className="block font-medium">{identified?.equipment ?? t("train.identify.matches")}</span>
+                    </>
+                  )}
                 </h3>
-                <button type="button" aria-label={t("train.identify.clear")} onClick={() => setIdentified(null)} className="-mr-1 grid size-8 place-items-center rounded-full text-steel hover:bg-wash">
-                  <X className="size-4" />
-                </button>
+                {identified && (
+                  <button type="button" aria-label={t("train.identify.clear")} onClick={() => (setIdentified(null), setPhoto(null))} className="-mr-1 grid size-11 shrink-0 place-items-center rounded-full text-steel hover:bg-wash">
+                    <X className="size-4" />
+                  </button>
+                )}
               </div>
-              {matches.length > 0 ? <ul>{matches.map(row)}</ul> : <p className="px-3 pb-2 text-sm text-steel">{t("train.identify.noMatch")}</p>}
+              {identified && (matches.length > 0 ? <ul>{matches.map(row)}</ul> : <p className="px-3 pb-2 text-sm text-steel">{t("train.identify.noMatch")}</p>)}
             </section>
           )}
           {showSuggested && (
@@ -163,7 +180,7 @@ export function ExercisePicker({
                 {t("train.noExercisesFound")}
                 {/* Not a name in the list: maybe a description of the equipment, which the AI can place. */}
                 {query && (
-                  <Button variant="secondary" size="sm" className="h-auto min-h-9 whitespace-normal py-1.5" onClick={() => identify({ text: q.trim() })} disabled={identifying}>
+                  <Button variant="secondary" className="h-auto min-h-11 whitespace-normal py-2" onClick={() => identify({ text: q.trim() })} disabled={identifying}>
                     <Sparkles className="size-4" aria-hidden /> {t("train.identify.ask", { q: q.trim() })}
                   </Button>
                 )}

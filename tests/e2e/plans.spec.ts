@@ -22,8 +22,13 @@ test("generate AI plan → activate → start planned workout", async ({ page })
   await page.getByRole("button", { name: "Start Upper A" }).click();
   // Asks how the user feels and recommends the sets: tired takes about a third off.
   const checkIn = page.getByRole("dialog", { name: "How do you feel today" });
+  await expect(checkIn.getByRole("radio", { name: "Normal" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(checkIn).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Start Upper A" })).toBeFocused();
+  await page.getByRole("button", { name: "Start Upper A" }).click();
   await checkIn.getByRole("radio", { name: "Tired or sore" }).click();
-  await expect(checkIn.getByRole("listitem").filter({ hasText: "Barbell Bench Press" })).toContainText("4 → 3 sets");
+  await expect(checkIn.getByRole("listitem").filter({ hasText: "Barbell Bench Press" })).toContainText("3 sets (plan: 4)");
   await checkIn.getByRole("button", { name: "Start with these sets" }).click();
   await expect(page).toHaveURL(/\/train\/workout\//);
   await expect(page.getByTestId("exercise-block")).toHaveCount(5);

@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "AiKind" ADD VALUE 'EXERCISE';
+

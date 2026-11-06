@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { Camera, Loader2, Search, Sparkles, X } from "lucide-react";
+import { resizeImage } from "@/lib/image";
 import { useT } from "@/i18n/client";
 import { exerciseName, labelOf } from "@/i18n/labels";
-import { Input, Select } from "@/components/ui";
+import { Button, Input, Select } from "@/components/ui";
 
 export interface PickerExercise {
   id: string;
@@ -18,6 +20,11 @@ export interface PickerExercise {
   category?: string;
 }
 
+/** What the AI made of a photo or description of equipment. */
+interface Identified {
+  equipment: string | null;
+  exerciseIds: string[];
+}
 
 export function ExercisePicker({
   exercises,
@@ -41,6 +48,9 @@ export function ExercisePicker({
   const heading = title ?? t("train.addExercise");
   const [q, setQ] = useState("");
   const [muscle, setMuscle] = useState(initialMuscle);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const [identifying, setIdentifying] = useState(false);
+  const [identified, setIdentified] = useState<Identified | null>(null);
   const muscles = useMemo(() => [...new Set(exercises.map((e) => e.primaryMuscle))].sort(), [exercises]);
   const nameOf = (e: PickerExercise) => exerciseName(t, { slug: e.slug ?? "", name: e.name });
   const query = q.trim().toLowerCase();
@@ -50,6 +60,36 @@ export function ExercisePicker({
   );
   const lower = (s: string) => (t.locale === "en" ? s.toLowerCase() : s);
   const showSuggested = suggested.length > 0 && !query;
+  // Only exercises this picker offers: a swap leaves out the one being swapped.
+  const matches = identified ? identified.exerciseIds.map((id) => exercises.find((e) => e.id === id)).filter((e): e is PickerExercise => !!e) : [];
+
+  async function identify(input: { image?: string; text?: string }) {
+    setIdentifying(true);
+    setIdentified(null);
+    try {
+      const res = await fetch("/api/ai/exercise", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+      const data = (await res.json()) as Identified & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? t("train.identify.failed"));
+      setIdentified({ equipment: data.equipment, exerciseIds: data.exerciseIds });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("train.identify.failed"));
+    } finally {
+      setIdentifying(false);
+    }
+  }
+
+  async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    let image: string;
+    try {
+      image = await resizeImage(file);
+    } catch {
+      return void toast.error(t("nutrition.imageReadError"));
+    }
+    await identify({ image });
+  }
   const rest = showSuggested ? filtered.filter((e) => !suggested.some((s) => s.id === e.id)) : filtered;
   const row = (e: PickerExercise) => (
     <li key={e.id}>
@@ -85,7 +125,30 @@ export function ExercisePicker({
             ))}
           </Select>
         </div>
+        {/* Knows the machine, not the exercise: a photo of it finds the exercises done on it. */}
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhoto} data-testid="identify-photo-input" />
+        <Button variant="secondary" size="sm" className="mb-3 self-start" onClick={() => cameraRef.current?.click()} disabled={identifying}>
+          <Camera className="size-4" aria-hidden /> {t("train.identify.photo")}
+        </Button>
         <div className="-mx-2 flex-1 overflow-y-auto">
+          {identifying && (
+            <p role="status" className="flex items-center gap-2 px-3 pb-3 text-sm text-steel">
+              <Loader2 className="size-4 animate-spin" aria-hidden /> {t("train.identify.working")}
+            </p>
+          )}
+          {identified && (
+            <section aria-labelledby="picker-identified" className="mb-2 border-b border-line pb-2">
+              <div className="flex items-center justify-between gap-2 px-3 pb-1">
+                <h3 id="picker-identified" className="text-[13px] font-medium text-steel">
+                  {identified.equipment ? t("train.identify.looksLike", { equipment: identified.equipment }) : t("train.identify.matches")}
+                </h3>
+                <button type="button" aria-label={t("train.identify.clear")} onClick={() => setIdentified(null)} className="-mr-1 grid size-8 place-items-center rounded-full text-steel hover:bg-wash">
+                  <X className="size-4" />
+                </button>
+              </div>
+              {matches.length > 0 ? <ul>{matches.map(row)}</ul> : <p className="px-3 pb-2 text-sm text-steel">{t("train.identify.noMatch")}</p>}
+            </section>
+          )}
           {showSuggested && (
             <section aria-labelledby="picker-suggested" className="mb-2 border-b border-line pb-2">
               <h3 id="picker-suggested" className="px-3 pb-1 text-[13px] font-medium text-steel">{t("train.suggestedSwaps")}</h3>
@@ -95,7 +158,17 @@ export function ExercisePicker({
           {showSuggested && rest.length > 0 && <h3 className="px-3 pb-1 text-[13px] font-medium text-steel">{t("train.moreExercises")}</h3>}
           <ul>
             {rest.map(row)}
-            {filtered.length === 0 && <li className="px-3 py-6 text-center text-sm text-steel">{t("train.noExercisesFound")}</li>}
+            {filtered.length === 0 && !identified && (
+              <li className="flex flex-col items-center gap-2 px-3 py-6 text-center text-sm text-steel">
+                {t("train.noExercisesFound")}
+                {/* Not a name in the list: maybe a description of the equipment, which the AI can place. */}
+                {query && (
+                  <Button variant="secondary" size="sm" className="h-auto min-h-9 whitespace-normal py-1.5" onClick={() => identify({ text: q.trim() })} disabled={identifying}>
+                    <Sparkles className="size-4" aria-hidden /> {t("train.identify.ask", { q: q.trim() })}
+                  </Button>
+                )}
+              </li>
+            )}
           </ul>
         </div>
       </div>

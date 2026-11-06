@@ -51,6 +51,18 @@ export type BodyFatEstimate = z.infer<typeof BodyFatEstimateSchema>;
 /** Photos one body-fat estimate can take: front, side and back. */
 export const MAX_BODY_PHOTOS = 3;
 
+// ---------- Exercise from equipment ----------
+
+/** Library exercises that best match a photo or description of gym equipment, best first. */
+export function exerciseMatchSchema(slugs: readonly [string, ...string[]]) {
+  return z.object({
+    recognized: z.boolean().describe("false if the photo or description isn't gym equipment or an exercise"),
+    equipment: z.string().max(80).nullable().describe("Short name of the equipment, e.g. 'Leg press machine'; null when not recognized"),
+    matches: z.array(z.enum(slugs)).max(5).describe("Exercises from the list done on this equipment, the most likely first"),
+  });
+}
+export type ExerciseMatch = z.infer<ReturnType<typeof exerciseMatchSchema>>;
+
 export type MealItemDraft = z.infer<typeof MealItemDraftSchema>;
 export type MealAnalysis = z.infer<typeof MealAnalysisSchema>;
 

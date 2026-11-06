@@ -137,6 +137,15 @@ Rules:
 - Set usable to false, with its reason, and set the numbers to null and cues to [] when: there is no person (no_person); there is more than one person (multiple_people); the torso is hidden by loose clothing or out of frame (body_not_visible); the photo is too dark or blurry to judge (too_dark_or_blurry); the person appears to be under 18 (appears_minor).
 - Several photos show the same person from different angles: combine them into one estimate.`;
 
+export const EXERCISE_MATCH_PROMPT = `You help someone at the gym who knows the equipment in front of them but not the name of the exercise. You get a photo of the equipment and/or a short description, and the list of exercises they can choose from.
+
+Rules:
+- Name the equipment briefly (e.g. "Leg press machine", "Cable station with rope", "Adjustable bench with dumbbells").
+- Pick up to 5 exercises from the list that are done on this equipment, the most common first. Use only slugs from the list.
+- If the photo shows a person doing an exercise, put that exercise first.
+- A machine with several stations or attachments may fit several exercises: list the likely ones.
+- Set recognized to false, equipment to null and matches to [] when the photo or description isn't gym equipment or an exercise.`;
+
 export function languageInstruction(locale: "en" | "zh"): string {
   return locale === "zh"
     ? "\n\nLanguage: write every user-facing text field (titles, item names, units, assumptions, notes, reasons, day names, replies) in Simplified Chinese (简体中文), including any short sentence you write before or between tool calls. Never answer in English. Keep enum values, slugs and numbers exactly as specified."

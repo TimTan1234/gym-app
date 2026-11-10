@@ -33,6 +33,9 @@ describe("OpenAI request formats", () => {
     const format = zodTextFormat(MealAnalysisSchema, "meal_analysis");
     expect(format.strict).toBe(true);
     assertStrict(format.schema as JsonSchema);
+    // The model writes fields in order: what it sees comes before what it estimates.
+    const keys = Object.keys((format.schema as JsonSchema).properties!);
+    expect(keys.indexOf("observations")).toBeLessThan(keys.indexOf("items"));
   });
 
   it("procurement schemas are strict-compatible", () => {

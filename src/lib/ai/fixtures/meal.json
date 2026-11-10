@@ -1,5 +1,10 @@
 {
   "isFood": true,
+  "observations": {
+    "scaleReference": "Spoon beside the plate, bowl about 4 by 6 cm",
+    "vessels": [{ "vessel": "round plate", "acrossCm": 24, "holds": "coconut rice, fried chicken, sambal, anchovies and peanuts, half a boiled egg" }],
+    "pieces": [{ "food": "Fried chicken thigh", "count": 1, "pieceSize": "about three spoon bowls long", "gramsEach": 130 }]
+  },
   "title": "Nasi lemak with fried chicken",
   "items": [
     { "name": "Coconut rice", "quantity": 1, "unit": "plate", "grams": 200, "kcal": 340, "proteinG": 5, "carbsG": 56, "fatG": 11, "fiberG": 1, "sugarG": 0.5, "addedSugarG": 0, "sodiumMg": 300, "gi": 72, "confidence": 0.7, "assumptions": "Standard hawker portion cooked with coconut milk" },

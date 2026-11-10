@@ -22,8 +22,34 @@ export const MealItemDraftSchema = z.object({
   assumptions: z.string().max(300).nullable().describe("Portion/cooking assumptions made"),
 });
 
+/**
+ * What the model sees before it estimates. Generated ahead of the items, so the estimates rest on it.
+ * Nothing reads it afterwards, so it has no length limits for a long answer to fail on.
+ */
+export const MealObservationsSchema = z.object({
+  scaleReference: z.string().describe("What in the photo gives the scale (fork, spoon, chopsticks, hand, a standard bowl) and the size taken for it; 'none' for a description"),
+  vessels: z.array(
+    z.object({
+      vessel: z.string().describe("e.g. 'rice bowl', 'small cast-iron pot', 'rectangular plate'"),
+      acrossCm: z.number().nullable().describe("Width across, judged against the scale reference"),
+      holds: z.string().describe("Every food in or on it, top to bottom, e.g. 'soft omelette on top of white rice'"),
+    }),
+  ),
+  pieces: z
+    .array(
+      z.object({
+        food: z.string(),
+        count: z.number().nonnegative(),
+        pieceSize: z.string().describe("One piece against the reference, e.g. 'about twice the fork head's width, 5 cm'"),
+        gramsEach: z.number().nonnegative(),
+      }),
+    )
+    .describe("Countable foods: how many, and one piece's size and weight"),
+});
+
 export const MealAnalysisSchema = z.object({
   isFood: z.boolean().describe("false if the input does not describe or show food"),
+  observations: MealObservationsSchema,
   title: z.string().max(80).describe("Short name for the whole meal"),
   items: z.array(MealItemDraftSchema).max(20),
   notes: z.string().max(400).nullable(),

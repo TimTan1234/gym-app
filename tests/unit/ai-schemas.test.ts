@@ -21,6 +21,11 @@ describe("meal analysis schema", () => {
     const { title: _title, ...missing } = mealFixture;
     expect(MealAnalysisSchema.safeParse(missing).success).toBe(false);
   });
+  it("takes long observations: nothing reads them, so they never fail an estimate", () => {
+    const busy = structuredClone(mealFixture);
+    busy.observations.vessels[0].holds = "coconut rice with fried shallots, a fried chicken drumstick and a wing, sambal, a boiled egg, ikan bilis, peanuts and cucumber, ".repeat(3);
+    expect(MealAnalysisSchema.safeParse(busy).success).toBe(true);
+  });
   it("validates the save payload", () => {
     const ok = MealSaveSchema.safeParse({
       mealType: "LUNCH",

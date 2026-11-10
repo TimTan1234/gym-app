@@ -1,13 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { THEME_KEY } from "./theme-script";
+import { THEME_COLORS, THEME_KEY } from "./theme-script";
 
 // Appearance is a per-device preference: stored in localStorage and applied
 // as data-theme on <html>. "system" removes the override so the OS decides.
 export type ThemePref = "system" | "light" | "dark";
-
-const COLORS = { light: "#faf9f5", dark: "#181715" } as const;
 
 const listeners = new Set<() => void>();
 const darkQuery = () => window.matchMedia("(prefers-color-scheme: dark)");
@@ -25,13 +23,19 @@ function resolve(pref: ThemePref): "light" | "dark" {
   return pref === "system" ? (darkQuery().matches ? "dark" : "light") : pref;
 }
 
-/** Keep the phone status bar in step with the page. */
-function syncThemeColor() {
-  const color = COLORS[resolve(readPref())];
-  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
-    m.setAttribute("content", color);
-    m.removeAttribute("media");
-  });
+/**
+ * The phone status bar's colour: the chosen theme's, or one per device scheme while on System. These metas
+ * are written by the head script, not rendered by React, so navigations leave them alone; this rewrites them.
+ */
+function writeThemeColor(pref: ThemePref) {
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.remove());
+  for (const scheme of pref === "system" ? (["light", "dark"] as const) : [pref]) {
+    const meta = document.createElement("meta");
+    meta.name = "theme-color";
+    meta.content = THEME_COLORS[scheme];
+    if (pref === "system") meta.media = `(prefers-color-scheme: ${scheme})`;
+    document.head.append(meta);
+  }
 }
 
 export function setThemePref(pref: ThemePref) {
@@ -43,21 +47,17 @@ export function setThemePref(pref: ThemePref) {
   }
   if (pref === "system") delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = pref;
-  syncThemeColor();
+  writeThemeColor(pref);
   listeners.forEach((l) => l());
 }
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
   const mq = darkQuery();
-  const onSystemChange = () => {
-    syncThemeColor();
-    listener();
-  };
-  mq.addEventListener("change", onSystemChange);
+  mq.addEventListener("change", listener);
   return () => {
     listeners.delete(listener);
-    mq.removeEventListener("change", onSystemChange);
+    mq.removeEventListener("change", listener);
   };
 }
 
@@ -69,5 +69,3 @@ export function useThemePref(): ThemePref {
 export function useResolvedTheme(): "light" | "dark" {
   return useSyncExternalStore(subscribe, () => resolve(readPref()), () => "light");
 }
-
-export { syncThemeColor };

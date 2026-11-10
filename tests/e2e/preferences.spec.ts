@@ -25,10 +25,32 @@ test("appearance: dark and light override the device setting and survive a reloa
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   expect(await bodyBg(page)).toBe(DARK_BG);
 
+  // The status bar keeps the chosen theme's colour through navigations, never falling back to the device's.
+  await page.evaluate(() => {
+    const read = () => [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')].map((m) => `${m.content} ${m.media}`.trim()).join(" | ");
+    const seen = [read()];
+    new MutationObserver(() => seen.push(read())).observe(document.head, { childList: true, subtree: true, attributes: true });
+    (window as unknown as { themeColors: string[] }).themeColors = seen;
+  });
+  const nav = page.getByRole("navigation", { name: "Main" });
+  for (const [tab, url] of [["Progress", /\/progress$/], ["Today", /\/today$/], ["Progress", /\/progress$/]] as const) {
+    await nav.getByRole("link", { name: tab }).click();
+    await expect(page).toHaveURL(url);
+  }
+  await expect(page.getByRole("heading", { level: 1, name: "Progress" })).toBeVisible();
+  expect(new Set(await page.evaluate(() => (window as unknown as { themeColors: string[] }).themeColors))).toEqual(new Set(["#181715"]));
+
   await page.goto("/settings/display");
   await page.getByRole("radiogroup", { name: "Appearance" }).getByRole("radio", { name: "System" }).click();
   await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
   expect(await bodyBg(page)).toBe(LIGHT_BG);
+  // On System the status bar follows the device again.
+  const metas = page.locator('meta[name="theme-color"]');
+  await expect(metas).toHaveCount(2);
+  expect(await metas.evaluateAll((ms: HTMLMetaElement[]) => ms.map((m) => `${m.content} ${m.media}`))).toEqual([
+    "#faf9f5 (prefers-color-scheme: light)",
+    "#181715 (prefers-color-scheme: dark)",
+  ]);
 });
 
 test("background photos: light and dark each have their own and switch with the theme", async ({ page }) => {

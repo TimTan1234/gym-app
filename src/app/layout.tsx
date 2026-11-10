@@ -22,10 +22,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf9f5" },
-    { media: "(prefers-color-scheme: dark)", color: "#181715" },
-  ],
+  // No themeColor: the head script writes those metas so the chosen theme survives navigations.
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

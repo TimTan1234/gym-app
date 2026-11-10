@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
-import { syncThemeColor, useResolvedTheme } from "@/lib/theme";
+import { useResolvedTheme } from "@/lib/theme";
 import { useClientValue } from "@/lib/use-client";
 
 const GAP = 8;
@@ -50,7 +50,6 @@ export function ThemedToaster() {
   // Lives outside the language provider; the head script has already set <html lang>.
   const zh = useClientValue(() => document.documentElement.lang === "zh-Hans", false);
   const bottom = useToastBottom();
-  useEffect(syncThemeColor, [theme]);
   return (
     <Toaster
       position="bottom-center"

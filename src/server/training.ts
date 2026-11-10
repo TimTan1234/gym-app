@@ -7,7 +7,9 @@ import { requireProfile } from "@/lib/session";
 import { todayLocal } from "@/lib/dates";
 import { lastSessionSets } from "@/lib/queries";
 import { READINESS, type Readiness } from "@/lib/training/readiness";
-import { detectRecords, type Bests, type NewRecord, type RecordType } from "@/lib/training/records";
+import { detectRecords, earnedRecords, type Bests, type RecordType } from "@/lib/training/records";
+import { setFields } from "@/lib/training/set-entry";
+import type { Prisma } from "@/generated/prisma/client";
 import { getT } from "@/i18n/server";
 import type { ActionResult } from "./profile";
 
@@ -35,17 +37,23 @@ export async function startWorkout(planDayId?: string, readiness?: Readiness): P
   return { ok: true, sessionId: session.id };
 }
 
-const SetSchema = z.object({
+const SetValuesSchema = z.object({
+  weightKg: z.number().min(0).max(1000),
+  reps: z.number().int().min(0).max(1000),
+  rpe: z.number().min(1).max(10).nullable(),
+  isWarmup: z.boolean(),
+  // Cardio only. Optional, so sets queued on the phone before cardio existed still go through.
+  durationSec: z.number().int().min(1).max(86_400).nullish(),
+  distanceM: z.number().min(0).max(1_000_000).nullish(),
+});
+
+const SetSchema = SetValuesSchema.extend({
   /** Made on the phone, so a set re-sent after a lost reply (or from the offline queue) is saved once. */
   id: z.string().regex(/^[A-Za-z0-9-]{8,64}$/),
   /** When it was logged on the phone; a set sent later from the offline queue keeps its real time. */
   completedAt: z.iso.datetime().optional(),
   sessionId: z.string().min(1),
   exerciseId: z.string().min(1),
-  weightKg: z.number().min(0).max(1000),
-  reps: z.number().int().min(0).max(1000),
-  rpe: z.number().min(1).max(10).nullable(),
-  isWarmup: z.boolean(),
 });
 
 export type SetInput = z.infer<typeof SetSchema>;
@@ -58,7 +66,13 @@ export interface LoggedSet {
   reps: number;
   rpe: number | null;
   isWarmup: boolean;
+  durationSec: number | null;
+  distanceM: number | null;
+  /** The records the set holds. */
+  records: RecordType[];
 }
+
+const withRecords = { records: { select: { type: true } } } as const;
 
 async function currentBests(userId: string, exerciseId: string): Promise<Bests> {
   const rows = await db.personalRecord.groupBy({
@@ -73,24 +87,27 @@ async function currentBests(userId: string, exerciseId: string): Promise<Bests> 
 
 export async function logSet(
   input: z.infer<typeof SetSchema>,
-): Promise<{ ok: true; set: LoggedSet; records: NewRecord[] } | { ok: false; error: string }> {
+): Promise<{ ok: true; set: LoggedSet } | { ok: false; error: string }> {
   const { user } = await requireProfile();
   const parsed = SetSchema.safeParse(input);
   const t = await getT();
   if (!parsed.success) return { ok: false, error: t("train.errors.invalidSet") };
-  const { id, completedAt, ...s } = parsed.data;
+  const { id, completedAt, sessionId, exerciseId, ...values } = parsed.data;
 
   const [session, exercise] = await Promise.all([
-    db.workoutSession.findFirst({ where: { id: s.sessionId, userId: user.id }, select: { id: true, startedAt: true, skippedExerciseIds: true } }),
-    db.exercise.findFirst({ where: { id: s.exerciseId, OR: [{ userId: null }, { userId: user.id }] }, select: { id: true } }),
+    db.workoutSession.findFirst({ where: { id: sessionId, userId: user.id }, select: { id: true, startedAt: true, skippedExerciseIds: true } }),
+    db.exercise.findFirst({ where: { id: exerciseId, OR: [{ userId: null }, { userId: user.id }] }, select: { id: true, category: true } }),
   ]);
   if (!session) return { ok: false, error: t("train.errors.workoutNotFound") };
   if (!exercise) return { ok: false, error: t("train.errors.exerciseNotFound") };
+  const fields = setFields(exercise.category === "CARDIO", values);
+  if (!fields) return { ok: false, error: t("train.errors.invalidSet") };
+  const s = { sessionId, exerciseId, ...fields };
 
   // Already saved (the reply was lost, or the queue sent it twice): return it as it is.
-  const saved = () => db.workoutSet.findFirst({ where: { id, sessionId: s.sessionId } });
+  const saved = () => db.workoutSet.findFirst({ where: { id, sessionId: s.sessionId }, include: withRecords });
   const existing = await saved();
-  if (existing) return { ok: true, set: toLogged(existing), records: [] };
+  if (existing) return { ok: true, set: toLogged(existing) };
   // A queued set keeps the time it was logged, within the workout and not in the future.
   const at = completedAt ? new Date(Math.min(Date.now(), Math.max(session.startedAt.getTime(), Date.parse(completedAt)))) : new Date();
 
@@ -129,21 +146,57 @@ export async function logSet(
   } catch (e) {
     // Two copies of the same set arrived together: the other one won, which is the same set.
     const other = await saved();
-    if (other) return { ok: true, set: toLogged(other), records: [] };
+    if (other) return { ok: true, set: toLogged(other) };
     throw e;
   }
-
-  // First-ever sets set a baseline rather than a "PR" worth celebrating.
-  const celebrate = Object.keys(bests).length > 0 ? records : [];
-  return {
-    ok: true,
-    set: toLogged(set),
-    records: celebrate,
-  };
+  return { ok: true, set: toLogged({ ...set, records }) };
 }
 
-function toLogged(set: LoggedSet): LoggedSet {
-  return { id: set.id, exerciseId: set.exerciseId, setIndex: set.setIndex, weightKg: set.weightKg, reps: set.reps, rpe: set.rpe, isWarmup: set.isWarmup };
+function toLogged(set: Omit<LoggedSet, "records"> & { records: { type: RecordType }[] }): LoggedSet {
+  const { id, exerciseId, setIndex, weightKg, reps, rpe, isWarmup, durationSec, distanceM, records } = set;
+  return { id, exerciseId, setIndex, weightKg, reps, rpe, isWarmup, durationSec, distanceM, records: records.map((r) => r.type) };
+}
+
+/** A workout's sets of one exercise as they are now: after an edit, records and set numbers may have moved. */
+async function exerciseSets(sessionId: string, exerciseId: string): Promise<LoggedSet[]> {
+  const sets = await db.workoutSet.findMany({ where: { sessionId, exerciseId }, orderBy: { setIndex: "asc" }, include: withRecords });
+  return sets.map(toLogged);
+}
+
+/** Replaces the user's records for these exercises with the ones their sets earn now. */
+async function rebuildRecords(tx: Prisma.TransactionClient, userId: string, exerciseIds: Iterable<string>) {
+  for (const exerciseId of new Set(exerciseIds)) {
+    const sets = await tx.workoutSet.findMany({
+      where: { exerciseId, session: { userId } },
+      orderBy: [{ completedAt: "asc" }, { id: "asc" }],
+      select: { id: true, weightKg: true, reps: true, isWarmup: true, completedAt: true },
+    });
+    await tx.personalRecord.deleteMany({ where: { userId, exerciseId } });
+    await tx.personalRecord.createMany({ data: earnedRecords(sets).map((r) => ({ userId, exerciseId, ...r })) });
+  }
+}
+
+/** Changes a logged set, in a workout in progress or a finished one. */
+export async function updateSet(
+  setId: string,
+  input: z.infer<typeof SetValuesSchema>,
+): Promise<{ ok: true; sets: LoggedSet[] } | { ok: false; error: string }> {
+  const { user } = await requireProfile();
+  const t = await getT();
+  const parsed = SetValuesSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: t("train.errors.invalidSet") };
+  const existing = await db.workoutSet.findFirst({
+    where: { id: setId, session: { userId: user.id } },
+    select: { sessionId: true, exerciseId: true, exercise: { select: { category: true } } },
+  });
+  if (!existing) return { ok: false, error: t("train.errors.setNotFound") };
+  const fields = setFields(existing.exercise.category === "CARDIO", parsed.data);
+  if (!fields) return { ok: false, error: t("train.errors.invalidSet") };
+  await db.$transaction(async (tx) => {
+    await tx.workoutSet.update({ where: { id: setId }, data: fields });
+    await rebuildRecords(tx, user.id, [existing.exerciseId]);
+  });
+  return { ok: true, sets: await exerciseSets(existing.sessionId, existing.exerciseId) };
 }
 
 type Swaps = Record<string, string>;
@@ -182,19 +235,20 @@ export async function swapWorkoutExercise(sessionId: string, fromId: string, toI
   return { ok: true };
 }
 
-export async function deleteSet(setId: string): Promise<ActionResult> {
+export async function deleteSet(setId: string): Promise<{ ok: true; sets: LoggedSet[] } | { ok: false; error: string }> {
   const { user } = await requireProfile();
   const set = await db.workoutSet.findFirst({ where: { id: setId, session: { userId: user.id } } });
   if (!set) return { ok: false, error: (await getT())("train.errors.setNotFound") };
-  await db.$transaction([
-    db.workoutSet.delete({ where: { id: setId } }),
+  await db.$transaction(async (tx) => {
+    await tx.workoutSet.delete({ where: { id: setId } });
     // Re-number remaining sets for this exercise in this session.
-    db.workoutSet.updateMany({
+    await tx.workoutSet.updateMany({
       where: { sessionId: set.sessionId, exerciseId: set.exerciseId, setIndex: { gt: set.setIndex } },
       data: { setIndex: { decrement: 1 } },
-    }),
-  ]);
-  return { ok: true };
+    });
+    await rebuildRecords(tx, user.id, [set.exerciseId]);
+  });
+  return { ok: true, sets: await exerciseSets(set.sessionId, set.exerciseId) };
 }
 
 /**
@@ -212,13 +266,14 @@ export async function removeWorkoutExercise(sessionId: string, exerciseId: strin
   const swaps = swapsOf(session.exerciseSwaps);
   const slot = plannedSlot(swaps, exerciseId);
   const { [slot]: _gone, ...rest } = swaps;
-  await db.$transaction([
-    db.workoutSet.deleteMany({ where: { sessionId, exerciseId } }),
-    db.workoutSession.update({
+  await db.$transaction(async (tx) => {
+    await tx.workoutSet.deleteMany({ where: { sessionId, exerciseId } });
+    await tx.workoutSession.update({
       where: { id: sessionId },
       data: { skippedExerciseIds: [...new Set([...session.skippedExerciseIds, slot])], exerciseSwaps: rest },
-    }),
-  ]);
+    });
+    await rebuildRecords(tx, user.id, [exerciseId]);
+  });
   return { ok: true };
 }
 
@@ -242,9 +297,14 @@ export async function finishWorkout(sessionId: string, notes: string): Promise<A
   return { ok: true };
 }
 
+/** Deletes a workout, in progress or finished, with its sets. */
 export async function discardWorkout(sessionId: string): Promise<ActionResult> {
   const { user } = await requireProfile();
-  await db.workoutSession.deleteMany({ where: { id: sessionId, userId: user.id } });
+  const sets = await db.workoutSet.findMany({ where: { sessionId, session: { userId: user.id } }, select: { exerciseId: true } });
+  await db.$transaction(async (tx) => {
+    await tx.workoutSession.deleteMany({ where: { id: sessionId, userId: user.id } });
+    await rebuildRecords(tx, user.id, sets.map((s) => s.exerciseId));
+  });
   refresh();
   return { ok: true };
 }

@@ -21,8 +21,18 @@ export default defineConfig({
     command: "next build && next start --port 3100",
     url: "http://localhost:3100",
     reuseExistingServer: false,
-    // The suite signs up a fresh account per test, faster than the sign-up rate limit allows.
-    env: { AI_MOCK: "1", BETTER_AUTH_URL: "http://localhost:3100", AUTH_RATE_LIMIT: "off" },
+    env: {
+      AI_MOCK: "1",
+      BETTER_AUTH_URL: "http://localhost:3100",
+      // The suite signs up a fresh account per test, faster than the sign-up rate limit allows.
+      AUTH_RATE_LIMIT: "off",
+      // Reminders on, sending to the fake push service in reminders.spec.ts over HTTPS with this certificate.
+      VAPID_PUBLIC_KEY: "BKQjvUDBvMdFBC8BdRUX3In_c-q9ityWI6A2soVjQasgesM1GXQHf7rLeHrIg4-Yd4E9U-BexpwbFP7-Y59POoE",
+      VAPID_PRIVATE_KEY: "uKA2hIokOEjEHK3lFD2v57I5gANGU-AayXPh-pTGQT4",
+      VAPID_SUBJECT: "mailto:e2e@test.dev",
+      CRON_SECRET: "e2e-cron-secret",
+      NODE_EXTRA_CA_CERTS: "tests/e2e/fixtures/push-service.crt",
+    },
     timeout: 300_000,
   },
 });

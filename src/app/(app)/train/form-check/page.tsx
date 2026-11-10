@@ -4,7 +4,7 @@ import { FormCheckLazy } from "@/components/train/FormCheckLazy";
 import { PageHeader, PageSkeleton } from "@/components/ui";
 import { getT } from "@/i18n/server";
 
-export const metadata = { title: "Squat form check" };
+export const metadata = { title: "Form check" };
 
 async function FormCheck() {
   await requireProfile();

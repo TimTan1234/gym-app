@@ -60,7 +60,7 @@ export function SugarAmount({ total, added }: { total: number; added: number }) 
  * The day's added sugar as a row of teaspoon cubes. The collar marks the guide,
  * as it marks the calorie target on the barbell, and cubes past it are hatched.
  */
-export function SugarMeter({ added, total, targetKcal }: { added: number; total: number; targetKcal: number }) {
+export function SugarMeter({ added, targetKcal }: { added: number; targetKcal: number }) {
   const t = useT();
   const guide = sugarGuideG(targetKcal);
   const guideCubes = Math.max(1, Math.round(guide / TEASPOON_G));
@@ -97,15 +97,7 @@ export function SugarMeter({ added, total, targetKcal }: { added: number; total:
         {cubes}
         {hidden > 0 && <span className="num ml-1 text-xs font-semibold">+{hidden}</span>}
       </div>
-      <p className="text-xs text-steel">
-        {over && (
-          <span className="font-semibold text-iron">
-            {t("nutrition.sugarOver", { g: fmt(added - guide) })}
-            {t.locale === "zh" ? "。" : ". "}
-          </span>
-        )}
-        {t("nutrition.sugarNote", { total: fmt(total) })}
-      </p>
+      {over && <p className="text-xs font-semibold text-iron">{t("nutrition.sugarOver", { g: fmt(added - guide) })}</p>}
     </div>
   );
 }

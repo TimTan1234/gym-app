@@ -400,10 +400,7 @@ function CoachChat({ threadId: initialThreadId, initialMessages, prefill, onThre
       <div className="flex-1 space-y-4 pb-4" aria-live="polite" aria-busy={busy} data-testid="chat-log">
         {messages.length === 0 && (
           <div className="space-y-4 pt-4">
-            <div>
-              <p className="display text-[24px]">{t("coach.emptyTitle")}</p>
-              <p className="mt-1 text-sm text-steel">{t("coach.emptyBody")}</p>
-            </div>
+            <p className="display text-[24px]">{t("coach.emptyTitle")}</p>
             {/* Starter questions as a list: each is a whole question, so it reads left to right, not as a tag. */}
             <ul className="space-y-2">
               {SUGGESTIONS.map((key) => {
@@ -451,6 +448,7 @@ function CoachChat({ threadId: initialThreadId, initialMessages, prefill, onThre
           e.preventDefault();
           void send(input);
         }}
+        data-toasts-above
         className="sticky bottom-20 z-20 flex items-end gap-2 rounded-card border border-line bg-paper p-2 shadow-[0_8px_24px_-12px_rgba(20,20,19,0.45)] md:bottom-4"
       >
         <Textarea

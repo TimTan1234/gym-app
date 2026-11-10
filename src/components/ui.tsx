@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { clsx, type ClassValue } from "clsx";
 import { extendTailwindMerge } from "tailwind-merge";
+import { ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 
 // Knows the theme's radius names, so `rounded-full` in a className replaces a `rounded-field`.
@@ -230,6 +232,26 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
       </div>
       {action}
     </header>
+  );
+}
+
+/** A row in a list of places to go (Train, Settings): icon, label, chevron. Put them in a `divide-y` list. */
+export function NavRow({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 py-3.5 hover:bg-wash">
+      <Icon className="size-5 text-steel" aria-hidden />
+      <span className="flex-1 font-medium">{label}</span>
+      <ChevronRight className="size-4 text-steel" aria-hidden />
+    </Link>
+  );
+}
+
+/** The way back to the page above, over a sub-page's header. */
+export function BackLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={href} className={cn(buttonClass("ghost", "sm", "start"), "mb-2")}>
+      <ChevronLeft className="size-4" /> {label}
+    </Link>
   );
 }
 

@@ -6,9 +6,9 @@ import { useState } from "react";
 import { signIn, signUp } from "@/lib/auth-client";
 import { Button, Input, Label } from "@/components/ui";
 import { useT } from "@/i18n/client";
-import { messages } from "@/i18n/messages";
+import { authErrorText } from "./errors";
 
-export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
+export function AuthForm({ mode, canReset = false }: { mode: "sign-in" | "sign-up"; canReset?: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -26,16 +26,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         ? await signUp.email({ email, password, name: String(form.get("name")) })
         : await signIn.email({ email, password });
     setPending(false);
-    if (result.error) {
-      // Known Better Auth codes get a translated message; anything else shows the server's text.
-      const code = result.error.code;
-      setError(
-        code && code in messages.en.auth.errors
-          ? t(`auth.errors.${code as keyof typeof messages.en.auth.errors}`)
-          : (result.error.message ?? t("auth.genericError")),
-      );
-      return;
-    }
+    if (result.error) return setError(authErrorText(t, result.error));
     router.push(mode === "sign-up" ? "/onboarding" : "/today");
     router.refresh();
   }
@@ -63,6 +54,11 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
         />
       </Label>
+      {canReset && (
+        <Link href="/forgot-password" className="-mt-2 block w-fit text-sm text-steel underline">
+          {t("auth.forgotPassword")}
+        </Link>
+      )}
       {error && (
         <p role="alert" className="text-sm text-alert">
           {error}

@@ -57,6 +57,20 @@ AI_MOCK="0"
 
 # Optional: host port (default 3000)
 # APP_PORT="3001"
+
+# Optional: SMTP for "Forgot password?" emails (see README). Leave SMTP_HOST unset to turn it off.
+# SMTP_HOST="smtp.example.com"
+# SMTP_PORT="587"
+# SMTP_USER="..."
+# SMTP_PASSWORD="..."
+# SMTP_FROM="GymPal <no-reply@example.com>"
+
+# Optional: push reminders (see README). Settings offers them once all three VAPID values are set;
+# the reminders service sends what's due every 5 minutes using CRON_SECRET.
+# VAPID_PUBLIC_KEY="..."            # npx web-push generate-vapid-keys
+# VAPID_PRIVATE_KEY="..."
+# VAPID_SUBJECT="mailto:you@example.com"
+# CRON_SECRET="..."                 # openssl rand -base64 32
 ```
 
 You don't need to change `DATABASE_URL` in `.env`. Compose gives the containers their own connection string to the `db` service, and `npm run dev` keeps using yours.
@@ -68,7 +82,7 @@ docker compose up -d --build
 docker compose logs -f migrate app      # Ctrl+C to stop following
 ```
 
-The first build takes a few minutes. Compose starts `db`, waits until it's healthy, then runs `migrate`. When that finishes successfully it starts `app`. Open <http://localhost:3000> and create an account.
+The first build takes a few minutes. Compose starts `db`, waits until it's healthy, then runs `migrate`. When that finishes successfully it starts `app`, and once `app` is healthy, `reminders`, which asks it every 5 minutes to send the push reminders that are due (it idles without `CRON_SECRET`). Open <http://localhost:3000> and create an account.
 
 > `npm run dev` also uses port 3000. Stop it first, or set `APP_PORT="3001"` **and** `BETTER_AUTH_URL="http://localhost:3001"`. Better Auth rejects sign-ins from any other origin with "Invalid origin".
 

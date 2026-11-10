@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { BookOpen, ChevronRight, ClipboardList, History, ScanEye, Sparkles } from "lucide-react";
+import { BookOpen, ClipboardList, History, ScanEye, Sparkles } from "lucide-react";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import { getActiveWorkout, getNextPlanDay } from "@/lib/queries";
@@ -9,7 +9,7 @@ import { displayWeight, weightUnit } from "@/lib/units";
 import { durationMinutes, totalVolume } from "@/lib/training/summary";
 import { StartWorkoutButton } from "@/components/train/StartWorkoutButton";
 import { PreExerciseCheck } from "@/components/glucose/PreExerciseCheck";
-import { EmptyState, PageHeader, PageSkeleton, Section, buttonClass } from "@/components/ui";
+import { EmptyState, NavRow, PageHeader, PageSkeleton, Section, buttonClass } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
 import { exerciseName } from "@/i18n/labels";
@@ -85,19 +85,12 @@ async function Train() {
 
       <nav aria-label={t("train.navLabel")} className="divide-y divide-line border-y border-line">
         {[
-          { href: "/train/plans", icon: ClipboardList, label: t("train.plans"), hint: t("train.plansHint") },
-          { href: "/train/history", icon: History, label: t("train.history"), hint: t("train.historyHint") },
-          { href: "/train/exercises", icon: BookOpen, label: t("train.exercises"), hint: t("train.exercisesHint") },
-          { href: "/train/form-check", icon: ScanEye, label: t("train.formCheck.title"), hint: t("train.formCheck.navHint") },
-        ].map(({ href, icon: Icon, label, hint }) => (
-          <Link key={href} href={href} className="flex items-center gap-3 py-3.5 hover:bg-wash">
-            <Icon className="size-5 text-steel" aria-hidden />
-            <span className="flex-1">
-              <span className="block font-medium">{label}</span>
-              <span className="block text-[13px] text-steel">{hint}</span>
-            </span>
-            <ChevronRight className="size-4 text-steel" aria-hidden />
-          </Link>
+          { href: "/train/plans", icon: ClipboardList, label: t("train.plans") },
+          { href: "/train/history", icon: History, label: t("train.history") },
+          { href: "/train/exercises", icon: BookOpen, label: t("train.exercises") },
+          { href: "/train/form-check", icon: ScanEye, label: t("train.formCheck.title") },
+        ].map(({ href, icon, label }) => (
+          <NavRow key={href} href={href} icon={icon} label={label} />
         ))}
       </nav>
 

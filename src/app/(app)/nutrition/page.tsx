@@ -18,7 +18,7 @@ import { getT } from "@/i18n/server";
 
 export const metadata = { title: "Nutrition" };
 
-const MAIN = ["BREAKFAST", "LUNCH", "DINNER"] as const;
+const SLOTS = ["BREAKFAST", "LUNCH", "DINNER", "SNACK"] as const;
 
 async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrition">["searchParams"] }) {
   const { user, profile } = await requireProfile();
@@ -40,32 +40,27 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
     ? await Promise.all([afterMealReadings(user.id, meals, profile), date === today ? mealDueForCheck(user.id, today, profile) : null])
     : [null, null];
 
-  // On today the rail is solid up to the last main meal logged and dashed for what's still to come;
+  // On today the rail is solid up to the last meal logged and dashed for what's still to come;
   // a past day is complete, so all solid.
-  const lastLogged = date === today ? Math.max(-1, ...MAIN.map((type, i) => (meals.some((m) => m.mealType === type) ? i : -1))) : MAIN.length - 1;
+  const lastLogged = date === today ? Math.max(-1, ...SLOTS.map((type, i) => (meals.some((m) => m.mealType === type) ? i : -1))) : SLOTS.length - 1;
 
-  function slot(type: (typeof MAIN)[number] | "SNACK", i: number | null) {
+  function slot(type: (typeof SLOTS)[number], i: number) {
     const group = meals.filter((m) => m.mealType === type);
     const kcal = group.reduce((s, m) => s + m.kcal, 0);
     const before = dayBefore.meals.filter((m) => m.mealType === type);
     const name = t(`labels.mealType.${type}`);
-    const onRail = i !== null;
     return (
-      <section key={type} className={cn("relative", onRail && "pl-8")}>
-        {onRail && (
-          <>
-            {/* Stop: filled once the meal is logged. The segment below runs to the next stop (24px gap + its 18px centre). */}
-            <span
-              aria-hidden
-              className={cn("absolute left-[3px] top-[11px] size-3.5 rounded-full", group.length > 0 ? "bg-iron" : "border-2 border-steel/45 bg-chalk")}
-            />
-            {i < MAIN.length - 1 && (
-              <span
-                aria-hidden
-                className={cn("absolute left-[9px] top-[29px] -bottom-[35px] border-l-2", i + 1 <= lastLogged ? "border-iron/35" : "border-dashed border-steel/35")}
-              />
-            )}
-          </>
+      <section key={type} className="relative pl-8">
+        {/* Stop: filled once the meal is logged. The segment below runs to the next stop (24px gap + its 18px centre). */}
+        <span
+          aria-hidden
+          className={cn("absolute left-[3px] top-[11px] size-3.5 rounded-full", group.length > 0 ? "bg-iron" : "border-2 border-steel/45 bg-chalk")}
+        />
+        {i < SLOTS.length - 1 && (
+          <span
+            aria-hidden
+            className={cn("absolute left-[9px] top-[29px] -bottom-[35px] border-l-2", i + 1 <= lastLogged ? "border-iron/35" : "border-dashed border-steel/35")}
+          />
         )}
         <div className="flex min-h-9 items-center justify-between gap-3">
           <h2 className={cn("display text-[20px]", group.length === 0 && "text-steel")}>{name}</h2>
@@ -130,12 +125,12 @@ async function NutritionDay({ searchParams }: { searchParams: PageProps<"/nutrit
         </div>
       )}
       <div className="mb-20 mt-10">
-        {/* Breakfast, lunch and dinner on a rail through the day; snacks sit apart, they happen any time. */}
-        <div className="space-y-6">{MAIN.map((type, i) => slot(type, i))}</div>
-        <div className="mt-8 border-t border-line pt-6">{slot("SNACK", null)}</div>
+        {/* The day's meals on one rail, snack last. */}
+        <div className="space-y-6">{SLOTS.map((type, i) => slot(type, i))}</div>
       </div>
       <Link
         href={`/nutrition/log?date=${date}`}
+        data-toasts-above
         className={`${buttonClass("primary", "lg")} fixed bottom-24 right-4 z-30 shadow-[0_8px_24px_-10px_rgba(20,20,19,0.55)] md:bottom-8`}
       >
         <Plus className="size-5" /> {t("nutrition.logMeal")}

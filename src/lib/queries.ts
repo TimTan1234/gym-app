@@ -5,6 +5,7 @@ import { addDays, todayLocal } from "./dates";
 import { CHECKIN_DAYS, weeklyCheckin } from "./nutrition/checkin";
 import type { ActivityLevel, Goal, Sex } from "./nutrition/targets";
 import { carbBudget } from "./nutrition/diabetes";
+import { buildRecap, lastFullWeek, type Recap } from "./recap";
 
 export async function getDayNutrition(userId: string, localDate: string) {
   const meals = await db.meal.findMany({
@@ -65,35 +66,36 @@ export interface PrevSet {
   weightKg: number;
   reps: number;
   isWarmup: boolean;
+  durationSec: number | null;
+  distanceM: number | null;
 }
 
 /** Sets from the most recent *other* finished session, per exercise. */
 export async function lastSessionSets(userId: string, exerciseIds: string[], excludeSessionId?: string) {
   const out = new Map<string, { date: string; sets: PrevSet[] }>();
   if (exerciseIds.length === 0) return out;
+  const session = { userId, endedAt: { not: null }, ...(excludeSessionId ? { id: { not: excludeSessionId } } : {}) };
+  // Each exercise's latest session on its own, so a lift done every week can't crowd out one done rarely.
+  const latest = await Promise.all(
+    exerciseIds.map((exerciseId) =>
+      db.workoutSet.findFirst({
+        where: { exerciseId, session },
+        orderBy: { completedAt: "desc" },
+        select: { exerciseId: true, sessionId: true, session: { select: { localDate: true } } },
+      }),
+    ),
+  );
+  const found = latest.filter((l) => l !== null);
+  if (found.length === 0) return out;
   const rows = await db.workoutSet.findMany({
-    where: {
-      exerciseId: { in: exerciseIds },
-      session: { userId, endedAt: { not: null }, ...(excludeSessionId ? { id: { not: excludeSessionId } } : {}) },
-    },
-    orderBy: [{ completedAt: "desc" }],
-    take: 400,
-    select: { exerciseId: true, sessionId: true, weightKg: true, reps: true, isWarmup: true, setIndex: true, session: { select: { localDate: true } } },
+    where: { OR: found.map(({ exerciseId, sessionId }) => ({ exerciseId, sessionId })) },
+    orderBy: { setIndex: "asc" },
+    select: { exerciseId: true, weightKg: true, reps: true, isWarmup: true, durationSec: true, distanceM: true },
   });
-  // Rows are newest first, so the first session seen per exercise is the latest.
-  const latestSession = new Map<string, string>();
-  const grouped = new Map<string, { date: string; rows: typeof rows }>();
-  for (const r of rows) {
-    if (!latestSession.has(r.exerciseId)) latestSession.set(r.exerciseId, r.sessionId);
-    if (latestSession.get(r.exerciseId) !== r.sessionId) continue;
-    const g = grouped.get(r.exerciseId) ?? { date: r.session.localDate, rows: [] };
-    g.rows.push(r);
-    grouped.set(r.exerciseId, g);
-  }
-  for (const [exerciseId, g] of grouped) {
-    out.set(exerciseId, {
-      date: g.date,
-      sets: g.rows.sort((a, b) => a.setIndex - b.setIndex).map(({ weightKg, reps, isWarmup }) => ({ weightKg, reps, isWarmup })),
+  for (const l of found) {
+    out.set(l.exerciseId, {
+      date: l.session.localDate,
+      sets: rows.filter((r) => r.exerciseId === l.exerciseId).map(({ exerciseId: _, ...set }) => set),
     });
   }
   return out;
@@ -131,5 +133,29 @@ export async function getCheckin(
     sex: profile.sex,
     targetsSetOn: profile.targetsSetOn,
     carbCapG: profile.diabetesMode ? carbBudget(profile.sex, profile.activityLevel).dailyMax : null,
+  });
+}
+
+/** Last full week (Monday to Sunday, the user's time) in numbers, or null when nothing was logged. */
+export async function getWeeklyRecap(userId: string, timezone: string, targetKcal: number): Promise<Recap | null> {
+  const { start, end } = lastFullWeek(todayLocal(timezone));
+  const inWeek = { gte: start, lte: end };
+  const finished = { userId, localDate: inWeek, endedAt: { not: null } };
+  const [sessions, records, meals, weighIns, before] = await Promise.all([
+    db.workoutSession.findMany({ where: finished, select: { localDate: true, _count: { select: { sets: { where: { isWarmup: false } } } } } }),
+    db.personalRecord.findMany({ where: { userId, set: { session: finished } }, select: { set: { select: { session: { select: { localDate: true } } } } } }),
+    db.meal.findMany({ where: { userId, localDate: inWeek }, select: { localDate: true, kcal: true } }),
+    db.bodyMetric.findMany({ where: { userId, localDate: inWeek }, select: { localDate: true, weightKg: true } }),
+    db.bodyMetric.findFirst({ where: { userId, localDate: { lt: start } }, orderBy: { localDate: "desc" }, select: { weightKg: true } }),
+  ]);
+  return buildRecap({
+    start,
+    end,
+    sessions: sessions.map((s) => ({ localDate: s.localDate, workingSets: s._count.sets })),
+    records: records.map((r) => ({ localDate: r.set.session.localDate })),
+    meals,
+    targetKcal,
+    weighIns,
+    before,
   });
 }

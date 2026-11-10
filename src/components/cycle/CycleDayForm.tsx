@@ -238,7 +238,7 @@ export function CycleDayForm({ date, initial, exists, customSymptoms }: { date: 
         <Textarea value={v.note} maxLength={1000} placeholder={t("cycle.log.notePlaceholder")} aria-label={t("cycle.log.note")} onChange={(e) => set("note", e.target.value)} />
       </Field>
 
-      <div className="sticky bottom-20 z-20 md:bottom-4">
+      <div data-toasts-above className="sticky bottom-20 z-20 md:bottom-4">
         <Card className="flex items-center justify-between gap-3 border border-line p-3 shadow-[0_8px_24px_-12px_rgba(20,20,19,0.45)]">
           {exists ? (
             <Button type="button" variant="danger" onClick={remove.tap} disabled={pending}>

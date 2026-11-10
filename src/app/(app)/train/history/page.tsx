@@ -5,26 +5,32 @@ import { db } from "@/lib/db";
 import { addDays, formatLocalDate, startOfWeek } from "@/lib/dates";
 import { displayWeight, weightUnit } from "@/lib/units";
 import { durationMinutes, totalVolume } from "@/lib/training/summary";
-import { EmptyState, PageHeader, PageSkeleton, cn } from "@/components/ui";
+import { EmptyState, PageHeader, PageSkeleton, buttonClass, cn } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
 import { exerciseName } from "@/i18n/labels";
 
 export const metadata = { title: "Workout history" };
 
-async function HistoryList() {
+const PAGE_SIZE = 100;
+
+async function HistoryList({ searchParams }: { searchParams: PageProps<"/train/history">["searchParams"] }) {
   const { user, profile } = await requireProfile();
-  const t = await getT();
+  const [sp, t] = await Promise.all([searchParams, getT()]);
   const intl = INTL_LOCALE[t.locale];
-  const sessions = await db.workoutSession.findMany({
-    where: { userId: user.id, endedAt: { not: null } },
+  // ?before=<start time> shows the workouts started before it: the next page back.
+  const before = typeof sp.before === "string" && !Number.isNaN(Date.parse(sp.before)) ? new Date(sp.before) : null;
+  const rows = await db.workoutSession.findMany({
+    where: { userId: user.id, endedAt: { not: null }, ...(before ? { startedAt: { lt: before } } : {}) },
     orderBy: { startedAt: "desc" },
-    take: 100,
+    take: PAGE_SIZE + 1,
     include: {
       planDay: { select: { name: true } },
       sets: { select: { exerciseId: true, weightKg: true, reps: true, isWarmup: true, exercise: { select: { slug: true, name: true } } } },
     },
   });
+  const sessions = rows.slice(0, PAGE_SIZE);
+  const older = rows.length > PAGE_SIZE ? sessions.at(-1)!.startedAt.toISOString() : null;
 
   const header = <PageHeader title={t("train.history")} />;
   if (sessions.length === 0) {
@@ -94,14 +100,19 @@ async function HistoryList() {
           </section>
         );
       })}
+      {older && (
+        <Link href={`/train/history?before=${encodeURIComponent(older)}`} className={cn(buttonClass("secondary"), "w-full")}>
+          {t("train.showOlder")}
+        </Link>
+      )}
     </div>
   );
 }
 
-export default function HistoryPage() {
+export default function HistoryPage(props: PageProps<"/train/history">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <HistoryList />
+      <HistoryList searchParams={props.searchParams} />
     </Suspense>
   );
 }

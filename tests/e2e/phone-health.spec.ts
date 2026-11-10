@@ -7,7 +7,7 @@ test("phone health data: link with a code, sync steps and sleep, see them used, 
   const today = await page.evaluate(() => new Date().toLocaleDateString("en-CA"));
   const day = (n: number) => new Date(Date.parse(`${today}T12:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 
-  await page.goto("/settings");
+  await page.goto("/settings/phone");
   await page.getByRole("button", { name: "Link an Android phone" }).click();
   const code = (await page.getByTestId("link-code").innerText()).trim();
   expect(code).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
@@ -38,7 +38,7 @@ test("phone health data: link with a code, sync steps and sleep, see them used, 
   await expect(page.getByRole("figure").filter({ hasText: /^Sleep/ })).toBeVisible();
 
   // Unlinking stops the token at once.
-  await page.goto("/settings");
+  await page.goto("/settings/phone");
   await expect(page.locator("#phone")).toContainText("Pixel 8");
   await expect(page.locator("#phone")).toContainText("Last synced");
   page.once("dialog", (d) => d.accept());

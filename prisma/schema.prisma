@@ -23,23 +23,26 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
-  profile          Profile?
-  bodyMetrics      BodyMetric[]
-  meals            Meal[]
-  glucoseReadings  GlucoseReading[]
-  savedFoods       SavedFood[]
-  customExercises  Exercise[]
-  plans            TrainingPlan[]
-  workouts         WorkoutSession[]
-  records          PersonalRecord[]
-  chatThreads      ChatThread[]
-  aiUsage          AiUsage[]
-  procurementPlans ProcurementPlan[]
-  dailyActivity    DailyActivity[]
-  linkedDevices    LinkedDevice[]
-  deviceLinkCodes  DeviceLinkCode[]
-  periods          Period[]
-  cycleDays        CycleDay[]
+  profile           Profile?
+  bodyMetrics       BodyMetric[]
+  meals             Meal[]
+  glucoseReadings   GlucoseReading[]
+  savedFoods        SavedFood[]
+  customExercises   Exercise[]
+  plans             TrainingPlan[]
+  workouts          WorkoutSession[]
+  records           PersonalRecord[]
+  chatThreads       ChatThread[]
+  aiUsage           AiUsage[]
+  procurementPlans  ProcurementPlan[]
+  dailyActivity     DailyActivity[]
+  linkedDevices     LinkedDevice[]
+  deviceLinkCodes   DeviceLinkCode[]
+  periods           Period[]
+  cycleDays         CycleDay[]
+  pushSubscriptions PushSubscription[]
+  progressPhotos    ProgressPhoto[]
+  remindersSent     ReminderSent[]
 
   @@map("user")
 }
@@ -166,6 +169,14 @@ model Profile {
   /// Symptoms the user added to the built-in list, as typed.
   customSymptoms    String[] @default([])
 
+  // Push reminders, sent to every device that switched them on. Times are "HH:MM", local.
+  weighInReminder Boolean @default(false)
+  weighInTime     String  @default("07:30")
+  workoutReminder Boolean @default(false)
+  workoutTime     String  @default("18:00")
+  /// Training days for the workout reminder, 1 = Monday … 7 = Sunday (plans have no weekdays of their own).
+  workoutDays     Int[]   @default([])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -224,6 +235,20 @@ model BodyMetric {
 }
 
 /// A scale or calipers reading, or the AI's estimate from photos (a rough range, kept apart).
+/// A photo the user chose to keep, one per local date, resized on their device before upload.
+/// Only ever served back to them; never sent to the AI or exported.
+model ProgressPhoto {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  localDate String // YYYY-MM-DD in the user's timezone
+  /// JPEG.
+  bytes     Bytes
+  createdAt DateTime @default(now())
+
+  @@unique([userId, localDate])
+}
+
 enum BodyFatSource {
   MEASURED
   PHOTO_ESTIMATE
@@ -292,6 +317,8 @@ model MealItem {
   gi          Int?
   confidence  Float?
   assumptions String?
+
+  @@index([mealId])
 }
 
 model SavedFood {
@@ -496,27 +523,30 @@ model PlanExercise {
   targetRpe  Float?
   restSec    Int      @default(120)
   notes      String?
+
+  @@index([planDayId])
 }
 
 model WorkoutSession {
-  id        String       @id @default(cuid())
-  userId    String
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  startedAt DateTime     @default(now())
-  endedAt   DateTime?
-  localDate String
-  planDayId String?
-  planDay   PlanDay?     @relation(fields: [planDayId], references: [id], onDelete: SetNull)
-  notes     String?
-  sets      WorkoutSet[]
+  id                 String       @id @default(cuid())
+  userId             String
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt          DateTime     @default(now())
+  endedAt            DateTime?
+  localDate          String
+  planDayId          String?
+  planDay            PlanDay?     @relation(fields: [planDayId], references: [id], onDelete: SetNull)
+  notes              String?
+  sets               WorkoutSet[]
   /// Planned exercises taken out of this workout, so a reload or resume doesn't bring them back.
-  skippedExerciseIds String[] @default([])
+  skippedExerciseIds String[]     @default([])
   /// Planned exercise id → the exercise done in its place this workout; it keeps the plan's target and position.
-  exerciseSwaps Json @default("{}")
+  exerciseSwaps      Json         @default("{}")
   /// How the user felt when starting a planned workout; sets the day's working sets per exercise.
-  readiness Readiness?
+  readiness          Readiness?
 
   @@index([userId, localDate])
+  @@index([planDayId])
 }
 
 model WorkoutSet {
@@ -526,10 +556,13 @@ model WorkoutSet {
   exerciseId  String
   exercise    Exercise         @relation(fields: [exerciseId], references: [id])
   setIndex    Int
+  /// 0 for a cardio set, which records duration and distance instead.
   weightKg    Float
   reps        Int
   rpe         Float?
   isWarmup    Boolean          @default(false)
+  durationSec Int?
+  distanceM   Float?
   completedAt DateTime         @default(now())
   records     PersonalRecord[]
 
@@ -562,6 +595,7 @@ model PersonalRecord {
   achievedAt DateTime
 
   @@index([userId, exerciseId, type])
+  @@index([setId])
 }
 
 // ---------- AI ----------
@@ -699,4 +733,37 @@ model CycleDay {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, localDate])
+}
+
+// ---------- Reminders ----------
+
+/// A browser that gets push reminders (Web Push), as its push service gave it.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  /// The app's language on that device when it subscribed, for the notification text.
+  locale    String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum ReminderKind {
+  WEIGH_IN
+  WORKOUT
+}
+
+/// A reminder already sent (or being sent) for a user's local day, so it goes out once.
+model ReminderSent {
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      ReminderKind
+  localDate String
+  sentAt    DateTime     @default(now())
+
+  @@id([userId, kind, localDate])
 }

@@ -5,7 +5,7 @@ test("coach proposes targets → apply → settings reflects it; progress render
   await signUpAndOnboard(page, "Sam Lee");
 
   // Read the computed targets from settings
-  await page.goto("/settings");
+  await page.goto("/settings/targets");
   const kcalInput = page.getByLabel("kcal");
   const originalKcal = Number(await kcalInput.inputValue());
   expect(originalKcal).toBeGreaterThan(1200);
@@ -24,7 +24,7 @@ test("coach proposes targets → apply → settings reflects it; progress render
   // Thread persisted
   await expect(page).toHaveURL(/\/coach\?thread=/);
 
-  await page.goto("/settings");
+  await page.goto("/settings/targets");
   await expect(page.getByLabel("kcal")).toHaveValue(String(originalKcal - 100));
   await expect(page.getByRole("button", { name: "Custom" })).toHaveAttribute("aria-pressed", "true");
 
@@ -52,7 +52,7 @@ test("coach proposes targets → apply → settings reflects it; progress render
   // Remove today's weigh-in; saving settings without changing weight must not recreate it
   await entries.first().click();
   await expect(entries).toHaveCount(2);
-  await page.goto("/settings");
+  await page.goto("/settings/profile");
   await page.getByRole("button", { name: "Build muscle" }).click();
   await page.getByRole("button", { name: "Save profile" }).click();
   await expect(page.getByText("Profile saved")).toBeVisible();

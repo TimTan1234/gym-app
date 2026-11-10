@@ -12,6 +12,23 @@ export const en = {
   newHere: "New here?",
   createAnAccount: "Create an account",
   genericError: "Something went wrong",
+  forgotPassword: "Forgot password?",
+  forgot: {
+    title: "Reset your password",
+    send: "Send reset link",
+    sent: "If an account uses {email}, a link to reset its password is on its way.",
+    backToSignIn: "Back to sign in",
+  },
+  reset: {
+    title: "Choose a new password",
+    newPassword: "New password",
+    submit: "Set new password",
+    done: "Password changed. Sign in with your new password.",
+    invalid: "This reset link is invalid or has expired.",
+    newLink: "Send a new link",
+    emailSubject: "Reset your GymPal password",
+    emailBody: "Hi {name},\n\nOpen this link to choose a new GymPal password. It works for one hour.\n\n{url}\n\nIf you didn't ask for this, ignore this email and your password stays the same.",
+  },
   /** Better Auth error codes. */
   errors: {
     INVALID_EMAIL_OR_PASSWORD: "Invalid email or password",
@@ -23,6 +40,7 @@ export const en = {
     USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "An account with this email already exists. Use another email.",
     FAILED_TO_CREATE_USER: "Couldn't create the account. Please try again.",
     INVALID_ORIGIN: "Invalid origin",
+    INVALID_TOKEN: "This reset link is invalid or has expired.",
   },
 };
 
@@ -39,6 +57,23 @@ export const zh: typeof en = {
   newHere: "第一次使用？",
   createAnAccount: "创建账户",
   genericError: "出了点问题",
+  forgotPassword: "忘记密码？",
+  forgot: {
+    title: "重置密码",
+    send: "发送重置链接",
+    sent: "如果有账户使用 {email}，重置密码的链接已发送到该邮箱。",
+    backToSignIn: "返回登录",
+  },
+  reset: {
+    title: "设置新密码",
+    newPassword: "新密码",
+    submit: "设置新密码",
+    done: "密码已更改，请用新密码登录。",
+    invalid: "此重置链接无效或已过期。",
+    newLink: "重新发送链接",
+    emailSubject: "重置你的 GymPal 密码",
+    emailBody: "{name}，你好：\n\n打开下面的链接来设置新的 GymPal 密码，链接一小时内有效。\n\n{url}\n\n如果这不是你本人的操作，请忽略这封邮件，你的密码不会改变。",
+  },
   errors: {
     INVALID_EMAIL_OR_PASSWORD: "邮箱或密码错误",
     INVALID_EMAIL: "请输入有效的邮箱地址",
@@ -49,5 +84,6 @@ export const zh: typeof en = {
     USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "该邮箱已注册，请换一个邮箱。",
     FAILED_TO_CREATE_USER: "无法创建账户，请重试。",
     INVALID_ORIGIN: "访问来源无效",
+    INVALID_TOKEN: "此重置链接无效或已过期。",
   },
 };

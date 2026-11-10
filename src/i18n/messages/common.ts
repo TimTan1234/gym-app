@@ -23,6 +23,9 @@ export const en = {
   table: "Table",
   somethingWrong: "Something went wrong. Please try again.",
   notFound: "Not found",
+  errorTitle: "Something went wrong",
+  retry: "Try again",
+  goToday: "Go to Today",
   aiLimit: "Daily AI limit reached ({limit} a day). Try again tomorrow.",
   unauthorized: "Sign in to continue.",
 };
@@ -51,6 +54,9 @@ export const zh: typeof en = {
   table: "表格",
   somethingWrong: "出了点问题，请重试。",
   notFound: "未找到",
+  errorTitle: "出了点问题",
+  retry: "重试",
+  goToday: "前往今天",
   aiLimit: "今日 AI 使用次数已达上限（每天 {limit} 次），请明天再试。",
   unauthorized: "请先登录。",
 };

@@ -201,17 +201,20 @@ async function Today() {
         <h2 className="flex items-center gap-2 text-sm font-semibold">
           <Scale className="size-4 text-steel" aria-hidden /> {t("today.bodyWeight")}
         </h2>
-        {latestWeight ? (
-          <p>
-            <span className="score text-[40px]">{formatWeight(latestWeight.weightKg, profile.unitSystem)}</span>
-            <span className="ml-2 text-sm text-steel">
-              {latestWeight.localDate === today ? t("today.weighedToday") : t("today.weighedOn", { date: formatLocalDate(latestWeight.localDate, undefined, intl) })}
-            </span>
-          </p>
-        ) : (
-          <p className="text-sm text-steel">{t("today.logWeighIn")}</p>
-        )}
-        <WeightQuickLog date={today} units={profile.unitSystem} current={latestWeight?.localDate === today ? latestWeight.weightKg : null} />
+        {/* The latest weight, with the field to log today's beside it. */}
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+          {latestWeight ? (
+            <p>
+              <span className="score text-[40px]">{formatWeight(latestWeight.weightKg, profile.unitSystem)}</span>
+              <span className="ml-2 text-sm text-steel">
+                {latestWeight.localDate === today ? t("today.weighedToday") : t("today.weighedOn", { date: formatLocalDate(latestWeight.localDate, undefined, intl) })}
+              </span>
+            </p>
+          ) : (
+            <p className="text-sm text-steel">{t("today.logWeighIn")}</p>
+          )}
+          <WeightQuickLog date={today} units={profile.unitSystem} />
+        </div>
       </Card>
 
       {latestPRs.length > 0 && (

@@ -1,24 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Check, CloudOff, Plus, Trash2, TrendingUp, Trophy, History } from "lucide-react";
-import { deleteSet, discardWorkout, finishWorkout, getLastSets, logSet, removeWorkoutExercise, swapWorkoutExercise, type LoggedSet, type SetInput } from "@/server/training";
+import { deleteSet, discardWorkout, finishWorkout, getLastSets, logSet, removeWorkoutExercise, swapWorkoutExercise, updateSet, type LoggedSet, type SetInput } from "@/server/training";
 import { suggestNext } from "@/lib/training/progression";
+import { parseSetEntry, type SetEntry, type SetValues } from "@/lib/training/set-entry";
+import type { PrevSet } from "@/lib/queries";
 import { currentExercise } from "@/lib/training/summary";
 import { newSetId, pendingSets, usePendingSets } from "@/lib/training/pending-sets";
 import { swapOptions } from "@/lib/training/swap";
-import type { RecordType } from "@/lib/training/records";
-import { displayWeight, formatWeight, inputWeightToKg, weightUnit, type UnitSystem } from "@/lib/units";
+import { formLiftFor } from "@/lib/training/form-check";
+import { displayDistance, displayWeight, formatWeight, round, type UnitSystem } from "@/lib/units";
 import { formatLocalDate } from "@/lib/dates";
 import { useT } from "@/i18n/client";
 import { INTL_LOCALE } from "@/i18n/config";
-import { exerciseName } from "@/i18n/labels";
-import { Button, Card, Input, Textarea, cn } from "@/components/ui";
+import { cardioSetText, exerciseName } from "@/i18n/labels";
+import { Button, Card, IconButton, Textarea, cn } from "@/components/ui";
 import { ExercisePicker, type PickerExercise } from "./ExercisePicker";
 import { RestTimerBar, useRestTimer } from "./RestTimer";
 import { PlateLoad } from "./PlateLoad";
+import { FormCheckSheet } from "./FormCheckSheet";
+import { SetEditActions, SetInputs, WarmupCheckbox, editRowButtonClass, entryOf, useSetColumns } from "./SetFields";
 
 export interface Target {
   /** Working sets for today: the plan's, adjusted for how the user felt at the start. */
@@ -34,12 +38,11 @@ export interface Target {
 export interface Block {
   exercise: PickerExercise;
   target: Target | null;
-  last: { date: string; sets: { weightKg: number; reps: number; isWarmup: boolean }[] } | null;
+  last: { date: string; sets: PrevSet[] } | null;
 }
 
 /** A set on screen: saved, or still waiting on the phone for a connection. */
 type ShownSet = LoggedSet & { pending?: boolean };
-type SetValues = Pick<SetInput, "weightKg" | "reps" | "rpe" | "isWarmup">;
 
 const DEFAULT_RANGE = { repMin: 8, repMax: 12 };
 const DEFAULT_REST = 90;
@@ -99,7 +102,19 @@ export function WorkoutLogger({
     ...sets,
     ...queued
       .filter((q) => !sets.some((s) => s.id === q.input.id))
-      .map(({ input, setIndex }) => ({ id: input.id, exerciseId: input.exerciseId, setIndex, weightKg: input.weightKg, reps: input.reps, rpe: input.rpe, isWarmup: input.isWarmup, pending: true })),
+      .map(({ input, setIndex }) => ({
+        id: input.id,
+        exerciseId: input.exerciseId,
+        setIndex,
+        weightKg: input.weightKg,
+        reps: input.reps,
+        rpe: input.rpe,
+        isWarmup: input.isWarmup,
+        durationSec: input.durationSec ?? null,
+        distanceM: input.distanceM ?? null,
+        records: [],
+        pending: true,
+      })),
   ];
   const offline = () => void toast.error(t("train.offline"));
 
@@ -113,16 +128,11 @@ export function WorkoutLogger({
     if (last) setBlocks((cur) => cur.map((b) => (b.exercise.id === ex.id ? { ...b, last } : b)));
   }
 
-  const onSaved = useCallback(
-    (set: LoggedSet, records: { type: RecordType; value: number }[]) => {
-      setSets((cur) => (cur.some((s) => s.id === set.id) ? cur : [...cur, set]));
-      for (const r of records) {
-        const value = r.type === "MAX_VOLUME_SET" ? `${Math.round(displayWeight(r.value, units, 0))} ${weightUnit(units)}` : formatWeight(r.value, units);
-        toast.success(t("train.newPr", { type: t(`labels.record.${r.type}`), value }), { icon: <Trophy className="size-4" /> });
-      }
-    },
-    [t, units],
-  );
+  const onSaved = useCallback((set: LoggedSet) => setSets((cur) => (cur.some((s) => s.id === set.id) ? cur : [...cur, set])), []);
+
+  /** Puts in an exercise's sets as the server has them after an edit, in their places in the log. */
+  const refreshSets = (exerciseId: string, fresh: LoggedSet[]) =>
+    setSets((cur) => cur.flatMap((s) => (s.exerciseId === exerciseId ? fresh.filter((f) => f.id === s.id) : [s])));
 
   // Sends the queued sets in order, one at a time; stops at the first that can't get through.
   const flushing = useRef(false);
@@ -137,7 +147,7 @@ export function WorkoutLogger({
         } catch {
           return; // Still no connection: try again later.
         }
-        if (res.ok) onSaved(res.set, res.records);
+        if (res.ok) onSaved(res.set);
         else toast.error(res.error);
         pendingSets.remove(sessionId, [p.input.id]);
       }
@@ -171,7 +181,7 @@ export function WorkoutLogger({
           toast.error(res.error);
           return false;
         }
-        onSaved(res.set, res.records);
+        onSaved(res.set);
         timer.start(restSec);
         return true;
       } catch {
@@ -249,7 +259,6 @@ export function WorkoutLogger({
         toast(t("train.emptyDiscarded"));
         router.push("/train");
       } else {
-        toast.success(t("train.saved"));
         router.push(`/train/history/${sessionId}`);
       }
     });
@@ -295,8 +304,7 @@ export function WorkoutLogger({
   return (
     // Room under the last block for the rest timer when it's up.
     <div className={timer.running ? "pb-36" : "pb-16"}>
-      {/* data-toasts-below: a new-record toast mustn't land on Finish. */}
-      <header data-toasts-below className="sticky top-0 z-30 -mx-4 flex items-center justify-between gap-3 border-b border-line bg-chalk px-4 py-3">
+      <header className="sticky top-0 z-30 -mx-4 flex items-center justify-between gap-3 border-b border-line bg-chalk px-4 py-3">
         <div className="min-w-0">
           <h1 className="display truncate text-[22px]">{title}</h1>
           <p className="num text-[13px] text-steel">
@@ -330,12 +338,7 @@ export function WorkoutLogger({
           onRemove={() => removeExercise(block)}
           removing={pending}
           onDeletePending={(id) => pendingSets.remove(sessionId, [id])}
-          onDeleted={(id) => setSets((cur) => {
-            const removed = cur.find((s) => s.id === id);
-            return cur
-              .filter((s) => s.id !== id)
-              .map((s) => (removed && s.exerciseId === removed.exerciseId && s.setIndex > removed.setIndex ? { ...s, setIndex: s.setIndex - 1 } : s));
-          })}
+          onChanged={(fresh) => refreshSets(block.exercise.id, fresh)}
         />
       ))}
       </div>
@@ -398,7 +401,7 @@ function ExerciseBlock({
   onRemove,
   removing,
   onDeletePending,
-  onDeleted,
+  onChanged,
 }: {
   block: Block;
   current: boolean;
@@ -409,46 +412,61 @@ function ExerciseBlock({
   onRemove: () => void;
   removing: boolean;
   onDeletePending: (id: string) => void;
-  onDeleted: (id: string) => void;
+  /** An edit or delete went through: the exercise's sets as they are now. */
+  onChanged: (sets: LoggedSet[]) => void;
 }) {
   const t = useT();
   const { exercise, target, last } = block;
   const name = exerciseName(t, { slug: exercise.slug ?? "", name: exercise.name });
+  const cardio = exercise.category === "CARDIO";
   const range = target ?? DEFAULT_RANGE;
-  const suggestion = last ? suggestNext({ lastSets: last.sets, repMin: range.repMin, repMax: range.repMax, isLowerBody: exercise.isLowerBody }) : null;
+  const suggestion = last && !cardio ? suggestNext({ lastSets: last.sets, repMin: range.repMin, repMax: range.repMax, isLowerBody: exercise.isLowerBody }) : null;
   const lastLogged = sets.at(-1);
   const firstWorkingLast = last?.sets.find((s) => !s.isWarmup);
 
-  const defaultKg = lastLogged?.weightKg ?? suggestion?.weightKg ?? firstWorkingLast?.weightKg ?? 0;
-  const defaultReps = lastLogged?.reps ?? suggestion?.reps ?? range.repMin;
-
-  // null = untouched: show the derived default (last set / suggestion), which
-  // also updates when "last time" data arrives for an exercise added mid-workout.
-  const [weightInput, setWeight] = useState<string | null>(null);
-  const [repsInput, setReps] = useState<string | null>(null);
-  const weight = weightInput ?? (defaultKg ? String(displayWeight(defaultKg, units, 2)) : "");
-  const reps = repsInput ?? String(defaultReps);
-  const [rpe, setRpe] = useState("");
-  const [warmup, setWarmup] = useState(false);
+  // What the entry row shows until it's typed in: the last set, the suggestion or last time's,
+  // which also updates when "last time" data arrives for an exercise added mid-workout.
+  const derived = entryOf(
+    {
+      weightKg: lastLogged?.weightKg ?? suggestion?.weightKg ?? firstWorkingLast?.weightKg ?? 0,
+      reps: lastLogged?.reps ?? suggestion?.reps ?? range.repMin,
+      rpe: null,
+      isWarmup: false,
+      durationSec: lastLogged?.durationSec ?? firstWorkingLast?.durationSec ?? null,
+      distanceM: lastLogged?.distanceM ?? firstWorkingLast?.distanceM ?? null,
+    },
+    units,
+  );
+  const [typed, setTyped] = useState<Partial<SetEntry>>({});
+  const entry: SetEntry = { ...derived, ...typed };
+  const [editing, setEditing] = useState<{ id: string; entry: SetEntry } | null>(null);
+  const [checkingForm, setCheckingForm] = useState(false);
+  const formLift = formLiftFor(exercise.slug);
   const [pending, startTransition] = useTransition();
+  const invalid = () => void toast.error(t(cardio ? "train.enterTime" : "train.enterWeightReps"));
 
   function log() {
-    const w = Number(weight || 0);
-    const r = Number(reps);
-    if (!Number.isFinite(w) || w < 0 || !Number.isInteger(r) || r <= 0) {
-      toast.error(t("train.enterWeightReps"));
-      return;
-    }
+    const values = parseSetEntry(entry, cardio, units);
+    if (!values) return invalid();
     startTransition(async () => {
-      const ok = await onLog({
-        weightKg: inputWeightToKg(w, units),
-        reps: r,
-        rpe: rpe ? Math.min(10, Math.max(1, Number(rpe))) : null,
-        isWarmup: warmup,
-      });
+      const ok = await onLog(values);
       if (!ok) return;
-      setWarmup(false);
-      setRpe("");
+      setTyped(({ rpe: _rpe, isWarmup: _warmup, ...rest }) => rest);
+    });
+  }
+
+  function saveEdit(id: string, edited: SetEntry) {
+    const values = parseSetEntry(edited, cardio, units);
+    if (!values) return invalid();
+    startTransition(async () => {
+      try {
+        const res = await updateSet(id, values);
+        if (!res.ok) return void toast.error(res.error);
+        onChanged(res.sets);
+        setEditing(null);
+      } catch {
+        toast.error(t("train.offline"));
+      }
     });
   }
 
@@ -458,8 +476,9 @@ function ExerciseBlock({
     startTransition(async () => {
       try {
         const res = await deleteSet(set.id);
-        if (res.ok) onDeleted(set.id);
-        else toast.error(res.error);
+        if (!res.ok) return void toast.error(res.error);
+        setEditing(null);
+        onChanged(res.sets);
       } catch {
         toast.error(t("train.offline"));
       }
@@ -467,11 +486,17 @@ function ExerciseBlock({
   }
 
   const workingDone = sets.filter((s) => !s.isWarmup).length;
-  const unit = weightUnit(units);
+  const [first, second] = useSetColumns(cardio, units);
   const lastWorking = last?.sets.filter((s) => !s.isWarmup) ?? [];
-  const nextIndex = warmup ? t("train.warmupMark") : String(workingDone + 1);
-  // Set | weight | reps | RPE | action: shared by the header, logged rows and the entry row.
+  const nextIndex = entry.isWarmup ? t("train.warmupMark") : String(workingDone + 1);
+  const setName = (s: ShownSet) => (s.isWarmup ? t("train.warmupWord") : s.setIndex);
+  // Set | two values | RPE | actions: shared by the header, logged rows and the entry row.
   const cols = "grid grid-cols-[2.25rem_1fr_1fr_3.75rem_2.75rem] items-center gap-2";
+  const cell = (key: string, input: ReactNode) => (
+    <span role="cell" key={key}>
+      {input}
+    </span>
+  );
 
   return (
     <section className="space-y-3 py-6" data-testid="exercise-block">
@@ -507,7 +532,9 @@ function ExerciseBlock({
             <History className="size-3.5 shrink-0" aria-hidden />
             {t("train.lastTime", { date: formatLocalDate(last.date, { weekday: undefined }, INTL_LOCALE[t.locale]) })}
             <span className="num text-iron">
-              {lastWorking.length ? lastWorking.map((s) => `${displayWeight(s.weightKg, units)}×${s.reps}`).join(", ") : t("train.warmupsOnly")}
+              {lastWorking.length
+                ? lastWorking.map((s) => (cardio ? cardioSetText(t, s, units) : `${displayWeight(s.weightKg, units)}×${s.reps}`)).join(", ")
+                : t("train.warmupsOnly")}
             </span>
           </p>
           {suggestion && (
@@ -531,50 +558,82 @@ function ExerciseBlock({
       <div role="table" aria-label={t("train.setsTable", { exercise: name })} className="text-center">
         <div role="row" className={cn(cols, "border-b border-line pb-1.5 text-[12px] font-medium text-steel")}>
           <span role="columnheader">{t("train.set")}</span>
-          <span role="columnheader">{unit}</span>
-          <span role="columnheader">{t("train.reps")}</span>
+          <span role="columnheader">{first}</span>
+          <span role="columnheader">{second}</span>
           <span role="columnheader">{t("train.rpe")}</span>
           <span role="columnheader" className="sr-only">{t("train.actions")}</span>
         </div>
-        {sets.map((s) => (
-          <div role="row" key={s.id} className={cn(cols, "border-b border-line py-1.5")}>
-            <span role="cell" className={cn("inline-flex items-center justify-center gap-0.5 text-sm font-semibold", s.isWarmup ? "text-steel" : "")}>
-              {s.isWarmup ? t("train.warmupMark") : s.setIndex}
-              {s.pending && (
-                <>
-                  <CloudOff className="size-3 text-steel" aria-hidden />
-                  <span className="sr-only">{t("train.pendingSet")}</span>
-                </>
-              )}
-            </span>
-            <span role="cell" className="score text-[24px]">{displayWeight(s.weightKg, units)}</span>
-            <span role="cell" className="score text-[24px]">{s.reps}</span>
-            <span role="cell" className="num text-sm text-steel">{s.rpe ?? "–"}</span>
-            <span role="cell">
-              <button
-                type="button"
-                aria-label={t("train.deleteSet", { set: s.isWarmup ? t("train.warmupWord") : s.setIndex })}
-                onClick={() => remove(s)}
-                disabled={pending}
-                className="mx-auto grid size-11 place-items-center rounded-full text-steel hover:bg-wash hover:text-alert"
-              >
-                <Trash2 className="size-4" />
-              </button>
-            </span>
-          </div>
-        ))}
+        {sets.map((s) =>
+          editing?.id === s.id ? (
+            <Fragment key={s.id}>
+              <div role="row" className={cn(cols, "pt-1.5")}>
+                <span role="cell" className="text-sm font-semibold text-steel">{editing.entry.isWarmup ? t("train.warmupMark") : s.setIndex}</span>
+                <SetInputs
+                  entry={editing.entry}
+                  onChange={(patch) => setEditing({ id: s.id, entry: { ...editing.entry, ...patch } })}
+                  cardio={cardio}
+                  units={units}
+                  size="md"
+                  cell={cell}
+                />
+                <span role="cell" />
+              </div>
+              <div role="row" className="border-b border-line pb-1">
+                <span role="cell" className="block text-left">
+                  <SetEditActions
+                    name={setName(s)}
+                    entry={editing.entry}
+                    onChange={(patch) => setEditing({ id: s.id, entry: { ...editing.entry, ...patch } })}
+                    onSave={() => saveEdit(s.id, editing.entry)}
+                    onCancel={() => setEditing(null)}
+                    onDelete={() => remove(s)}
+                    busy={pending}
+                  />
+                </span>
+              </div>
+            </Fragment>
+          ) : (
+            <div role="row" key={s.id} className={cn(cols, "relative border-b border-line py-1.5")}>
+              <span role="cell" className={cn("inline-flex items-center justify-center gap-0.5 text-sm font-semibold", s.isWarmup ? "text-steel" : "")}>
+                {s.isWarmup ? t("train.warmupMark") : s.setIndex}
+                {s.pending && (
+                  <>
+                    <CloudOff className="size-3 text-steel" aria-hidden />
+                    <span className="sr-only">{t("train.pendingSet")}</span>
+                  </>
+                )}
+              </span>
+              <span role="cell" className="score text-[24px]">{cardio ? round((s.durationSec ?? 0) / 60, 1) : displayWeight(s.weightKg, units)}</span>
+              <span role="cell" className="score text-[24px]">{cardio ? (s.distanceM ? displayDistance(s.distanceM, units) : "–") : s.reps}</span>
+              <span role="cell" className="num text-sm text-steel">{s.rpe ?? "–"}</span>
+              <span role="cell" className="flex justify-center">
+                {/* A set still on the phone can't be edited, only dropped; a saved one opens its editor. */}
+                {s.pending ? (
+                  <IconButton tone="danger" aria-label={t("train.deleteSet", { set: setName(s) })} onClick={() => remove(s)} disabled={pending}>
+                    <Trash2 className="size-4" />
+                  </IconButton>
+                ) : (
+                  <>
+                    {s.records.length > 0 && (
+                      <Trophy className="size-4" aria-label={t("train.recordAria", { types: s.records.map((r) => t(`labels.record.${r}`)).join(", ") })} />
+                    )}
+                    <button
+                      type="button"
+                      aria-label={t("train.editSet", { set: setName(s) })}
+                      onClick={() => setEditing({ id: s.id, entry: entryOf(s, units) })}
+                      disabled={pending}
+                      className={editRowButtonClass}
+                    />
+                  </>
+                )}
+              </span>
+            </div>
+          ),
+        )}
         {/* The entry row is the next line of the log. */}
         <div role="row" id={`log-${exercise.id}`} className={cn(cols, "pt-2")}>
           <span role="cell" className="text-sm font-semibold text-steel">{nextIndex}</span>
-          <span role="cell">
-            <Input aria-label={unit} type="number" inputMode="decimal" step="any" min={0} value={weight} onChange={(e) => setWeight(e.target.value)} className="score h-12 px-1 text-center text-[24px]" />
-          </span>
-          <span role="cell">
-            <Input aria-label={t("train.reps")} type="number" inputMode="numeric" min={1} value={reps} onChange={(e) => setReps(e.target.value)} className="score h-12 px-1 text-center text-[24px]" />
-          </span>
-          <span role="cell">
-            <Input aria-label={t("train.rpe")} type="number" inputMode="decimal" min={1} max={10} step={0.5} value={rpe} onChange={(e) => setRpe(e.target.value)} placeholder="–" className="num h-12 px-1 text-center" />
-          </span>
+          <SetInputs entry={entry} onChange={(patch) => setTyped((cur) => ({ ...cur, ...patch }))} cardio={cardio} units={units} cell={cell} />
           <span role="cell">
             <Button
               variant={current ? "primary" : "secondary"}
@@ -588,13 +647,16 @@ function ExerciseBlock({
           </span>
         </div>
       </div>
-      {exercise.equipment === "barbell" && Number(weight) > 0 && <PlateLoad weight={Number(weight)} units={units} />}
+      {exercise.equipment === "barbell" && Number(entry.weight) > 0 && <PlateLoad weight={Number(entry.weight)} units={units} />}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <label className="flex min-h-11 w-fit items-center gap-2 text-[13px] text-steel">
-          <input type="checkbox" checked={warmup} onChange={(e) => setWarmup(e.target.checked)} className="size-4 accent-[var(--iron)]" />
-          {t("train.warmupCheckbox")}
-        </label>
+        <WarmupCheckbox checked={entry.isWarmup} onChange={(isWarmup) => setTyped((cur) => ({ ...cur, isWarmup }))} />
         <div className="ml-auto flex">
+          {formLift && (
+            <Button variant="ghost" size="sm" onClick={() => setCheckingForm(true)}>
+              {t("train.formCheck.title")}
+              <span className="sr-only"> {name}</span>
+            </Button>
+          )}
           {/* Swap only before the first set: after that, the sets belong to this exercise. */}
           {sets.length === 0 && (
             <Button variant="ghost" size="sm" onClick={onSwap} disabled={removing}>
@@ -609,6 +671,19 @@ function ExerciseBlock({
           </Button>
         </div>
       </div>
+      {checkingForm && formLift && (
+        <FormCheckSheet
+          lift={formLift}
+          title={name}
+          onClose={() => setCheckingForm(false)}
+          onUseReps={(reps) => {
+            // Into the entry row only: the lifter still sets the weight and logs the set.
+            setTyped((cur) => ({ ...cur, reps: String(reps) }));
+            setCheckingForm(false);
+            document.getElementById(`log-${exercise.id}`)?.scrollIntoView({ block: "center" });
+          }}
+        />
+      )}
     </section>
   );
 }

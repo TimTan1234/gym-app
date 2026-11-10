@@ -41,6 +41,7 @@ export function Tally({ children, className, testId }: { children: ReactNode; cl
   return (
     <div
       data-testid={testId}
+      data-toasts-above
       className={cn(
         "fixed inset-x-4 bottom-20 z-30 mx-auto max-w-md rounded-card bg-panel px-4 py-3 text-panel-fg shadow-[0_10px_30px_-12px_rgba(20,20,19,0.6)] md:bottom-6 md:left-60 lg:right-[max(1rem,calc((100vw-56rem)/2))]",
         className,

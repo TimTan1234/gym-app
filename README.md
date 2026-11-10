@@ -11,11 +11,14 @@ AI-powered gym companion: snap or describe a meal and get calories, protein, car
 | **AI meal logging** | Text and/or photo → per-item nutrition draft with confidence + assumptions (knows Malaysian/SEA dishes). Edit grams and nutrients scale; totals are always recomputed server-side. |
 | **Quick logging** | Barcode scanning (camera, photo or typed number) looked up on [Open Food Facts](https://world.openfoodfacts.org); recent meals and saved foods load into the draft in one tap; "Same as yesterday" repeats a meal type; "Log again" on past days. |
 | **Targets** | Mifflin-St Jeor BMR × activity, goal-based deficit/surplus, protein 1.8–2.2 g/kg; safety floor (1200/1500 kcal). Auto-updates when you log weight, or set custom targets. **Weekly check-in** estimates your real burn from 14 days of intake and weight trend, and suggests a capped (±250 kcal) change; it then waits a week on the new target. |
-| **Workout logger** | Start empty or from a plan day; last session's sets inline; double-progression suggestion; auto rest timer (survives reloads, vibrates/notifies); PRs (max weight, e1RM, best set volume) with toasts; plate math for barbell lifts (kg or lb, 20/15/10 kg or 45/35/25 lb bar). |
+| **Workout logger** | Start empty or from a plan day; last session's sets inline; double-progression suggestion; auto rest timer (survives reloads, vibrates/notifies); PRs (max weight, e1RM, best set volume) marked on the set that set them; plate math for barbell lifts (kg or lb, 20/15/10 kg or 45/35/25 lb bar). Cardio is logged as time and distance. Any set can be edited or deleted, during the workout or after; records are recalculated from the remaining sets. |
+| **Form check** | Camera prototype for squat, deadlift, bench press and overhead press: MediaPipe pose tracking on the device counts reps and judges each one on two or three checks per lift (squat depth, knees and lean; deadlift lockout and hips rising first; bench depth and lockout; press lockout and lean). Opened from a lift in the workout logger, the counted reps go into that set. Video never leaves the phone. |
 | **Training plans** | AI generator (goal, days, session length, level, equipment, focus, injuries) constrained to the exercise library; manual builder/editor; active plan drives "up next". |
-| **Progress** | Body-weight trend with 7-day average, calories/protein vs target, adherence + logging streak, sets per muscle, weekly volume, best e1RMs, per-exercise history. Every chart has a table view. |
+| **Progress** | Body-weight trend with 7-day average, calories/protein vs target, adherence + logging streak, sets per muscle, weekly volume, best e1RMs, per-exercise history. Every chart has a table view. **Weekly recap** of last week (Monday to Sunday): workouts, working sets, new records, average calories against target and weight change, as a card to share as a PNG. **Progress photos**: keep a dated photo (resized on the phone, stored in Postgres, served only to you), see them as a timeline and compare any two dates side by side with that day's weight. They're never sent to the AI or included in the CSV download. |
+| **Reminders** | Web push, switched on per device: a morning weigh-in reminder when you haven't weighed in, and a training-day reminder when no workout has started by your chosen time. Each goes out at most once a day, in your timezone. |
 | **AI coach** | Streaming chat with read-only tools over your data; can *propose* target or plan changes that only apply when you tap **Apply**. |
 | **Language & appearance** | Settings → Display: English or Simplified Chinese (简体中文), saved per device; AI meal analysis, plans and coach replies follow the language. Light, dark or system appearance, applied before the page paints. |
+| **Account & data** | Change password, reset a forgotten one by email (with SMTP configured), delete the account and everything in it. Download meals, body metrics, workouts and glucose readings as CSV. |
 | **PWA** | Installable, offline fallback page; the service worker never caches personal data. |
 
 ## Setup
@@ -40,7 +43,9 @@ cp .env.example .env             # then fill in the values below
    | `OPENAI_REASONING_EFFORT` | *(optional)* | `low` |
 
    With DeepSeek, `deepseek-v4-pro` cannot read images, and it took ~100 s to generate a plan, versus ~10–30 s for `deepseek-flash`.
-4. Create tables and seed the 111-exercise library:
+4. **Email** (optional): set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` to let people reset a forgotten password by email. Port 465 uses TLS from the start; other ports upgrade with STARTTLS. Without `SMTP_HOST`, sign-in has no "Forgot password?" link.
+5. **Reminders** (optional): set `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (make a pair with `npx web-push generate-vapid-keys`), `VAPID_SUBJECT` (`mailto:` address or site URL for push services to reach you) and `CRON_SECRET` (`openssl rand -base64 32`). Then call `POST /api/reminders/send` with `Authorization: Bearer <CRON_SECRET>` every few minutes; Docker Compose does this for you. Without all three VAPID values, Settings has no Reminders page. Browsers allow push only over HTTPS (or on localhost).
+6. Create tables and seed the 111-exercise library:
 
 ```bash
 npm run db:migrate               # applies prisma/migrations; run again after pulling updates

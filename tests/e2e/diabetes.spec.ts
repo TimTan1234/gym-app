@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { signUpAndOnboard } from "./helpers";
 
 async function enableDiabetesMode(page: Page, { meds = false } = {}) {
-  await page.goto("/settings");
+  await page.goto("/settings/diabetes");
   const card = page.locator("#diabetes");
   await card.getByRole("switch", { name: "Use diabetes mode" }).click();
   await expect(card.getByText("It is not medical advice")).toBeVisible();
@@ -22,11 +22,12 @@ async function logReading(page: Page, value: string, context: string) {
 
 test("diabetes mode: carb cap, glucose log, low-glucose steps, units, carb floor", async ({ page }) => {
   await signUpAndOnboard(page);
-  await page.goto("/settings");
+  await page.goto("/settings/targets");
   const carbsBefore = Number(await page.getByLabel("Carbs", { exact: true }).inputValue());
 
   await enableDiabetesMode(page);
   // Automatic targets now keep carbs within the guideline's per-meal budget
+  await page.goto("/settings/targets");
   await expect(page.getByLabel("Carbs", { exact: true })).not.toHaveValue(String(carbsBefore));
   const carbsAfter = Number(await page.getByLabel("Carbs", { exact: true }).inputValue());
   expect(carbsAfter).toBeLessThan(carbsBefore);
@@ -59,7 +60,7 @@ test("diabetes mode: carb cap, glucose log, low-glucose steps, units, carb floor
   await expect(page.getByTestId("glucose-reading").first()).toContainText("In target");
 
   // Switch to mg/dL: the stored readings are shown converted
-  await page.goto("/settings");
+  await page.goto("/settings/diabetes");
   await page.locator("#diabetes").getByRole("radio", { name: "mg/dL" }).click();
   await page.locator("#diabetes").getByRole("button", { name: "Save diabetes settings" }).click();
   await expect(page.getByText("Diabetes settings saved")).toBeVisible();
@@ -73,7 +74,7 @@ test("diabetes mode: carb cap, glucose log, low-glucose steps, units, carb floor
   await expect(page.getByTestId("glucose-reading")).toHaveCount(2);
 
   // Manual targets can't go under 130 g of carbs in diabetes mode
-  await page.goto("/settings");
+  await page.goto("/settings/targets");
   await page.getByRole("button", { name: "Custom" }).click();
   await page.getByLabel("Carbs", { exact: true }).fill("100");
   await page.getByRole("button", { name: "Save targets" }).click();

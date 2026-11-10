@@ -30,7 +30,7 @@ export function BodyMapPicker({
   items: BodyMapItem[];
   label: string;
   title: string;
-  hint: string;
+  hint?: string;
   /** The week's training load against the usual week, when there's enough history. */
   note?: ReactNode;
   also: string | null;

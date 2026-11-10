@@ -56,3 +56,6 @@ next-env.d.ts
 /android/.kotlin/
 # built by scripts/build-android.sh
 /public/downloads/
+
+# Windows download markers
+*Zone.Identifier

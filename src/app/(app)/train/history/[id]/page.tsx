@@ -1,14 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Trophy } from "lucide-react";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import { formatLocalDate } from "@/lib/dates";
-import { displayWeight, formatWeight, weightUnit } from "@/lib/units";
+import { displayWeight, weightUnit } from "@/lib/units";
 import { durationMinutes, totalVolume } from "@/lib/training/summary";
-import { estimate1RM } from "@/lib/training/oneRepMax";
 import { DeleteWorkoutButton } from "@/components/train/DeleteWorkoutButton";
+import { FinishedSets } from "@/components/train/FinishedSets";
 import { PageHeader, PageSkeleton } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
@@ -24,14 +23,14 @@ async function SessionDetail({ params }: { params: PageProps<"/train/history/[id
     where: { id, userId: user.id },
     include: {
       planDay: { select: { name: true, plan: { select: { name: true } } } },
-      sets: { orderBy: [{ completedAt: "asc" }], include: { exercise: { select: { id: true, slug: true, name: true } }, records: true } },
+      sets: { orderBy: [{ completedAt: "asc" }], include: { exercise: { select: { id: true, slug: true, name: true, category: true } }, records: { select: { type: true } } } },
     },
   });
   if (!session) notFound();
 
-  const byExercise = new Map<string, { name: string; sets: typeof session.sets }>();
+  const byExercise = new Map<string, { name: string; cardio: boolean; sets: typeof session.sets }>();
   for (const s of session.sets) {
-    const g = byExercise.get(s.exerciseId) ?? { name: exerciseName(t, s.exercise), sets: [] };
+    const g = byExercise.get(s.exerciseId) ?? { name: exerciseName(t, s.exercise), cardio: s.exercise.category === "CARDIO", sets: [] };
     g.sets.push(s);
     byExercise.set(s.exerciseId, g);
   }
@@ -63,33 +62,21 @@ async function SessionDetail({ params }: { params: PageProps<"/train/history/[id
           <Link href={`/train/exercises/${exerciseId}`} className="block text-[17px] font-semibold hover:underline">
             {g.name}
           </Link>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-line text-[12px] text-steel">
-                <th className="w-10 py-1 font-medium">{t("train.set")}</th>
-                <th className="py-1 font-medium">{weightUnit(units)}</th>
-                <th className="py-1 font-medium">{t("train.reps")}</th>
-                <th className="py-1 font-medium">{t("train.rpe")}</th>
-                <th className="py-1 text-right font-medium">{t("train.est1rm")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {g.sets.map((s) => (
-                <tr key={s.id} className="border-b border-line">
-                  <td className="py-1.5 text-sm font-semibold text-steel">{s.isWarmup ? t("train.warmupMark") : s.setIndex}</td>
-                  <td className="score py-1.5 text-[22px]">{displayWeight(s.weightKg, units)}</td>
-                  <td className="score py-1.5 text-[22px]">{s.reps}</td>
-                  <td className="num py-1.5 text-sm text-steel">{s.rpe ?? "–"}</td>
-                  <td className="num py-1.5 text-right text-sm">
-                    {s.records.length > 0 && (
-                      <Trophy className="mr-1 inline size-3.5" aria-label={t("train.recordAria", { types: s.records.map((r) => t(`labels.record.${r.type}`)).join(", ") })} />
-                    )}
-                    {s.isWarmup ? "–" : formatWeight(estimate1RM(s.weightKg, s.reps), units)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <FinishedSets
+            cardio={g.cardio}
+            units={units}
+            sets={g.sets.map((s) => ({
+              id: s.id,
+              setIndex: s.setIndex,
+              weightKg: s.weightKg,
+              reps: s.reps,
+              rpe: s.rpe,
+              isWarmup: s.isWarmup,
+              durationSec: s.durationSec,
+              distanceM: s.distanceM,
+              records: s.records.map((r) => r.type),
+            }))}
+          />
         </section>
       ))}
     </div>

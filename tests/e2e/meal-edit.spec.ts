@@ -34,7 +34,6 @@ test("sugar shows in the analysis and the day; a logged meal can be edited", asy
 
   await expect(page).toHaveURL(/\/nutrition$/);
   await expect(page.getByTestId("sugar-meter")).toContainText("33 g, about 8 tsp");
-  await expect(page.getByTestId("sugar-meter")).toContainText("Total sugar, including fruit and milk: 35 g");
   await expect(page.getByRole("meter", { name: "Added sugar" })).toHaveAttribute("aria-valuenow", "33");
   const meal = page.getByRole("button", { name: /Nasi lemak with fried chicken/ });
   await expect(meal).toContainText("33 g added sugar, high");
@@ -56,7 +55,6 @@ test("sugar shows in the analysis and the day; a logged meal can be edited", asy
   await page.getByRole("button", { name: "Save changes" }).click();
 
   await expect(page).toHaveURL(/\/nutrition$/);
-  await expect(page.getByText("Meal updated")).toBeVisible();
   const dinner = page.locator("section", { has: page.getByRole("heading", { name: /^Dinner/ }) });
   const edited = dinner.getByRole("button", { name: /Nasi lemak with fried chicken/ });
   await expect(edited).toContainText("719");

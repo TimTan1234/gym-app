@@ -263,7 +263,11 @@ async function buildTools(ctx: CoachContext) {
           where: { userId: ctx.userId, endedAt: { not: null } },
           orderBy: { startedAt: "desc" },
           take: count,
-          include: { planDay: { select: { name: true } }, sets: { include: { exercise: { select: { name: true } } }, orderBy: { completedAt: "asc" } } },
+          include: {
+            planDay: { select: { name: true } },
+            // Cardio is time and distance, not weight × reps; the coach works with lifting only.
+            sets: { where: { exercise: { category: { not: "CARDIO" } } }, include: { exercise: { select: { name: true } } }, orderBy: { completedAt: "asc" } },
+          },
         });
         return sessions.map((s) => {
           const ex = new Map<string, string[]>();
@@ -377,7 +381,7 @@ async function buildTools(ctx: CoachContext) {
       case "get_exercise_history": {
         const { exerciseName } = ExerciseQuery.parse(args);
         const exercise = await db.exercise.findFirst({
-          where: { OR: [{ userId: null }, { userId: ctx.userId }], name: { contains: exerciseName, mode: "insensitive" } },
+          where: { OR: [{ userId: null }, { userId: ctx.userId }], name: { contains: exerciseName, mode: "insensitive" }, category: { not: "CARDIO" } },
         });
         if (!exercise) return { error: `No exercise matching "${exerciseName}"` };
         const sets = await db.workoutSet.findMany({

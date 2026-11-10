@@ -105,7 +105,6 @@ export function PlanEditor({
     startTransition(async () => {
       const res = planId ? await updatePlan(planId, input) : await createPlan(input, activate);
       if (!res.ok) return void toast.error(res.error);
-      toast.success(planId ? t("plans.editor.updated") : activate ? t("plans.editor.savedActivated") : t("plans.editor.saved"));
       onSaved?.();
       router.push("/train/plans");
     });

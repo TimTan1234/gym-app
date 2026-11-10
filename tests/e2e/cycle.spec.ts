@@ -11,7 +11,7 @@ async function daysAgo(page: Page, days: number) {
 }
 
 async function enableCycleTracking(page: Page) {
-  await page.goto("/settings");
+  await page.goto("/settings/cycle");
   const card = page.locator("#cycle");
   await card.getByRole("switch", { name: "Cycle tracking" }).click();
   await card.getByRole("button", { name: "Save cycle settings" }).click();
@@ -98,7 +98,7 @@ test("cycle tracking: log periods, see the phase and predictions, end a period, 
 
 test("cycle tracking: import a Luna backup, and a second import adds nothing", async ({ page }) => {
   await signUpAndOnboard(page, "Mei Lin", { sex: "FEMALE" });
-  await page.goto("/settings");
+  await page.goto("/settings/cycle");
   const card = page.locator("#cycle");
   const file = "tests/fixtures/luna-backup.json";
 
@@ -112,7 +112,7 @@ test("cycle tracking: import a Luna backup, and a second import adds nothing", a
   await expect(page.getByTestId("cycle-period")).toHaveCount(3);
   await expect(page.getByText("Back pain").first()).toBeVisible();
 
-  await page.goto("/settings");
+  await page.goto("/settings/cycle");
   await chooseLunaFile(page, file);
   await expect(page.getByText("Everything in this file is already in GymPal.")).toBeVisible();
 });
@@ -120,8 +120,10 @@ test("cycle tracking: import a Luna backup, and a second import adds nothing", a
 test("cycle tracking is not offered to men", async ({ page }) => {
   await signUpAndOnboard(page);
   await page.goto("/settings");
-  await expect(page.locator("#diabetes")).toBeVisible();
-  await expect(page.locator("#cycle")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Diabetes mode" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Cycle", exact: true })).toHaveCount(0);
+  await page.goto("/settings/cycle");
+  await expect(page.getByRole("heading", { name: "Not found" })).toBeVisible();
   await page.goto("/cycle");
   await expect(page.getByText("Cycle tracking is off")).toBeVisible();
 });

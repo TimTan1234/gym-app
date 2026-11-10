@@ -45,7 +45,7 @@ test("workout: swap an exercise; it keeps the planned target and place", async (
 
   // Once a set is logged, the sets belong to this exercise: no more swapping it.
   await logOne(page, pick);
-  await expect(blocks.first().getByRole("button", { name: /^Delete set/ })).toHaveCount(1);
+  await expect(blocks.first().getByRole("button", { name: /^Edit set/ })).toHaveCount(1);
   await expect(blocks.first().getByRole("button", { name: /^Swap / })).toHaveCount(0);
 });
 
@@ -54,6 +54,9 @@ test("workout: a set logged with no signal waits on the phone and saves once whe
   await context.setOffline(true);
   const bench = await logOne(page, "Barbell Bench Press");
   await expect(bench.getByText("waiting to sync")).toHaveCount(1);
+  // Not saved yet, so it can't be edited; it can still be dropped.
+  await expect(bench.getByRole("button", { name: /^Edit set/ })).toHaveCount(0);
+  await expect(bench.getByRole("button", { name: "Delete set 1" })).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "1 set waiting to sync" })).toBeVisible();
 
   // Finishing now would leave the workout empty on the server: it waits for the set.
@@ -64,7 +67,7 @@ test("workout: a set logged with no signal waits on the phone and saves once whe
   await context.setOffline(false);
   await expect(page.getByText("set waiting to sync")).toHaveCount(0, { timeout: 20_000 });
   await page.reload();
-  await expect(page.getByTestId("exercise-block").filter({ hasText: "Barbell Bench Press" }).getByRole("button", { name: /^Delete set/ })).toHaveCount(1);
+  await expect(page.getByTestId("exercise-block").filter({ hasText: "Barbell Bench Press" }).getByRole("button", { name: /^Edit set/ })).toHaveCount(1);
 });
 
 test("workout: a set whose reply is lost is sent again but saved once", async ({ page }) => {
@@ -84,5 +87,5 @@ test("workout: a set whose reply is lost is sent again but saved once", async ({
   await expect(page.getByText("set waiting to sync")).toHaveCount(0, { timeout: 20_000 });
   expect(dropped).toBe(true);
   await page.reload();
-  await expect(page.getByTestId("exercise-block").filter({ hasText: "Barbell Bench Press" }).getByRole("button", { name: /^Delete set/ })).toHaveCount(1);
+  await expect(page.getByTestId("exercise-block").filter({ hasText: "Barbell Bench Press" }).getByRole("button", { name: /^Edit set/ })).toHaveCount(1);
 });

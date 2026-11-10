@@ -7,7 +7,6 @@ export const en = {
   confirmDeleteConversation: "Delete this conversation? This can't be undone.",
   conversationDeleted: "Conversation deleted",
   emptyTitle: "Ask your AI coach anything",
-  emptyBody: "It can see your meals, workouts, plan and body metrics.",
   suggestions: {
     protein: "How am I doing on protein this week?",
     dinner: "What should I eat for dinner to hit my targets?",
@@ -72,7 +71,6 @@ export const zh: typeof en = {
   confirmDeleteConversation: "确定删除这段对话吗？删除后无法恢复。",
   conversationDeleted: "对话已删除",
   emptyTitle: "有什么问题都可以问 AI 教练",
-  emptyBody: "教练可以查看你的饮食、训练、计划和身体数据。",
   suggestions: {
     protein: "我这周的蛋白质摄入怎么样？",
     dinner: "晚餐吃什么才能达到我的目标？",

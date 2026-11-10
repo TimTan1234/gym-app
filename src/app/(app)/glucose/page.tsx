@@ -32,7 +32,7 @@ async function Glucose({ searchParams }: { searchParams: PageProps<"/glucose">["
         <EmptyState
           title={t("glucose.off.title")}
           action={
-            <Link href="/settings#diabetes" className={buttonClass("secondary", "sm")}>
+            <Link href="/settings/diabetes" className={buttonClass("secondary", "sm")}>
               {t("glucose.off.action")}
             </Link>
           }

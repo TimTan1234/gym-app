@@ -25,7 +25,7 @@ async function Workout({ params }: { params: PageProps<"/train/workout/[id]">["p
           exercises: { orderBy: { order: "asc" }, include: { exercise: { select: exerciseSelect } } },
         },
       },
-      sets: { orderBy: [{ completedAt: "asc" }], include: { exercise: { select: exerciseSelect } } },
+      sets: { orderBy: [{ completedAt: "asc" }], include: { exercise: { select: exerciseSelect }, records: { select: { type: true } } } },
     },
   });
   if (!session) notFound();
@@ -80,6 +80,9 @@ async function Workout({ params }: { params: PageProps<"/train/workout/[id]">["p
         reps: s.reps,
         rpe: s.rpe,
         isWarmup: s.isWarmup,
+        durationSec: s.durationSec,
+        distanceM: s.distanceM,
+        records: s.records.map((r) => r.type),
       }))}
       library={library}
       equipment={profile.equipment}

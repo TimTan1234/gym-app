@@ -71,7 +71,6 @@ export function DisplaySettings() {
           options={LOCALES.map((l) => ({ value: l, label: LOCALE_NAMES[l], lang: l === "zh" ? "zh-Hans" : "en" }))}
           onChange={changeLocale}
         />
-        <p className="text-xs text-steel">{t("settings.languageHint")}</p>
       </div>
       <div className="space-y-2">
         <p className="text-[13px] font-medium text-steel">{t("settings.appearance")}</p>
@@ -85,7 +84,6 @@ export function DisplaySettings() {
           ]}
           onChange={setThemePref}
         />
-        <p className="text-xs text-steel">{t("settings.appearanceHint")}</p>
       </div>
       <BackgroundPhotos />
     </div>
@@ -107,7 +105,6 @@ function BackgroundPhotos() {
         <BackgroundPhoto mode="light" />
         <BackgroundPhoto mode="dark" />
       </div>
-      <p className="text-xs text-steel">{t("settings.background.hint")}</p>
     </div>
   );
 }

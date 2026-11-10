@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays, ageOn, dateRange, isLocalDate, startOfWeek, toLocalDate } from "@/lib/dates";
-import { displayWeight, inputWeightToKg, formatHeight } from "@/lib/units";
+import { displayDistance, displayWeight, distanceUnit, inputDistanceToM, inputWeightToKg, formatHeight } from "@/lib/units";
 
 describe("toLocalDate", () => {
   // 2026-10-19T20:30Z is already Oct 20 in Kuala Lumpur (UTC+8)
@@ -39,6 +39,13 @@ describe("units", () => {
     expect(displayWeight(100, "IMPERIAL")).toBe(220.5);
     expect(inputWeightToKg(220.462, "IMPERIAL")).toBeCloseTo(100, 2);
     expect(displayWeight(100, "METRIC")).toBe(100);
+  });
+  it("converts distances, stored in metres", () => {
+    expect(displayDistance(5000, "METRIC")).toBe(5);
+    expect(displayDistance(5000, "IMPERIAL")).toBe(3.11);
+    expect(inputDistanceToM(3.1, "IMPERIAL")).toBeCloseTo(4988.97, 1);
+    expect(inputDistanceToM(5, "METRIC")).toBe(5000);
+    expect(distanceUnit("IMPERIAL")).toBe("mi");
   });
   it("formats height", () => {
     expect(formatHeight(180, "IMPERIAL")).toBe("5′11″");

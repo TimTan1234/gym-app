@@ -77,9 +77,6 @@ export const en = {
     saveChanges: "Save changes",
     save: "Save",
     saveActivate: "Save & activate",
-    updated: "Plan updated",
-    savedActivated: "Plan saved and activated",
-    saved: "Plan saved",
   },
   errors: {
     invalid: "Check the plan and try again.",
@@ -170,9 +167,6 @@ export const zh: typeof en = {
     saveChanges: "保存修改",
     save: "保存",
     saveActivate: "保存并启用",
-    updated: "计划已更新",
-    savedActivated: "计划已保存并启用",
-    saved: "计划已保存",
   },
   errors: {
     invalid: "请检查计划内容后重试。",

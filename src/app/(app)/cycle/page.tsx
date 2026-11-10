@@ -31,7 +31,7 @@ async function Cycle({ searchParams }: { searchParams: PageProps<"/cycle">["sear
         <EmptyState
           title={t("cycle.off.title")}
           action={
-            <Link href="/settings#cycle" className={buttonClass("secondary", "sm")}>
+            <Link href="/settings/cycle" className={buttonClass("secondary", "sm")}>
               {t("cycle.off.action")}
             </Link>
           }

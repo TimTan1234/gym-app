@@ -34,3 +34,35 @@ export function detectRecords(
   }
   return out;
 }
+
+export interface RecordSet {
+  id: string;
+  weightKg: number;
+  reps: number;
+  isWarmup: boolean;
+  completedAt: Date;
+}
+
+export interface EarnedRecord {
+  setId: string;
+  type: RecordType;
+  value: number;
+  achievedAt: Date;
+}
+
+/**
+ * The records an exercise's sets earn when replayed in the order they were done: the same rows
+ * logging them one by one saves. Rebuilding from the sets after an edit or delete keeps every
+ * record backed by a set, and gives a later set back the record a removed one had taken.
+ */
+export function earnedRecords(sets: RecordSet[]): EarnedRecord[] {
+  const bests: Bests = {};
+  const out: EarnedRecord[] = [];
+  for (const set of sets.toSorted((a, b) => a.completedAt.getTime() - b.completedAt.getTime())) {
+    for (const r of detectRecords(set, bests)) {
+      bests[r.type] = r.value;
+      out.push({ setId: set.id, type: r.type, value: r.value, achievedAt: set.completedAt });
+    }
+  }
+  return out;
+}

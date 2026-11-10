@@ -108,6 +108,7 @@ export function RestTimerBar({
     <div
       role="timer"
       aria-live="polite"
+      data-toasts-above
       // Same side offsets as the page (see the app layout), so it lines up with the content column.
       className="fixed inset-x-4 bottom-20 z-40 mx-auto max-w-md overflow-hidden rounded-card bg-panel text-panel-fg md:bottom-6 md:left-60 lg:right-[max(1rem,calc((100vw-56rem)/2))]"
     >

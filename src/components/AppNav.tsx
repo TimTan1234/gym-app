@@ -33,6 +33,7 @@ function NavBar({ pathname, bare = false }: { pathname: string; bare?: boolean }
   return (
     <nav
       aria-label={t("nav.main")}
+      data-toasts-above
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper pb-[env(safe-area-inset-bottom)] md:inset-y-0 md:left-0 md:right-auto md:w-56 md:border-r md:border-t-0 md:pb-0"
     >
       <div className="display hidden px-6 pb-6 pt-7 text-[30px] md:block">GymPal</div>

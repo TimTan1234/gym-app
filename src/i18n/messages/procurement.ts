@@ -54,7 +54,6 @@ export const en = {
   addAtLeastOne: "Add at least one item.",
   discard: "Discard",
   savePlan: "Save plan",
-  saved: "Plan saved",
   fields: {
     title: "Name",
     days: "Days",
@@ -126,7 +125,6 @@ export const en = {
     markDone: "Mark as done",
     reopen: "Reopen",
     duplicate: "Buy again (copy)",
-    duplicated: "Copy made",
     copyMarkdown: "Copy as text",
     copied: "List copied",
     confirmDelete: "Delete “{title}”? This can't be undone.",
@@ -206,7 +204,6 @@ export const zh: typeof en = {
   addAtLeastOne: "请至少添加一件物品。",
   discard: "放弃",
   savePlan: "保存计划",
-  saved: "计划已保存",
   fields: {
     title: "名称",
     days: "天数",
@@ -277,7 +274,6 @@ export const zh: typeof en = {
     markDone: "标记为完成",
     reopen: "重新打开",
     duplicate: "再买一次（复制）",
-    duplicated: "已复制",
     copyMarkdown: "复制为文字",
     copied: "清单已复制",
     confirmDelete: "删除“{title}”？此操作无法撤销。",

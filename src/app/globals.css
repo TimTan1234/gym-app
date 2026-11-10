@@ -206,15 +206,6 @@ body {
   letter-spacing: 0;
 }
 
-/*
- * Toasts appear top-centre. A sticky header holding the page's main action
- * (the workout's Finish) marks itself data-toasts-below, and toasts then start
- * under it. It sits below the page's 24px top padding until scrolled, so clear that too.
- */
-:root:has([data-toasts-below]) {
-  --toast-top: 104px;
-}
-
 /* Success and error toasts in the app's own good/alert inks, which pass AA in both themes (Sonner's
    rich colours do not). :root outranks Sonner's per-theme block, which it injects after this sheet. */
 :root [data-sonner-toaster][data-sonner-theme] {

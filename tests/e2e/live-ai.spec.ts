@@ -95,7 +95,7 @@ test("live AI: text meal, photo meal, plan, coach tools + proposal", async ({ pa
   await expect(page).toHaveURL(/\/train\/plans$/);
 
   // 4) Coach must use tools to answer with real numbers
-  await page.goto("/settings");
+  await page.goto("/settings/targets");
   const proteinTarget = await page.locator("input[name=protein]").inputValue();
   const kcalTarget = Number(await page.getByLabel("kcal").inputValue());
   await page.goto("/coach");
@@ -121,7 +121,7 @@ test("live AI: text meal, photo meal, plan, coach tools + proposal", async ({ pa
   await expect(proposal.getByRole("button", { name: "Apply" })).toBeEnabled({ timeout: AI_TIMEOUT });
   await proposal.getByRole("button", { name: "Apply" }).click();
   await expect(proposal.getByRole("button", { name: "Applied" })).toBeVisible();
-  await page.goto("/settings");
+  await page.goto("/settings/targets");
   await expect(page.getByLabel("kcal")).toHaveValue(String(kcalTarget - 200));
 });
 

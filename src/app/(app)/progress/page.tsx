@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Flame, Trophy } from "lucide-react";
+import { CalendarRange, Images, Trophy } from "lucide-react";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import { addDays, startOfWeek, todayLocal } from "@/lib/dates";
@@ -13,7 +13,7 @@ import { getCheckin } from "@/lib/queries";
 import { cycleEnabled } from "@/lib/cycle-queries";
 import { bandsOnDates, learnedPeriodLength } from "@/lib/cycle/predict";
 import { WeeklyCheckin } from "@/components/progress/WeeklyCheckin";
-import { EmptyState, PageHeader, PageSkeleton, segmentClass, segmentTrack } from "@/components/ui";
+import { EmptyState, NavRow, PageHeader, PageSkeleton, segmentClass, segmentTrack } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { exerciseName, labelOf } from "@/i18n/labels";
 
@@ -24,6 +24,10 @@ const RANGES = [
   { days: 90, label: "progress.range90" },
   { days: 180, label: "progress.range180" },
 ] as const;
+
+/** A bar chart needs at least this many bars to show a shape; below it the stat tiles stand alone. */
+const MIN_BARS = 3;
+const charted = (bars: number) => bars >= MIN_BARS;
 
 function Stat({ label: l, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -103,6 +107,8 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
   );
   const logStreak = currentStreak(new Map(streakDays.map((d) => [d.localDate, true])), today);
   const barStart = rangeDays > 30 ? addDays(today, -29) : start;
+  // Days with a value in the daily bar charts' window.
+  const barDays = (byDay: Map<string, number>) => [...byDay.keys()].filter((d) => d >= barStart && d <= today).length;
 
   // Steps and sleep from the linked phone
   const stepsByDay = new Map(activity.flatMap((a) => (a.steps ? [[a.localDate, a.steps] as const] : [])));
@@ -150,6 +156,10 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
           </nav>
         }
       />
+      <nav aria-label={t("progress.title")} className="divide-y divide-line border-y border-line">
+        <NavRow href="/progress/recap" icon={CalendarRange} label={t("progress.recap.link")} />
+        <NavRow href="/progress/photos" icon={Images} label={t("progress.photos.link")} />
+      </nav>
       <WeeklyCheckin checkin={checkin} targetKcal={profile.targetKcal} units={units} />
 
       <section className="space-y-3">
@@ -166,10 +176,8 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
           />
         </div>
         <div className="space-y-6 pt-2">
-          {weightTrend.length >= 2 ? (
+          {weightTrend.length >= 2 && (
             <TrendChart title={t("progress.bodyWeight")} data={weightTrend} unit={weightUnit(units)} bands={periodBands} bandLabel={t("cycle.calendar.period")} />
-          ) : (
-            <p className="text-sm text-steel">{t("progress.needTwoWeighIns")}</p>
           )}
           {bodyFatTrend.length >= 2 && <TrendChart title={t("progress.bodyFatTrend")} data={bodyFatTrend} unit="%" />}
           <BodyMetricsLog today={today} units={units} entries={[...metrics].reverse()} />
@@ -196,19 +204,21 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
           />
           <Stat label={t("progress.loggingStreak")} value={String(logStreak)} sub={t(logStreak === 1 ? "progress.dayOne" : "progress.dayOther")} />
         </div>
-        {stats.daysLogged > 0 ? (
-          <div className="space-y-8 pt-2">
-            <DailyBars title={t("progress.calories")} data={fillDays(kcalByDay, barStart, today)} unit={t("common.kcal")} target={profile.targetKcal} />
-            <DailyBars
-              title={t("progress.protein")}
-              data={fillDays(proteinByDay, barStart, today)}
-              unit="g"
-              target={profile.targetProteinG}
-              color="var(--plate-blue)"
-            />
-          </div>
-        ) : (
+        {stats.daysLogged === 0 ? (
           <EmptyState title={t("progress.noMeals")} />
+        ) : (
+          charted(barDays(kcalByDay)) && (
+            <div className="space-y-8 pt-2">
+              <DailyBars title={t("progress.calories")} data={fillDays(kcalByDay, barStart, today)} unit={t("common.kcal")} target={profile.targetKcal} />
+              <DailyBars
+                title={t("progress.protein")}
+                data={fillDays(proteinByDay, barStart, today)}
+                unit="g"
+                target={profile.targetProteinG}
+                color="var(--plate-blue)"
+              />
+            </div>
+          )
         )}
       </section>
 
@@ -225,7 +235,9 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
         {sessions.length > 0 ? (
           <div className="space-y-8 pt-2">
             {muscleData.length > 0 && <CategoryBars title={t("progress.setsPerMuscle")} data={muscleData} unit={t("progress.sets")} />}
-            <DailyBars title={t("progress.weeklyVolume", { unit: weightUnit(units) })} data={volumeData} unit={weightUnit(units)} />
+            {charted(weeklyVolume.size) && (
+              <DailyBars title={t("progress.weeklyVolume", { unit: weightUnit(units) })} data={volumeData} unit={weightUnit(units)} />
+            )}
           </div>
         ) : (
           <EmptyState title={t("progress.noWorkouts")} />
@@ -273,9 +285,6 @@ async function Progress({ searchParams }: { searchParams: PageProps<"/progress">
           </div>
         </section>
       )}
-      <p className="flex items-center gap-1.5 text-xs text-steel">
-        <Flame className="size-3.5" /> {t("progress.trendTip")}
-      </p>
     </div>
   );
 }

@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, RotateCcw, SwitchCamera } from "lucide-react";
+import { Ellipsis, Loader2, RotateCcw, SwitchCamera } from "lucide-react";
 import { FilesetResolver, PoseLandmarker, type NormalizedLandmark } from "@mediapipe/tasks-vision";
-import { PARALLEL_DEG, SquatTracker, type SquatFrame, type SquatRep, type View } from "@/lib/training/squat";
-import { Button, Label, Select, cn } from "@/components/ui";
+import type { Frame, Landmark, View } from "@/lib/training/pose";
+import { PARALLEL_DEG, SquatTracker, type SquatRep } from "@/lib/training/squat";
+import { DeadliftTracker, type DeadliftRep } from "@/lib/training/deadlift";
+import { BenchPressTracker, type BenchRep } from "@/lib/training/bench-press";
+import { OverheadPressTracker, type PressRep } from "@/lib/training/overhead-press";
+import { FORM_LIFTS, type FormLift } from "@/lib/training/form-check";
+import { Button, cn, segmentClass, segmentTrack } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { MessageKey, T } from "@/i18n/translate";
 
@@ -19,7 +24,7 @@ const BONES: [number, number][] = [
   [11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24],
   [23, 25], [25, 27], [27, 29], [29, 31], [27, 31], [24, 26], [26, 28], [28, 30], [30, 32], [28, 32],
 ];
-const LEG_JOINTS = [23, 24, 25, 26, 27, 28];
+const JOINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
 const LEFT_LEG = [23, 25, 27];
 const RIGHT_LEG = [24, 26, 28];
 
@@ -38,6 +43,154 @@ async function createLandmarker(model: Model): Promise<PoseLandmarker> {
   }
 }
 
+// Referee lights, as at a powerlifting meet: one per check, white for a pass, red for a fail.
+// A check that can't be judged from this camera angle stays dark.
+type LightState = "white" | "red" | "off";
+type Lights = Record<string, LightState>;
+const STATE_KEY: Record<LightState, MessageKey> = { white: "train.formCheck.lightWhite", red: "train.formCheck.lightRed", off: "train.formCheck.lightOff" };
+const light = (judged: boolean, failed: boolean): LightState => (!judged ? "off" : failed ? "red" : "white");
+
+/** A graded rep as the screen shows it, whatever the lift. */
+interface ShownRep {
+  index: number;
+  durationMs: number;
+  lights: Lights;
+  faults: MessageKey[];
+  details: (t: T) => (string | false)[];
+}
+
+interface ShownFrame {
+  tracking: boolean;
+  view: View;
+  /** The squat's live thigh angle. */
+  thighAngleDeg: number | null;
+  rep: ShownRep | null;
+}
+
+interface LiftUi {
+  checks: { key: string; label: MessageKey }[];
+  /** False when only a side view is tracked. */
+  front: boolean;
+  views: { title: MessageKey; judges: MessageKey; lights: Lights }[];
+  start(): { update(lm: Landmark[] | undefined, ts: number, aspect: number): ShownFrame };
+}
+
+function runner<R>(tracker: { update(lm: Landmark[] | undefined, ts: number, aspect: number): Frame<R> }, show: (rep: R) => ShownRep) {
+  return {
+    update(lm: Landmark[] | undefined, ts: number, aspect: number): ShownFrame {
+      const f = tracker.update(lm, ts, aspect);
+      return { tracking: f.tracking, view: f.view, thighAngleDeg: null, rep: f.rep && show(f.rep) };
+    },
+  };
+}
+
+const faultKeys = (faults: string[], rename: Record<string, string> = {}) => faults.map((f) => `train.formCheck.faults.${rename[f] ?? f}` as MessageKey);
+const round = Math.round;
+
+function depthText(t: T, deg: number) {
+  const d = round(deg);
+  if (d > 2) return t("train.formCheck.aboveParallel", { deg: d });
+  if (d < -2) return t("train.formCheck.belowParallel", { deg: -d });
+  return t("train.formCheck.atParallel");
+}
+
+const showSquat = (rep: SquatRep): ShownRep => ({
+  index: rep.index,
+  durationMs: rep.durationMs,
+  lights: {
+    depth: light(true, rep.faults.includes("shallow")),
+    knees: light(rep.kneeRatio !== null, rep.faults.includes("kneesCave")),
+    torso: light(rep.torsoLeanDeg !== null, rep.faults.includes("forwardLean")),
+  },
+  faults: faultKeys(rep.faults),
+  details: (t) => [
+    depthText(t, rep.thighAngleDeg),
+    rep.torsoLeanDeg !== null && t("train.formCheck.torsoLean", { deg: round(rep.torsoLeanDeg) }),
+    rep.kneeRatio !== null && t("train.formCheck.kneeWidth", { pct: round(rep.kneeRatio * 100) }),
+  ],
+});
+
+const LIFTS: Record<FormLift, LiftUi> = {
+  squat: {
+    checks: [
+      { key: "depth", label: "train.formCheck.lightDepth" },
+      { key: "knees", label: "train.formCheck.lightKnees" },
+      { key: "torso", label: "train.formCheck.lightTorso" },
+    ],
+    front: true,
+    views: [
+      { title: "train.formCheck.sideTitle", judges: "train.formCheck.judges.squatSide", lights: { depth: "white", knees: "off", torso: "white" } },
+      { title: "train.formCheck.frontTitle", judges: "train.formCheck.judges.squatFront", lights: { depth: "white", knees: "white", torso: "off" } },
+    ],
+    start() {
+      const tracker = new SquatTracker();
+      return {
+        update(lm, ts, aspect) {
+          const f = tracker.update(lm, ts, aspect);
+          return { tracking: f.tracking, view: f.view, thighAngleDeg: f.thighAngleDeg, rep: f.rep && showSquat(f.rep) };
+        },
+      };
+    },
+  },
+  deadlift: {
+    checks: [
+      { key: "lockout", label: "train.formCheck.lightLockout" },
+      { key: "hips", label: "train.formCheck.lightHips" },
+    ],
+    front: false,
+    views: [{ title: "train.formCheck.sideTitle", judges: "train.formCheck.judges.deadliftSide", lights: { lockout: "white", hips: "white" } }],
+    start: () =>
+      runner(new DeadliftTracker(), (rep: DeadliftRep) => ({
+        index: rep.index,
+        durationMs: rep.durationMs,
+        lights: { lockout: light(true, rep.faults.includes("softLockout")), hips: light(true, rep.faults.includes("hipsFirst")) },
+        faults: faultKeys(rep.faults),
+        details: (t) => [t("train.formCheck.hipAngle", { deg: round(rep.lockoutDeg) }), t("train.formCheck.backDrop", { deg: round(rep.backDropDeg) })],
+      })),
+  },
+  bench: {
+    checks: [
+      { key: "depth", label: "train.formCheck.lightDepth" },
+      { key: "lockout", label: "train.formCheck.lightLockout" },
+    ],
+    front: false,
+    views: [{ title: "train.formCheck.sideTitle", judges: "train.formCheck.judges.benchSide", lights: { depth: "white", lockout: "white" } }],
+    start: () =>
+      runner(new BenchPressTracker(), (rep: BenchRep) => ({
+        index: rep.index,
+        durationMs: rep.durationMs,
+        lights: { depth: light(true, rep.faults.includes("shallow")), lockout: light(rep.lockoutDeg !== null, rep.faults.includes("noLockout")) },
+        faults: faultKeys(rep.faults, { shallow: "touchChest" }),
+        details: (t) => [
+          t("train.formCheck.barBottom", { pct: round(Math.max(0, rep.bottomShare) * 100) }),
+          rep.lockoutDeg !== null && t("train.formCheck.elbowAngle", { deg: round(rep.lockoutDeg) }),
+        ],
+      })),
+  },
+  press: {
+    checks: [
+      { key: "lockout", label: "train.formCheck.lightLockout" },
+      { key: "torso", label: "train.formCheck.lightTorso" },
+    ],
+    front: true,
+    views: [
+      { title: "train.formCheck.sideTitle", judges: "train.formCheck.judges.pressSide", lights: { lockout: "white", torso: "white" } },
+      { title: "train.formCheck.frontTitle", judges: "train.formCheck.judges.pressFront", lights: { lockout: "white", torso: "off" } },
+    ],
+    start: () =>
+      runner(new OverheadPressTracker(), (rep: PressRep) => ({
+        index: rep.index,
+        durationMs: rep.durationMs,
+        lights: { lockout: light(true, rep.faults.includes("noLockout")), torso: light(rep.leanDeg !== null, rep.faults.includes("leanBack")) },
+        faults: faultKeys(rep.faults),
+        details: (t) => [
+          t("train.formCheck.elbowAngle", { deg: round(rep.lockoutDeg) }),
+          rep.leanDeg !== null && t("train.formCheck.torsoLean", { deg: round(rep.leanDeg) }),
+        ],
+      })),
+  },
+};
+
 /** The depth judge's line: level with the knee, across the thigh (normalised coordinates). */
 function judgingLine(pose: NormalizedLandmark[], view: View) {
   const vis = (i: number) => pose[i].visibility ?? 1;
@@ -49,7 +202,7 @@ function judgingLine(pose: NormalizedLandmark[], view: View) {
   return { y: pose[knee].y, x0: Math.min(pose[hip].x, pose[knee].x) - 0.05, x1: Math.max(pose[hip].x, pose[knee].x) + 0.05 };
 }
 
-function draw(canvas: HTMLCanvasElement, width: number, height: number, pose: NormalizedLandmark[] | undefined, frame: SquatFrame) {
+function draw(canvas: HTMLCanvasElement, width: number, height: number, pose: NormalizedLandmark[] | undefined, frame: ShownFrame) {
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
@@ -76,14 +229,14 @@ function draw(canvas: HTMLCanvasElement, width: number, height: number, pose: No
     }
   }
   ctx.fillStyle = "#ffffff";
-  for (const i of LEG_JOINTS) {
+  for (const i of JOINTS) {
     if (!seen(i)) continue;
     ctx.beginPath();
     ctx.arc(...at(i), unit * 1.6, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Dashed until the hip drops to the knee line, then solid: what a depth judge watches for.
+  // Squat: dashed until the hip drops to the knee line, then solid: what a depth judge watches for.
   if (frame.tracking && frame.thighAngleDeg !== null) {
     const line = judgingLine(pose, frame.view);
     const deep = frame.thighAngleDeg <= PARALLEL_DEG;
@@ -99,35 +252,13 @@ function draw(canvas: HTMLCanvasElement, width: number, height: number, pose: No
   ctx.globalAlpha = 1;
 }
 
-// Referee lights, as at a powerlifting meet: one per check, white for a pass, red for a fail.
-// A check that can't be judged from this camera angle stays dark.
-type LightState = "white" | "red" | "off";
-const CHECKS = [
-  { key: "depth", label: "train.formCheck.lightDepth" },
-  { key: "knees", label: "train.formCheck.lightKnees" },
-  { key: "torso", label: "train.formCheck.lightTorso" },
-] as const satisfies readonly { key: string; label: MessageKey }[];
-type Lights = Record<(typeof CHECKS)[number]["key"], LightState>;
-const STATE_KEY: Record<LightState, MessageKey> = { white: "train.formCheck.lightWhite", red: "train.formCheck.lightRed", off: "train.formCheck.lightOff" };
-
-function judge(rep: SquatRep): Lights {
-  const light = (judged: boolean, failed: boolean): LightState => (!judged ? "off" : failed ? "red" : "white");
-  return {
-    depth: light(true, rep.faults.includes("shallow")),
-    knees: light(rep.kneeRatio !== null, rep.faults.includes("kneesCave")),
-    torso: light(rep.torsoLeanDeg !== null, rep.faults.includes("forwardLean")),
-  };
-}
-
-const UNLIT: Lights = { depth: "off", knees: "off", torso: "off" };
-
 /** `stage` sits on the dark camera view; `inline` brings its own dark housing so white reads on any page. */
-function LightRow({ lights, variant, showLabels }: { lights: Lights; variant: "stage" | "inline"; showLabels?: boolean }) {
+function LightRow({ checks, lights, variant, showLabels }: { checks: LiftUi["checks"]; lights: Lights; variant: "stage" | "inline"; showLabels?: boolean }) {
   const t = useT();
   return (
     <span className={cn("flex shrink-0", variant === "stage" ? "gap-3 sm:gap-4" : "gap-1.5 rounded-full bg-panel px-2 py-1.5")}>
-      {CHECKS.map(({ key, label }) => {
-        const state = lights[key];
+      {checks.map(({ key, label }) => {
+        const state = lights[key] ?? "off";
         return (
           <span key={key} className="flex flex-col items-center gap-1.5">
             <span
@@ -151,18 +282,15 @@ function LightRow({ lights, variant, showLabels }: { lights: Lights; variant: "s
   );
 }
 
-function depthText(t: T, deg: number) {
-  const d = Math.round(deg);
-  if (d > 2) return t("train.formCheck.aboveParallel", { deg: d });
-  if (d < -2) return t("train.formCheck.belowParallel", { deg: -d });
-  return t("train.formCheck.atParallel");
-}
-
-function verdict(t: T, rep: SquatRep) {
+function verdict(t: T, rep: ShownRep) {
   if (rep.faults.length === 0) return t("train.formCheck.goodLift");
   const lower = (s: string, i: number) => (i > 0 && t.locale === "en" ? s.charAt(0).toLowerCase() + s.slice(1) : s);
-  return rep.faults.map((f, i) => lower(t(`train.formCheck.faults.${f}`), i)).join(t("train.formCheck.listSeparator"));
+  return rep.faults.map((f, i) => lower(t(f), i)).join(t("train.formCheck.listSeparator"));
 }
+
+/** Below this many frames a second, quick reps can fall between frames. */
+const SLOW_FPS = 12;
+const stageButton = "grid size-9 place-items-center rounded-full bg-black/55 text-white transition-opacity disabled:opacity-40";
 
 const VIEW_KEY: Record<View, MessageKey> = { side: "train.formCheck.viewSide", front: "train.formCheck.viewFront", unclear: "train.formCheck.viewUnclear" };
 
@@ -173,18 +301,25 @@ interface Hud {
   fps: number;
 }
 
-export function FormCheck() {
+/**
+ * The camera form check. On its own page the lifter picks the lift; opened from a set in the
+ * workout logger the lift is fixed, and `onUseReps` takes the counted reps back to that set.
+ */
+export function FormCheck({ lift: fixedLift, onUseReps }: { lift?: FormLift; onUseReps?: (reps: number) => void }) {
   const t = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const landmarkerRef = useRef<PoseLandmarker | null>(null);
-  const trackerRef = useRef(new SquatTracker());
+  const [lift, setLift] = useState<FormLift>(fixedLift ?? "squat");
+  const trackerRef = useRef(LIFTS[lift].start());
   const [model, setModel] = useState<Model>("lite");
   const [modelState, setModelState] = useState<"loading" | "ready" | "error">("loading");
   const [facing, setFacing] = useState<Facing>("user");
   const [camera, setCamera] = useState<"starting" | "on" | "off">("starting");
   const [hud, setHud] = useState<Hud>({ tracking: false, view: "unclear", thighAngleDeg: null, fps: 0 });
-  const [reps, setReps] = useState<SquatRep[]>([]);
+  const [reps, setReps] = useState<ShownRep[]>([]);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const ui = LIFTS[lift];
 
   // Load (or swap) the pose model.
   useEffect(() => {
@@ -273,8 +408,8 @@ export function FormCheck() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  function reset() {
-    trackerRef.current = new SquatTracker();
+  function reset(next: FormLift = lift) {
+    trackerRef.current = LIFTS[next].start();
     setReps([]);
   }
 
@@ -288,7 +423,9 @@ export function FormCheck() {
           : camera === "starting"
             ? t("train.formCheck.startingCamera")
             : !hud.tracking
-              ? t("train.formCheck.notInView")
+              ? !ui.front && hud.view === "front"
+                ? t("train.formCheck.turnSide")
+                : t(`train.formCheck.notInView.${lift}`)
               : null;
   const busy = (modelState === "loading" && camera !== "off") || (camera === "starting" && modelState !== "error");
   const last = reps[0];
@@ -296,6 +433,28 @@ export function FormCheck() {
 
   return (
     <div className="space-y-6">
+      {!fixedLift && (
+        <div role="radiogroup" aria-label={t("train.formCheck.lift")} className={segmentTrack(true)}>
+          {FORM_LIFTS.map((l) => (
+            <button
+              key={l}
+              type="button"
+              role="radio"
+              aria-checked={lift === l}
+              onClick={() => {
+                if (l === lift) return;
+                setLift(l);
+                reset(l);
+              }}
+              aria-label={t(`train.formCheck.lifts.${l}`)}
+              className={segmentClass(lift === l, true)}
+            >
+              {t(`train.formCheck.liftsShort.${l}`)}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* On phones the whole stage fits on screen under the page header, so the lights stay visible mid-set. */}
       <div className="relative h-[min(133vw,calc(100dvh-15rem))] min-h-80 overflow-hidden rounded-card bg-black sm:aspect-video sm:h-auto sm:min-h-0">
         {/* Selfie view is mirrored; the overlay is mirrored with it so the two line up. */}
@@ -305,15 +464,53 @@ export function FormCheck() {
         </div>
 
         <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3 text-[13px] font-semibold text-white">
-          {running && hud.tracking ? <span className="rounded-full bg-black/55 px-2.5 py-1">{t(VIEW_KEY[hud.view])}</span> : <span />}
-          {running && (
-            <span className="flex items-center gap-2">
-              {hud.thighAngleDeg !== null && (
-                <span className="num rounded-full bg-black/55 px-2.5 py-1">{t("train.formCheck.thighNow", { deg: Math.round(hud.thighAngleDeg) })}</span>
-              )}
-              <span className="num px-1 text-white/60">{t("train.formCheck.fps", { fps: hud.fps })}</span>
-            </span>
-          )}
+          <div className="flex min-w-0 flex-col items-start gap-1.5">
+            {running && hud.tracking && <span className="rounded-full bg-black/55 px-2.5 py-1">{t(VIEW_KEY[hud.view])}</span>}
+            {running && hud.thighAngleDeg !== null && (
+              <span className="num rounded-full bg-black/55 px-2.5 py-1">{t("train.formCheck.thighNow", { deg: round(hud.thighAngleDeg) })}</span>
+            )}
+            {running && hud.fps > 0 && hud.fps < SLOW_FPS && <span className="rounded-field bg-black/55 px-2.5 py-1">{t("train.formCheck.slow")}</span>}
+          </div>
+          <div className="relative flex shrink-0 gap-1.5">
+            <button
+              type="button"
+              aria-label={t("train.formCheck.switchCamera")}
+              onClick={() => {
+                setCamera("starting");
+                setFacing((f) => (f === "user" ? "environment" : "user"));
+              }}
+              className={stageButton}
+            >
+              <SwitchCamera className="size-[18px]" />
+            </button>
+            <button type="button" aria-label={t("train.formCheck.reset")} onClick={() => reset()} disabled={reps.length === 0} className={stageButton}>
+              <RotateCcw className="size-[18px]" />
+            </button>
+            <button type="button" aria-label={t("train.formCheck.more")} aria-expanded={moreOpen} onClick={() => setMoreOpen((o) => !o)} className={stageButton}>
+              <Ellipsis className="size-[18px]" />
+            </button>
+            {moreOpen && (
+              <div role="radiogroup" aria-label={t("train.formCheck.model")} className="absolute right-0 top-11 z-10 w-48 space-y-1 rounded-field bg-black/80 p-1.5">
+                {(["lite", "full"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="radio"
+                    aria-checked={model === m}
+                    onClick={() => {
+                      setMoreOpen(false);
+                      if (m === model) return;
+                      setModelState("loading");
+                      setModel(m);
+                    }}
+                    className={cn("block w-full rounded-[8px] px-2.5 py-2 text-left text-[13px]", model === m ? "bg-white/20" : "text-white/75 hover:bg-white/10")}
+                  >
+                    {t(m === "lite" ? "train.formCheck.modelLite" : "train.formCheck.modelFull")}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {status && (
@@ -329,59 +526,33 @@ export function FormCheck() {
             <p className="score text-[80px] sm:text-[96px]">{reps.length}</p>
           </div>
           <div className="flex flex-col items-end gap-2" aria-live="polite">
-            {/* Keyed by rep so the three lights switch on together for each new rep. */}
-            <span key={last?.index ?? 0} className={cn("block", last && "animate-[light-on_220ms_ease-out]")}>
-              <LightRow lights={last ? judge(last) : UNLIT} variant="stage" showLabels />
+            {/* Keyed by rep so the lights switch on together for each new rep. */}
+            <span key={`${lift}-${last?.index ?? 0}`} className={cn("block", last && "animate-[light-on_220ms_ease-out]")}>
+              <LightRow checks={ui.checks} lights={last?.lights ?? {}} variant="stage" showLabels />
             </span>
             {last && <p className="text-right text-[15px] font-semibold">{verdict(t, last)}</p>}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-2">
-        <Label className="min-w-40 flex-1">
-          {t("train.formCheck.model")}
-          <Select
-            value={model}
-            onChange={(e) => {
-              setModelState("loading");
-              setModel(e.target.value as Model);
-            }}
-          >
-            <option value="lite">{t("train.formCheck.modelLite")}</option>
-            <option value="full">{t("train.formCheck.modelFull")}</option>
-          </Select>
-        </Label>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => {
-            setCamera("starting");
-            setFacing((f) => (f === "user" ? "environment" : "user"));
-          }}
-        >
-          <SwitchCamera className="size-4" /> {t("train.formCheck.switchCamera")}
+      {onUseReps && reps.length > 0 && (
+        <Button type="button" size="lg" className="w-full" onClick={() => onUseReps(reps.length)}>
+          {t.plural("train.formCheck.useReps", reps.length)}
         </Button>
-        <Button type="button" variant="secondary" onClick={reset} disabled={reps.length === 0}>
-          <RotateCcw className="size-4" /> {t("train.formCheck.reset")}
-        </Button>
-      </div>
+      )}
 
       <section aria-labelledby="form-check-setup" className="space-y-3">
         <div>
           <h2 id="form-check-setup" className="display text-[19px]">{t("train.formCheck.setupTitle")}</h2>
-          <p className="mt-1 max-w-[62ch] text-sm text-steel">{t("train.formCheck.setupPlace")}</p>
+          <p className="mt-1 max-w-[62ch] text-sm text-steel">{t(`train.formCheck.setup.${lift}`)}</p>
         </div>
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-          {[
-            { title: t("train.formCheck.sideTitle"), judges: t("train.formCheck.sideJudges"), lights: { depth: "white", knees: "off", torso: "white" } as Lights },
-            { title: t("train.formCheck.frontTitle"), judges: t("train.formCheck.frontJudges"), lights: { depth: "white", knees: "white", torso: "off" } as Lights },
-          ].map((v) => (
+          {ui.views.map((v) => (
             <div key={v.title} className="flex items-center gap-3">
-              <LightRow lights={v.lights} variant="inline" />
+              <LightRow checks={ui.checks} lights={v.lights} variant="inline" />
               <div>
-                <dt className="font-semibold">{v.title}</dt>
-                <dd className="text-steel">{v.judges}</dd>
+                <dt className="font-semibold">{t(v.title)}</dt>
+                <dd className="text-steel">{t(v.judges)}</dd>
               </div>
             </div>
           ))}
@@ -400,16 +571,11 @@ export function FormCheck() {
               </span>
               <span className="min-w-0 space-y-1">
                 <span className="flex items-center gap-2.5">
-                  <LightRow lights={judge(rep)} variant="inline" />
+                  <LightRow checks={ui.checks} lights={rep.lights} variant="inline" />
                   <span className={cn("text-sm font-semibold", rep.faults.length === 0 ? "text-good" : "text-alert")}>{verdict(t, rep)}</span>
                 </span>
                 <span className="num block text-[13px] text-steel">
-                  {[
-                    depthText(t, rep.thighAngleDeg),
-                    rep.torsoLeanDeg !== null && t("train.formCheck.torsoLean", { deg: Math.round(rep.torsoLeanDeg) }),
-                    rep.kneeRatio !== null && t("train.formCheck.kneeWidth", { pct: Math.round(rep.kneeRatio * 100) }),
-                    t("train.formCheck.duration", { s: (rep.durationMs / 1000).toFixed(1) }),
-                  ]
+                  {[...rep.details(t), t("train.formCheck.duration", { s: (rep.durationMs / 1000).toFixed(1) })]
                     .filter(Boolean)
                     .join(t("train.formCheck.listSeparator"))}
                 </span>

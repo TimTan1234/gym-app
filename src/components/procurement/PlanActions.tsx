@@ -72,7 +72,6 @@ export function PlanMenu({ plan }: { plan: MenuPlan }) {
               act(
                 () => duplicateProcurementPlan(plan.id),
                 (id) => {
-                  toast.success(t("procurement.menu.duplicated"));
                   if (id) router.push(`/nutrition/procurement/${id}`);
                 },
               )

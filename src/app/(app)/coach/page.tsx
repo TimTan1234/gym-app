@@ -25,11 +25,12 @@ async function Coach({ searchParams }: { searchParams: PageProps<"/coach">["sear
   const thread = requested
     ? await db.chatThread.findFirst({
         where: { id: requested, userId: user.id },
-        include: { messages: { orderBy: { createdAt: "asc" }, take: 200 } },
+        // The newest 200, so a long thread shows where it is now.
+        include: { messages: { orderBy: { createdAt: "desc" }, take: 200 } },
       })
     : null;
 
-  const messages: UiMessage[] = (thread?.messages ?? []).map((m) => ({
+  const messages: UiMessage[] = (thread?.messages ?? []).toReversed().map((m) => ({
     id: m.id,
     role: m.role === "user" ? "user" : "assistant",
     content: m.content,

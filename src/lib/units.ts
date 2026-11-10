@@ -4,6 +4,7 @@ export type UnitSystem = "METRIC" | "IMPERIAL";
 
 const LB_PER_KG = 2.2046226218;
 const CM_PER_IN = 2.54;
+const M_PER_MI = 1609.344;
 
 export const kgToLb = (kg: number) => kg * LB_PER_KG;
 export const lbToKg = (lb: number) => lb / LB_PER_KG;
@@ -31,6 +32,20 @@ export function inputWeightToKg(value: number, units: UnitSystem): number {
 
 export function formatWeight(kg: number, units: UnitSystem, decimals = 1): string {
   return `${displayWeight(kg, units, decimals)} ${weightUnit(units)}`;
+}
+
+export function distanceUnit(units: UnitSystem): "km" | "mi" {
+  return units === "IMPERIAL" ? "mi" : "km";
+}
+
+/** Stored metres → km or miles. */
+export function displayDistance(m: number, units: UnitSystem, decimals = 2): number {
+  return round(m / (units === "IMPERIAL" ? M_PER_MI : 1000), decimals);
+}
+
+/** Km or miles entered → metres for storage. */
+export function inputDistanceToM(value: number, units: UnitSystem): number {
+  return value * (units === "IMPERIAL" ? M_PER_MI : 1000);
 }
 
 export function formatHeight(cm: number, units: UnitSystem): string {

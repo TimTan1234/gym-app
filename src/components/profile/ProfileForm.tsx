@@ -61,8 +61,8 @@ export function ProfileForm({ initial, submitLabel, redirectTo }: { initial?: Pa
         setError(res.error);
         return;
       }
-      toast.success(t("settings.form.saved"));
       if (redirectTo) router.push(redirectTo);
+      else toast.success(t("settings.form.saved"));
     });
   }
 

@@ -26,7 +26,7 @@ async function LogDay({ searchParams }: { searchParams: PageProps<"/cycle/log">[
         <EmptyState
           title={t("cycle.off.title")}
           action={
-            <Link href="/settings#cycle" className={buttonClass("secondary", "sm")}>
+            <Link href="/settings/cycle" className={buttonClass("secondary", "sm")}>
               {t("cycle.off.action")}
             </Link>
           }

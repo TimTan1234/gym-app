@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { estimate1RM } from "@/lib/training/oneRepMax";
 import { suggestNext } from "@/lib/training/progression";
-import { detectRecords } from "@/lib/training/records";
+import { detectRecords, earnedRecords } from "@/lib/training/records";
 import { currentExercise } from "@/lib/training/summary";
 
 describe("estimate1RM", () => {
@@ -98,5 +98,38 @@ describe("currentExercise", () => {
     expect(currentExercise(free, [set("bench"), set("bench")])).toBe("bench");
     expect(currentExercise(free, [set("dip")])).toBe("dip");
     expect(currentExercise(free, [])).toBe("bench");
+  });
+});
+
+describe("earnedRecords", () => {
+  const at = (minute: number) => new Date(Date.UTC(2026, 10, 1, 10, minute));
+  const set = (id: string, weightKg: number, reps: number, minute: number, isWarmup = false) => ({ id, weightKg, reps, isWarmup, completedAt: at(minute) });
+  const holders = (sets: Parameters<typeof earnedRecords>[0]) => earnedRecords(sets).map((r) => `${r.setId}:${r.type}`);
+
+  it("replays sets in the order they were done, as logging them would", () => {
+    const records = earnedRecords([set("c", 70, 5, 3), set("a", 60, 5, 1), set("b", 60, 3, 2)]);
+    expect(records.map((r) => `${r.setId}:${r.type}:${r.value}`)).toEqual([
+      "a:MAX_WEIGHT:60",
+      "a:EST_1RM:70",
+      "a:MAX_VOLUME_SET:300",
+      "c:MAX_WEIGHT:70",
+      "c:EST_1RM:81.7",
+      "c:MAX_VOLUME_SET:350",
+    ]);
+    expect(records[3].achievedAt).toEqual(at(3));
+  });
+
+  it("gives a later set the record a deleted heavier set had taken", () => {
+    const before = [set("a", 100, 5, 1), set("mistake", 200, 5, 2), set("b", 105, 5, 3)];
+    expect(holders(before)).not.toContain("b:MAX_WEIGHT");
+    expect(holders(before.filter((s) => s.id !== "mistake"))).toContain("b:MAX_WEIGHT");
+  });
+
+  it("ties don't set a record, and warm-ups and cardio's zero-weight sets set none", () => {
+    expect(holders([set("a", 60, 5, 1), set("b", 60, 5, 2), set("w", 90, 5, 3, true), set("run", 0, 0, 4)])).toEqual([
+      "a:MAX_WEIGHT",
+      "a:EST_1RM",
+      "a:MAX_VOLUME_SET",
+    ]);
   });
 });

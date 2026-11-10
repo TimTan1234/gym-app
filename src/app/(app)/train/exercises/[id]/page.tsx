@@ -4,14 +4,14 @@ import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/session";
 import { db } from "@/lib/db";
 import { formatLocalDate } from "@/lib/dates";
-import { displayWeight, weightUnit } from "@/lib/units";
+import { displayWeight, round, weightUnit } from "@/lib/units";
 import { best1RM } from "@/lib/training/summary";
 import type { RecordType } from "@/lib/training/records";
 import { TrendChart } from "@/components/charts";
 import { EmptyState, PageHeader, PageSkeleton, Section } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
-import { exerciseName, labelOf } from "@/i18n/labels";
+import { cardioSetText, exerciseName, labelOf } from "@/i18n/labels";
 
 export const metadata = { title: "Exercise" };
 
@@ -26,7 +26,7 @@ async function ExerciseDetail({ params }: { params: PageProps<"/train/exercises/
     db.workoutSet.findMany({
       where: { exerciseId: id, session: { userId: user.id, endedAt: { not: null } } },
       orderBy: { completedAt: "asc" },
-      select: { exerciseId: true, weightKg: true, reps: true, isWarmup: true, rpe: true, sessionId: true, session: { select: { localDate: true } } },
+      select: { exerciseId: true, weightKg: true, reps: true, isWarmup: true, rpe: true, durationSec: true, distanceM: true, sessionId: true, session: { select: { localDate: true } } },
     }),
     db.personalRecord.groupBy({
       by: ["type"],
@@ -43,7 +43,8 @@ async function ExerciseDetail({ params }: { params: PageProps<"/train/exercises/
     bySession.set(s.sessionId, g);
   }
   const sessions = [...bySession.entries()];
-  const trend = sessions.map(([, g]) => ({ date: g.date, value: displayWeight(best1RM(g.sets), units) }));
+  const cardio = exercise.category === "CARDIO";
+  const trend = cardio ? [] : sessions.map(([, g]) => ({ date: g.date, value: displayWeight(best1RM(g.sets), units) }));
 
   const lower = (s: string) => (t.locale === "en" ? s.toLowerCase() : s);
   const secondary = exercise.secondaryMuscles.map((m) => lower(labelOf(t, "muscle", m)));
@@ -83,13 +84,23 @@ async function ExerciseDetail({ params }: { params: PageProps<"/train/exercises/
                   <span>
                     <span className="block text-sm font-semibold">{formatLocalDate(g.date, undefined, INTL_LOCALE[t.locale])}</span>
                     <span className="num block text-[13px] text-steel">
-                      {g.sets.filter((s) => !s.isWarmup).map((s) => `${displayWeight(s.weightKg, units)}×${s.reps}`).join(", ")}
+                      {g.sets
+                        .filter((s) => !s.isWarmup)
+                        .map((s) => (cardio ? cardioSetText(t, s, units) : `${displayWeight(s.weightKg, units)}×${s.reps}`))
+                        .join(", ")}
                     </span>
                   </span>
-                  <span className="text-right">
-                    <span className="score block text-[22px]">{displayWeight(best1RM(g.sets), units)}</span>
-                    <span className="block text-[12px] text-steel">{t("train.est1rmLower")}</span>
-                  </span>
+                  {cardio ? (
+                    <span className="text-right">
+                      <span className="score block text-[22px]">{round(g.sets.reduce((sec, s) => sec + (s.durationSec ?? 0), 0) / 60)}</span>
+                      <span className="block text-[12px] text-steel">{t("train.minutesUnit")}</span>
+                    </span>
+                  ) : (
+                    <span className="text-right">
+                      <span className="score block text-[22px]">{displayWeight(best1RM(g.sets), units)}</span>
+                      <span className="block text-[12px] text-steel">{t("train.est1rmLower")}</span>
+                    </span>
+                  )}
                 </Link>
               </li>
             ))}

@@ -276,7 +276,6 @@ export function MealLogger({
         if (!res.ok) return void toast.error(res.error);
         const usedSaved = clean.flatMap((i) => (i.savedFoodId ? [i.savedFoodId] : []));
         if (usedSaved.length) await markSavedFoodsUsed(usedSaved);
-        toast.success(t("nutrition.mealUpdated"));
         router.push(back);
       });
       return;
@@ -298,7 +297,6 @@ export function MealLogger({
       }
       const usedSaved = clean.flatMap((i) => (i.savedFoodId ? [i.savedFoodId] : []));
       if (usedSaved.length) await markSavedFoodsUsed(usedSaved);
-      toast.success(t("nutrition.mealLogged"));
       // Routes stay mounted (hidden) after navigation, so clear the draft.
       setItems([]);
       setText("");
@@ -430,10 +428,7 @@ export function MealLogger({
     <>
       {items.length > 0 && (
         <section ref={reviewRef} className="scroll-mt-4 space-y-3">
-          <div>
-            <h2 className="display text-[22px]">{editing ? t("nutrition.inThisMeal") : t("nutrition.review")}</h2>
-            {source !== "MANUAL" && <p className="text-[13px] text-steel">{t("nutrition.aiEstimateHint")}</p>}
-          </div>
+          <h2 className="display text-[22px]">{editing ? t("nutrition.inThisMeal") : t("nutrition.review")}</h2>
           <div className="flex items-center gap-2">
             {readPhotos.map((src, i) => (
               // eslint-disable-next-line @next/next/no-img-element -- local data URL preview
@@ -506,7 +501,7 @@ export function MealLogger({
       )}
 
       {items.length > 0 && (
-        <div className="sticky bottom-20 z-20 md:bottom-4">
+        <div data-toasts-above className="sticky bottom-20 z-20 md:bottom-4">
           <Card className="flex items-center gap-3 border border-line shadow-[0_8px_24px_-12px_rgba(20,20,19,0.45)]">
             <div className="flex-1">
               <p>

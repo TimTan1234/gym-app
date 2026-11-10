@@ -1,5 +1,6 @@
 // Labels for values stored in the database (muscles, equipment, exercise names).
 import { label as titleCase } from "@/lib/format";
+import { displayDistance, distanceUnit, round, type UnitSystem } from "@/lib/units";
 import type { MessageKey, T } from "./translate";
 
 /** "smith_machine" → "Smith Machine" in English, the translated label in other languages. */
@@ -15,4 +16,10 @@ export function exerciseName(t: T, exercise: { slug: string; name: string }): st
   const key = `labels.exercise.${exercise.slug}`;
   const out = t(key as MessageKey);
   return out === key ? exercise.name : out;
+}
+
+/** A cardio set as "25 min / 5.2 km"; the distance is left out when none was logged. */
+export function cardioSetText(t: T, set: { durationSec: number | null; distanceM: number | null }, units: UnitSystem): string {
+  const time = t("train.minutesShort", { n: round((set.durationSec ?? 0) / 60, 1) });
+  return set.distanceM ? `${time} / ${displayDistance(set.distanceM, units)} ${distanceUnit(units)}` : time;
 }

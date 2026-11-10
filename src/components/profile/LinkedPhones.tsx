@@ -77,6 +77,8 @@ export function LinkedPhones({ phones, serverUrl, minutes, apk }: { phones: Link
             <dt className="text-[13px] text-steel">{t("settings.phone.server")}</dt>
             <dd className="num select-all break-all font-medium" data-testid="server-url">{serverUrl}</dd>
           </dl>
+          {/* The app itself refuses http://; this says why before anyone types the address in. */}
+          {!secure && <p className="text-[13px] text-alert">{t("settings.phone.needsHttps", { url: serverUrl })}</p>}
           <Button variant="secondary" size="sm" onClick={() => setCode(null)}>
             {t("common.done")}
           </Button>
@@ -86,8 +88,6 @@ export function LinkedPhones({ phones, serverUrl, minutes, apk }: { phones: Link
           <Smartphone className="size-4" /> {t("settings.phone.link")}
         </Button>
       )}
-      {/* The app itself refuses http://; this says why before anyone types the address in. */}
-      {!secure && <p className="text-[13px] text-alert">{t("settings.phone.needsHttps", { url: serverUrl })}</p>}
     </div>
   );
 }

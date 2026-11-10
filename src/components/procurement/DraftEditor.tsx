@@ -152,7 +152,6 @@ export function DraftEditor({
         meals: meals.map(({ key: _key, ...m }) => m),
       });
       if (!res.ok || !res.id) return void toast.error(res.ok ? t("common.somethingWrong") : res.error);
-      toast.success(t("procurement.saved"));
       router.push(`/nutrition/procurement/${res.id}`);
     });
   }

@@ -83,11 +83,6 @@ test("sign up → onboarding → log meal → log workout → history", async ({
   await page.getByRole("link", { name: "Train" }).click();
   await page.getByRole("button", { name: "Empty workout" }).first().click();
   await expect(page).toHaveURL(/\/train\/workout\//);
-  // A toast left from logging the meal can sit over Add exercise in an empty workout, and the test's
-  // pointer hovering it pauses its timer (a touch screen has no hover): move the pointer off the toasts
-  // at the top and let them go first.
-  await page.mouse.move(10, page.viewportSize()!.height - 10);
-  await expect(page.locator("[data-sonner-toast]")).toHaveCount(0, { timeout: 10_000 });
   await page.getByRole("button", { name: "Add exercise" }).click();
   await page.getByLabel("Search exercises").fill("barbell bench");
   await page.getByRole("button", { name: /^Barbell Bench Press/ }).click();
@@ -98,7 +93,7 @@ test("sign up → onboarding → log meal → log workout → history", async ({
     await block.getByLabel("Reps").fill(reps);
     await block.getByRole("button", { name: "Log set for Barbell Bench Press" }).click();
   }
-  await expect(block.getByRole("button", { name: /^Delete set/ })).toHaveCount(3);
+  await expect(block.getByRole("button", { name: /^Edit set/ })).toHaveCount(3);
   await expect(page.getByRole("timer")).toBeVisible(); // rest timer started
   await expect(page.getByRole("timer").getByRole("button", { name: "Next: Barbell Bench Press, set 4" })).toBeVisible();
 

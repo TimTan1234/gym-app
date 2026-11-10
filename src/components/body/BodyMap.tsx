@@ -161,7 +161,7 @@ export async function BodyMap({
         items={items}
         label={label}
         title={t("today.bodyMapTitle")}
-        hint={trained.length ? t("today.bodyMapHint") : t("today.bodyMapEmpty")}
+        hint={trained.length ? undefined : t("today.bodyMapEmpty")}
         note={note}
         also={unmapped.length ? t("today.bodyMapAlso", { list: unmapped.map(([m, l]) => `${labelOf(t, "muscle", m)} ${sets(l.sets)}`).join(listSep) }) : null}
         legend={{

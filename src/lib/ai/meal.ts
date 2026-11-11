@@ -29,16 +29,31 @@ export async function analyzeMeal(input: MealInput): Promise<MealAnalysis> {
   content.push({ type: "input_text", text: lines.join("\n") });
   for (const url of photos) content.push({ type: "input_image", image_url: url, detail: "auto" });
 
-  const response = await openai().responses.parse({
-    model: models.fast(),
-    instructions: MEAL_SYSTEM_PROMPT + languageInstruction(input.locale ?? "en"),
-    input: [{ role: "user", content }],
-    text: { format: zodTextFormat(MealAnalysisSchema, "meal_analysis") },
-  });
+  const request = async (): Promise<MealAnalysis | null> => {
+    try {
+      const response = await openai().responses.parse({
+        model: models.fast(),
+        instructions: MEAL_SYSTEM_PROMPT + languageInstruction(input.locale ?? "en"),
+        input: [{ role: "user", content }],
+        text: { format: zodTextFormat(MealAnalysisSchema, "meal_analysis") },
+      });
+      const parsed = MealAnalysisSchema.safeParse(response.output_parsed);
+      return parsed.success ? parsed.data : null;
+    } catch (e) {
+      if (unreadable(e)) return null;
+      throw e;
+    }
+  };
 
-  const parsed = response.output_parsed;
-  if (!parsed) throw new Error("The AI did not return a nutrition estimate. Please try again.");
-  return normalize(MealAnalysisSchema.parse(parsed));
+  // Not every provider holds the model to the schema, so an unreadable reply gets one more try.
+  const analysis = (await request()) ?? (await request());
+  if (!analysis) throw new Error("The AI did not return a nutrition estimate. Please try again.");
+  return normalize(analysis);
+}
+
+/** The reply wasn't JSON, or not the schema's: the SDK's own parse throws these. */
+function unreadable(e: unknown) {
+  return e instanceof SyntaxError || (e instanceof Error && e.name === "ZodError");
 }
 
 /** Round numbers so the draft editor shows clean values. */

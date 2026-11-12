@@ -20,7 +20,10 @@ async function csvFor(userId: string, dataset: Dataset): Promise<string> {
             description: true,
             notes: true,
             ...NUTRIENTS,
-            items: { orderBy: { id: "asc" }, select: { name: true, quantity: true, unit: true, grams: true, gi: true, ...NUTRIENTS } },
+            items: {
+              orderBy: { id: "asc" },
+              select: { name: true, quantity: true, unit: true, grams: true, gi: true, saturatedFatG: true, volumeMl: true, sweetener: true, ...NUTRIENTS },
+            },
           },
         }),
       );

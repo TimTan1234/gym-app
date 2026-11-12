@@ -16,6 +16,8 @@ import { CarbBudgetLine, GiTag } from "./CarbBudget";
 import { budgetFor, type CarbBudget } from "@/lib/nutrition/diabetes";
 import { useClientValue } from "@/lib/use-client";
 import { resizeImage } from "@/lib/image";
+import type { DrinkFields } from "@/lib/nutrition/nutri-grade";
+import { NutriGradeDetail } from "./NutriGrade";
 import type { BarcodeItem } from "@/lib/nutrition/barcode";
 import { useT } from "@/i18n/client";
 
@@ -26,7 +28,7 @@ const MEAL_TYPES = ["BREAKFAST", "LUNCH", "DINNER", "SNACK"] as const;
 type MealType = (typeof MEAL_TYPES)[number];
 type Source = "AI_TEXT" | "AI_PHOTO" | "MANUAL";
 
-export interface DraftItem {
+export interface DraftItem extends DrinkFields {
   key: string;
   name: string;
   quantity: number;
@@ -49,11 +51,11 @@ export interface DraftItem {
   base?: BaseValues;
 }
 
-type BaseValues = Pick<DraftItem, "grams" | "kcal" | "proteinG" | "carbsG" | "fatG" | "fiberG" | "sugarG" | "addedSugarG" | "sodiumMg">;
+type BaseValues = Pick<DraftItem, "grams" | "kcal" | "proteinG" | "carbsG" | "fatG" | "fiberG" | "sugarG" | "addedSugarG" | "sodiumMg" | "saturatedFatG" | "volumeMl">;
 
 function baseOf(i: DraftItem): BaseValues {
-  const { grams, kcal, proteinG, carbsG, fatG, fiberG, sugarG, addedSugarG, sodiumMg } = i;
-  return { grams, kcal, proteinG, carbsG, fatG, fiberG, sugarG, addedSugarG, sodiumMg };
+  const { grams, kcal, proteinG, carbsG, fatG, fiberG, sugarG, addedSugarG, sodiumMg, saturatedFatG, volumeMl } = i;
+  return { grams, kcal, proteinG, carbsG, fatG, fiberG, sugarG, addedSugarG, sodiumMg, saturatedFatG, volumeMl };
 }
 
 type ItemValues = Omit<DraftItem, "key" | "confidence" | "assumptions" | "savedFoodId" | "base">;
@@ -106,6 +108,9 @@ const emptyItem = (): DraftItem => ({
   addedSugarG: 0,
   sodiumMg: 0,
   gi: null,
+  saturatedFatG: null,
+  volumeMl: null,
+  sweetener: false,
   confidence: null,
   assumptions: null,
 });
@@ -595,6 +600,7 @@ function DraftRow({
           <span className="ml-1 text-[13px] text-steel">{t("common.kcal")}</span>
         </p>
       </div>
+      <NutriGradeDetail item={item} />
       {(item.assumptions || item.confidence !== null || (showGi && item.gi !== null)) && (
         <p className="text-xs text-steel">
           {showGi && <GiTag gi={item.gi} />}{" "}

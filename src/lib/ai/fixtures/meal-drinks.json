@@ -1,0 +1,11 @@
+{
+  "isFood": true,
+  "observations": { "scaleReference": "none", "vessels": [], "pieces": [] },
+  "title": "Teh tarik and two kopi",
+  "items": [
+    { "name": "Teh tarik", "quantity": 1, "unit": "mug", "grams": 250, "kcal": 139, "proteinG": 3.5, "carbsG": 21, "fatG": 4.5, "fiberG": 0, "sugarG": 20, "addedSugarG": 15, "sodiumMg": 60, "gi": 60, "saturatedFatG": 2.5, "volumeMl": 250, "sweetener": false, "confidence": 0.6, "assumptions": "Pulled tea with condensed and evaporated milk" },
+    { "name": "Kopi O kosong", "quantity": 1, "unit": "cup", "grams": 250, "kcal": 5, "proteinG": 0.5, "carbsG": 0.5, "fatG": 0, "fiberG": 0, "sugarG": 0, "addedSugarG": 0, "sodiumMg": 5, "gi": null, "saturatedFatG": 0, "volumeMl": 250, "sweetener": false, "confidence": 0.8, "assumptions": "Black coffee, no sugar" },
+    { "name": "Kopi C kosong", "quantity": 1, "unit": "cup", "grams": 250, "kcal": 85, "proteinG": 4, "carbsG": 6.5, "fatG": 4.8, "fiberG": 0, "sugarG": 6, "addedSugarG": 0, "sodiumMg": 60, "gi": 45, "saturatedFatG": 3.2, "volumeMl": 250, "sweetener": false, "confidence": 0.6, "assumptions": "Coffee with evaporated milk, no sugar" }
+  ],
+  "notes": "Mock response (AI_MOCK=1). Values are typical estimates."
+}

@@ -35,6 +35,9 @@ async function LogMeal({ searchParams }: { searchParams: PageProps<"/nutrition/l
     addedSugarG: true,
     gi: true,
     sodiumMg: true,
+    saturatedFatG: true,
+    volumeMl: true,
+    sweetener: true,
   } as const;
 
   // ?meal=<id> opens a logged meal for editing, on its own day.

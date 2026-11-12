@@ -87,6 +87,14 @@ export const en = {
 
   // Meal card
   aiEstimated: "AI estimated",
+  nutriGrade: {
+    label: "Nutri-Grade {grade}",
+    named: "{name}: Nutri-Grade {grade}",
+    figures: "{sugar}, {saturatedFat} per 100\u00a0ml",
+    sugar: "{g}\u00a0g sugar",
+    saturatedFat: "{g}\u00a0g saturated fat",
+    sweetener: ", contains sweetener",
+  },
   roughEstimateBadge: "Rough estimate",
   itemAmount: "{quantity} {unit}, {grams} g",
   saveToFavourites: "Save {name} to favourites",
@@ -212,6 +220,14 @@ export const zh: typeof en = {
   confident: "可信度 {pct}%。",
 
   aiEstimated: "AI 估算",
+  nutriGrade: {
+    label: "Nutri-Grade 营养等级 {grade}",
+    named: "{name}：Nutri-Grade 营养等级 {grade}",
+    figures: "每 100 毫升{sugar}、{saturatedFat}",
+    sugar: "含糖 {g} 克",
+    saturatedFat: "饱和脂肪 {g} 克",
+    sweetener: "，含代糖",
+  },
   roughEstimateBadge: "粗略估算",
   itemAmount: "{quantity} {unit}，{grams} g",
   saveToFavourites: "收藏 {name}",

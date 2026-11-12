@@ -2,6 +2,7 @@
 // in each column name; times are ISO 8601 in UTC and dates the user's local YYYY-MM-DD.
 
 import { toCsv } from "./csv";
+import { nutriGrade, type DrinkFields } from "./nutrition/nutri-grade";
 
 export const DATASETS = ["meals", "body", "workouts", "glucose"] as const;
 export type Dataset = (typeof DATASETS)[number];
@@ -15,16 +16,21 @@ export interface MealRow extends Nutrients {
   mealType: string;
   description: string;
   notes: string | null;
-  items: (Nutrients & { name: string; quantity: number; unit: string; grams: number; gi: number | null })[];
+  items: (Nutrients & DrinkFields & { name: string; quantity: number; unit: string; grams: number; gi: number | null })[];
 }
 
 /** One row per food, with its meal's columns repeated; a meal without foods gets one row of its totals. */
 export function mealsCsv(meals: MealRow[]): string {
-  const header = ["date", "eaten_at", "meal_type", "description", "notes", "food", "quantity", "unit", "grams", "kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "added_sugar_g", "sodium_mg", "gi"];
+  const header = [
+    "date", "eaten_at", "meal_type", "description", "notes", "food", "quantity", "unit", "grams",
+    "kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "added_sugar_g", "sodium_mg", "gi",
+    "saturated_fat_g", "volume_ml", "sweetener", "nutri_grade",
+  ];
   const rows = meals.flatMap((m) => {
     const meal = [m.localDate, m.eatenAt, m.mealType, m.description, m.notes];
-    if (m.items.length === 0) return [[...meal, null, null, null, null, ...NUTRIENTS.map((k) => m[k]), null]];
-    return m.items.map((i) => [...meal, i.name, i.quantity, i.unit, i.grams, ...NUTRIENTS.map((k) => i[k]), i.gi]);
+    if (m.items.length === 0) return [[...meal, null, null, null, null, ...NUTRIENTS.map((k) => m[k]), null, null, null, null, null]];
+    const drink = (i: MealRow["items"][number]) => [i.saturatedFatG, i.volumeMl, i.sweetener, nutriGrade(i)?.grade ?? null];
+    return m.items.map((i) => [...meal, i.name, i.quantity, i.unit, i.grams, ...NUTRIENTS.map((k) => i[k]), i.gi, ...drink(i)]);
   });
   return toCsv(header, rows);
 }

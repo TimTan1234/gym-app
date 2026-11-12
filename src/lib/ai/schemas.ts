@@ -18,6 +18,9 @@ export const MealItemDraftSchema = z.object({
   addedSugarG: z.number().nonnegative().describe("Added (free) sugars only, at most sugarG"),
   sodiumMg: z.number().nonnegative(),
   gi: z.number().int().min(0).max(110).nullable().describe("Estimated glycaemic index of this food (glucose = 100), or null if it has under 5 g carbs"),
+  saturatedFatG: z.number().nonnegative().describe("Saturated fat within fatG"),
+  volumeMl: z.number().nonnegative().nullable().describe("A drink's volume in ml; null for food"),
+  sweetener: z.boolean().describe("Contains a non-sugar sweetener (aspartame, sucralose, stevia, sugar alcohols)"),
   confidence: z.number().min(0).max(1).describe("0–1 confidence in this estimate"),
   assumptions: z.string().max(300).nullable().describe("Portion/cooking assumptions made"),
 });
@@ -156,6 +159,9 @@ export const MealSaveSchema = z.object({
         // Absent on drafts made before these were tracked (e.g. an old coach card).
         addedSugarG: z.number().nonnegative().default(0),
         gi: z.number().int().min(0).max(110).nullable().default(null),
+        saturatedFatG: z.number().nonnegative().nullable().default(null),
+        volumeMl: z.number().positive().nullable().default(null),
+        sweetener: z.boolean().default(false),
       })
         // Added sugar is part of total sugar.
         .transform((i) => ({ ...i, addedSugarG: Math.min(i.addedSugarG, i.sugarG) })),

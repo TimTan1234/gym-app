@@ -298,49 +298,58 @@ model Meal {
 }
 
 model MealItem {
-  id          String  @id @default(cuid())
-  mealId      String
-  meal        Meal    @relation(fields: [mealId], references: [id], onDelete: Cascade)
-  name        String
-  quantity    Float
-  unit        String
-  grams       Float
-  kcal        Float
-  proteinG    Float
-  carbsG      Float
-  fatG        Float
-  fiberG      Float
-  sugarG      Float
-  addedSugarG Float   @default(0) // free sugars (WHO): sugar, syrups, honey, juice; not fruit or milk
-  sodiumMg    Float
+  id            String  @id @default(cuid())
+  mealId        String
+  meal          Meal    @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  name          String
+  quantity      Float
+  unit          String
+  grams         Float
+  kcal          Float
+  proteinG      Float
+  carbsG        Float
+  fatG          Float
+  fiberG        Float
+  sugarG        Float
+  addedSugarG   Float   @default(0) // free sugars (WHO): sugar, syrups, honey, juice; not fruit or milk
+  sodiumMg      Float
   /// Estimated glycaemic index of the food (0-100); null when unknown or negligible carbs.
-  gi          Int?
-  confidence  Float?
-  assumptions String?
+  gi            Int?
+  /// Nutri-Grade inputs. Saturated fat for the whole quantity; volume only on drinks (null = not a drink).
+  saturatedFatG Float?
+  volumeMl      Float?
+  /// Contains a non-sugar sweetener (aspartame, stevia, sugar alcohols...).
+  sweetener     Boolean @default(false)
+  confidence    Float?
+  assumptions   String?
 
   @@index([mealId])
 }
 
 model SavedFood {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  quantity    Float
-  unit        String
-  grams       Float
-  kcal        Float
-  proteinG    Float
-  carbsG      Float
-  fatG        Float
-  fiberG      Float
-  sugarG      Float
-  addedSugarG Float    @default(0) // free sugars (WHO): sugar, syrups, honey, juice; not fruit or milk
-  sodiumMg    Float
-  gi          Int?
-  useCount    Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  quantity      Float
+  unit          String
+  grams         Float
+  kcal          Float
+  proteinG      Float
+  carbsG        Float
+  fatG          Float
+  fiberG        Float
+  sugarG        Float
+  addedSugarG   Float    @default(0) // free sugars (WHO): sugar, syrups, honey, juice; not fruit or milk
+  sodiumMg      Float
+  gi            Int?
+  /// As on MealItem: Nutri-Grade inputs, null when unknown or not a drink.
+  saturatedFatG Float?
+  volumeMl      Float?
+  sweetener     Boolean  @default(false)
+  useCount      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([userId, name])
 }

@@ -47,6 +47,9 @@ export async function saveMeal(input: MealSave): Promise<ActionResult & { mealId
           addedSugarG: i.addedSugarG,
           gi: i.gi,
           sodiumMg: i.sodiumMg,
+          saturatedFatG: i.saturatedFatG,
+          volumeMl: i.volumeMl,
+          sweetener: i.sweetener,
           confidence: i.confidence,
           assumptions: i.assumptions,
         })),
@@ -153,7 +156,16 @@ export async function saveFoodFromItem(itemId: string): Promise<ActionResult> {
   const item = await db.mealItem.findFirst({ where: { id: itemId, meal: { userId: user.id } } });
   if (!item) return { ok: false, error: (await getT())("nutrition.itemNotFound") };
   const values = Object.fromEntries(NUTRIENT_KEYS.map((k) => [k, item[k]])) as Record<(typeof NUTRIENT_KEYS)[number], number>;
-  const data = { quantity: item.quantity, unit: item.unit, grams: item.grams, gi: item.gi, ...values };
+  const data = {
+    quantity: item.quantity,
+    unit: item.unit,
+    grams: item.grams,
+    gi: item.gi,
+    saturatedFatG: item.saturatedFatG,
+    volumeMl: item.volumeMl,
+    sweetener: item.sweetener,
+    ...values,
+  };
   await db.savedFood.upsert({
     where: { userId_name: { userId: user.id, name: item.name } },
     create: { userId: user.id, name: item.name, ...data },

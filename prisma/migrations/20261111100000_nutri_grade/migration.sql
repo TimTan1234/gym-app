@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "MealItem" ADD COLUMN     "saturatedFatG" DOUBLE PRECISION,
+ADD COLUMN     "sweetener" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "volumeMl" DOUBLE PRECISION;
+-- AlterTable
+ALTER TABLE "SavedFood" ADD COLUMN     "saturatedFatG" DOUBLE PRECISION,
+ADD COLUMN     "sweetener" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "volumeMl" DOUBLE PRECISION;

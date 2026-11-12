@@ -11,6 +11,7 @@ import { useT } from "@/i18n/client";
 import { HIGH_SUGAR_MEAL_G, SugarAmount, SugarTag } from "./Sugar";
 import { MealGlucose } from "@/components/glucose/GlucoseBits";
 import { GiTag } from "./CarbBudget";
+import { MealNutriGrade, NutriGradeDetail } from "./NutriGrade";
 import { highGiCarbShare } from "@/lib/nutrition/diabetes";
 import type { AfterMealReading } from "@/lib/glucose-queries";
 import type { GlucoseUnit } from "@/lib/glucose";
@@ -39,6 +40,9 @@ export interface MealCardData {
     sugarG: number;
     addedSugarG: number;
     gi: number | null;
+    saturatedFatG: number | null;
+    volumeMl: number | null;
+    sweetener: boolean;
     confidence: number | null;
     assumptions: string | null;
   }[];
@@ -80,6 +84,7 @@ export function MealCard({
             <MacroLine p={meal.proteinG} c={meal.carbsG} f={meal.fatG} />
             <SugarTag total={meal.sugarG} added={meal.addedSugarG} high={meal.addedSugarG >= HIGH_SUGAR_MEAL_G} />
             {meal.source !== "MANUAL" && <Sparkles className="size-3.5 text-steel" aria-label={t("nutrition.aiEstimated")} />}
+            <MealNutriGrade items={meal.items} />
           </p>
           {highGi && highGi.share >= 0.5 && <p className="text-[13px] text-steel">{t("glucose.highGiShare", { pct: Math.round(highGi.share * 100) })}</p>}
           {glucose && glucose.readings.length > 0 && <MealGlucose readings={glucose.readings} unit={glucose.unit} />}
@@ -111,6 +116,7 @@ export function MealCard({
                     {glucose && <GiTag gi={item.gi} />}
                     {item.confidence !== null && item.confidence < 0.6 && <Badge>{t("nutrition.roughEstimateBadge")}</Badge>}
                   </p>
+                  <NutriGradeDetail item={item} className="mt-1.5" />
                   {item.assumptions && <p className="mt-0.5 text-xs italic text-steel">{item.assumptions}</p>}
                 </div>
                 <button

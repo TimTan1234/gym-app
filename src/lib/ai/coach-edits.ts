@@ -3,6 +3,7 @@
 
 import { z } from "zod";
 import { scaleItem, type Nutrients } from "@/lib/nutrition/totals";
+import type { DrinkFields } from "@/lib/nutrition/nutri-grade";
 
 const MealTypeEnum = z.enum(["BREAKFAST", "LUNCH", "DINNER", "SNACK"]);
 const DateString = z.string().describe("Local date YYYY-MM-DD (today's date is in the instructions)");
@@ -37,7 +38,7 @@ export const MealDeleteParams = z.object({ mealId: z.string().describe("Meal id 
 
 // ---------- Meal edits ----------
 
-export interface ItemValues extends Nutrients {
+export interface ItemValues extends Nutrients, DrinkFields {
   name: string;
   quantity: number;
   unit: string;

@@ -38,12 +38,23 @@ export function sumNutrients(items: readonly Partial<Nutrients>[]): Nutrients {
   return total;
 }
 
+/**
+ * Item values that scale with grams but aren't meal totals: a drink's saturated fat and volume, null when unknown.
+ * Kept to 2 decimals, so a serving still grades the same as its label's per-100 ml values.
+ */
+const SCALED_EXTRAS = ["saturatedFatG", "volumeMl"] as const;
+type ScaledExtras = Partial<Record<(typeof SCALED_EXTRAS)[number], number | null>>;
+
 /** Scale an item's nutrients when the user changes its gram weight. */
-export function scaleItem<T extends Nutrients & { grams: number }>(item: T, newGrams: number): T {
+export function scaleItem<T extends Nutrients & ScaledExtras & { grams: number }>(item: T, newGrams: number): T {
   if (item.grams <= 0 || newGrams < 0) return { ...item, grams: Math.max(0, newGrams) };
   const factor = newGrams / item.grams;
   const scaled = { ...item, grams: newGrams };
   for (const key of NUTRIENT_KEYS) scaled[key] = Math.round(item[key] * factor * 10) / 10;
+  for (const key of SCALED_EXTRAS) {
+    const value = item[key];
+    if (typeof value === "number") scaled[key] = Math.round(value * factor * 100) / 100;
+  }
   return scaled;
 }
 

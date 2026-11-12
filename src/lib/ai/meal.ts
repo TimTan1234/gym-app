@@ -6,6 +6,7 @@ import { MEAL_SYSTEM_PROMPT, languageInstruction } from "./prompts";
 import type { Locale } from "@/i18n/config";
 import { MealAnalysisSchema, type MealAnalysis } from "./schemas";
 import mockMeal from "./fixtures/meal.json";
+import mockDrinks from "./fixtures/meal-drinks.json";
 
 export interface MealInput {
   text?: string;
@@ -16,7 +17,8 @@ export interface MealInput {
 }
 
 export async function analyzeMeal(input: MealInput): Promise<MealAnalysis> {
-  if (isAiMock()) return normalize(MealAnalysisSchema.parse(mockMeal));
+  // The mock answers a drink order with drinks, and anything else with nasi lemak.
+  if (isAiMock()) return normalize(MealAnalysisSchema.parse(/teh|kopi/i.test(input.text ?? "") ? mockDrinks : mockMeal));
 
   const content: ResponseInputContent[] = [];
   const photos = input.imageDataUrls ?? [];
@@ -74,6 +76,9 @@ function normalize(analysis: MealAnalysis): MealAnalysis {
       // GI only means something for food with real carbs.
       gi: i.gi === null || i.carbsG < 5 ? null : Math.round(i.gi),
       sodiumMg: Math.round(i.sodiumMg),
+      // Two decimals keep a drink's grade where its per-100 ml value puts it.
+      saturatedFatG: Math.round(Math.min(i.saturatedFatG, i.fatG) * 100) / 100,
+      volumeMl: i.volumeMl ? Math.round(i.volumeMl) : null,
     })),
   };
 }

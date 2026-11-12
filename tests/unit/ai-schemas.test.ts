@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { GeneratedPlanSchema, MealAnalysisSchema, MealSaveSchema, ProcurementDraftSchema, ProcurementSaveSchema, planDraftSchema } from "@/lib/ai/schemas";
 import { filterByEquipment, resolvePlanDraft } from "@/lib/ai/plan";
 import mealFixture from "@/lib/ai/fixtures/meal.json";
+import drinksFixture from "@/lib/ai/fixtures/meal-drinks.json";
+import { nutriGrade } from "@/lib/nutrition/nutri-grade";
 import planFixture from "@/lib/ai/fixtures/plan.json";
 import procurementFixture from "@/lib/ai/fixtures/procurement.json";
 import { EXERCISES } from "../../prisma/seed/exercises";
@@ -13,6 +15,11 @@ describe("meal analysis schema", () => {
   it("accepts the fixture", () => {
     const parsed = MealAnalysisSchema.parse(mealFixture);
     expect(parsed.items.length).toBeGreaterThan(0);
+  });
+  it("accepts the drinks fixture, whose teh tarik grades C", () => {
+    const [tehTarik, kopi] = MealAnalysisSchema.parse(drinksFixture).items;
+    expect(nutriGrade(tehTarik)).toMatchObject({ grade: "C", sugarPer100Ml: 8 });
+    expect(nutriGrade(kopi)).toMatchObject({ grade: "A", sugarPer100Ml: 0 });
   });
   it("rejects negative nutrients and missing fields", () => {
     const bad = structuredClone(mealFixture);

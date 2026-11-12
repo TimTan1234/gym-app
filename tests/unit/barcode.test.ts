@@ -29,6 +29,24 @@ describe("productToItem", () => {
     expect(item.hasNutrition).toBe(true);
   });
 
+  it("reads a drink sold by volume: saturated fat, ml and sweeteners carry through for Nutri-Grade", () => {
+    const item = productToItem({
+      product_name: "Iced Lemon Tea",
+      quantity: "300 ml",
+      serving_size: "300 ml",
+      serving_quantity: 300,
+      serving_quantity_unit: "ml",
+      additives_tags: ["en:e330", "en:e955"],
+      nutriments: { "energy-kcal_100g": 24, carbohydrates_100g: 6, sugars_100g: 5.8, fat_100g: 0, "saturated-fat_100g": 0 },
+    })!;
+    expect(item).toMatchObject({ unit: "300 ml", grams: 300, volumeMl: 300, sugarG: 17.4, saturatedFatG: 0, sweetener: true });
+    // Sold by weight (a powder to mix): not a drink as logged.
+    const powder = productToItem({ product_name: "Malt powder", serving_size: "30 g", serving_quantity: 30, serving_quantity_unit: "g", nutriments: { sugars_100g: 40, "saturated-fat_100g": 5 } })!;
+    expect(powder).toMatchObject({ volumeMl: null, saturatedFatG: 1.5, sweetener: false });
+    // No serving listed: per 100 ml.
+    expect(productToItem({ product_name: "Soy milk", quantity: "1 L", nutriments: { sugars_100g: 6, "saturated-fat_100g": 0.3 } })).toMatchObject({ unit: "100 ml", volumeMl: 100 });
+  });
+
   it("falls back to 100 g, kJ energy and salt", () => {
     const item = productToItem({
       product_name: "Oats",

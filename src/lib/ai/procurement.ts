@@ -1,5 +1,5 @@
 import "server-only";
-import { zodTextFormat } from "openai/helpers/zod";
+import { textFormat } from "./format";
 import type { ResponseInputContent } from "openai/resources/responses/responses";
 import type { z } from "zod";
 import { isAiMock, models, openai, reasoningOptions } from "./client";
@@ -102,7 +102,7 @@ async function parsePlan<S extends z.ZodType>(
       max_output_tokens: MAX_OUTPUT_TOKENS,
       instructions: request.instructions,
       input: [{ role: "user", content: request.content }],
-      text: { format: zodTextFormat(schema, "procurement_plan") },
+      text: { format: textFormat(schema, "procurement_plan") },
     }),
   );
   if (!response.output_parsed) throw new Error("The AI did not return a plan. Please try again.");
@@ -188,7 +188,7 @@ export async function estimateItems(
       instructions:
         "Estimate nutrition for each grocery item. Return one entry per item with its index.\n\n" + PROCUREMENT_NUTRITION_RULES + languageInstruction(locale),
       input: `Plan period: ${plan.days} days for ${plan.people} ${plan.people === 1 ? "person" : "people"}.\n\nItems:\n${list}`,
-      text: { format: zodTextFormat(GroceryNutritionSchema, "grocery_nutrition") },
+      text: { format: textFormat(GroceryNutritionSchema, "grocery_nutrition") },
     }),
   );
   const parsed = response.output_parsed;

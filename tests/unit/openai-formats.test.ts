@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { zodResponsesFunction, zodTextFormat } from "openai/helpers/zod";
+import { zodResponsesFunction } from "openai/helpers/zod";
+import { textFormat } from "@/lib/ai/format";
 import { GeneratedPlanSchema, GroceryNutritionSchema, MealAnalysisSchema, ProcurementDraftSchema, planDraftSchema } from "@/lib/ai/schemas";
 import { EXERCISES } from "../../prisma/seed/exercises";
 import { GetMealsParams, MealDeleteParams, MealLogParams, MealUpdateParams } from "@/lib/ai/coach-edits";
@@ -30,7 +31,7 @@ function assertStrict(schema: JsonSchema, path = "$") {
 
 describe("OpenAI request formats", () => {
   it("meal analysis schema is strict-compatible", () => {
-    const format = zodTextFormat(MealAnalysisSchema, "meal_analysis");
+    const format = textFormat(MealAnalysisSchema, "meal_analysis");
     expect(format.strict).toBe(true);
     assertStrict(format.schema as JsonSchema);
     // The model writes fields in order: what it sees comes before what it estimates.
@@ -44,7 +45,7 @@ describe("OpenAI request formats", () => {
       ["generated_plan", GeneratedPlanSchema],
       ["grocery_nutrition", GroceryNutritionSchema],
     ] as const) {
-      const format = zodTextFormat(schema, name);
+      const format = textFormat(schema, name);
       expect(format.strict, name).toBe(true);
       assertStrict(format.schema as JsonSchema, name);
     }
@@ -52,8 +53,15 @@ describe("OpenAI request formats", () => {
 
   it("plan schema with the full exercise enum is strict-compatible", () => {
     const slugs = EXERCISES.map((e) => e.slug) as [string, ...string[]];
-    const format = zodTextFormat(planDraftSchema(slugs), "training_plan");
+    const format = textFormat(planDraftSchema(slugs), "training_plan");
     assertStrict(format.schema as JsonSchema);
+  });
+
+  it("leaves array size limits out, which Gemini rejects", () => {
+    const slugs = EXERCISES.map((e) => e.slug) as [string, ...string[]];
+    for (const format of [textFormat(MealAnalysisSchema, "meal_analysis"), textFormat(planDraftSchema(slugs), "training_plan"), textFormat(ProcurementDraftSchema, "procurement_plan")]) {
+      expect(JSON.stringify(format.schema)).not.toMatch(/"(min|max)Items"/);
+    }
   });
 
   it("coach function tools are strict-compatible", () => {

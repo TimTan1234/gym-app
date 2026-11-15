@@ -1,5 +1,5 @@
 import "server-only";
-import { zodTextFormat } from "openai/helpers/zod";
+import { textFormat } from "./format";
 import { isAiMock, models, openai, reasoningOptions } from "./client";
 import { PLAN_SYSTEM_PROMPT, languageInstruction } from "./prompts";
 import type { Locale } from "@/i18n/config";
@@ -70,7 +70,7 @@ export async function generatePlan(req: PlanRequest, library: LibraryExercise[],
       ...reasoningOptions(),
       instructions: PLAN_SYSTEM_PROMPT + languageInstruction(locale),
       input: request,
-      text: { format: zodTextFormat(schema, "training_plan") },
+      text: { format: textFormat(schema, "training_plan") },
     });
     if (!response.output_parsed) throw new Error("The AI did not return a plan. Please try again.");
     draft = schema.parse(response.output_parsed);

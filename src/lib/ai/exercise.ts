@@ -1,5 +1,5 @@
 import "server-only";
-import { zodTextFormat } from "openai/helpers/zod";
+import { textFormat } from "./format";
 import type { ResponseInputContent } from "openai/resources/responses/responses";
 import { isAiMock, models, openai } from "./client";
 import { EXERCISE_MATCH_PROMPT, languageInstruction } from "./prompts";
@@ -42,7 +42,7 @@ export async function identifyExercises(input: ExerciseMatchInput): Promise<Iden
       model: models.fast(),
       instructions: EXERCISE_MATCH_PROMPT + languageInstruction(input.locale ?? "en"),
       input: [{ role: "user", content }],
-      text: { format: zodTextFormat(schema, "exercise_match") },
+      text: { format: textFormat(schema, "exercise_match") },
     });
     if (!response.output_parsed) throw new Error("The AI did not return a match.");
     match = schema.parse(response.output_parsed);

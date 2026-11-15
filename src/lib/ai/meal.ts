@@ -1,5 +1,5 @@
 import "server-only";
-import { zodTextFormat } from "openai/helpers/zod";
+import { textFormat } from "./format";
 import type { ResponseInputContent } from "openai/resources/responses/responses";
 import { isAiMock, models, openai } from "./client";
 import { MEAL_SYSTEM_PROMPT, languageInstruction } from "./prompts";
@@ -37,7 +37,7 @@ export async function analyzeMeal(input: MealInput): Promise<MealAnalysis> {
         model: models.fast(),
         instructions: MEAL_SYSTEM_PROMPT + languageInstruction(input.locale ?? "en"),
         input: [{ role: "user", content }],
-        text: { format: zodTextFormat(MealAnalysisSchema, "meal_analysis") },
+        text: { format: textFormat(MealAnalysisSchema, "meal_analysis") },
       });
       const parsed = MealAnalysisSchema.safeParse(response.output_parsed);
       return parsed.success ? parsed.data : null;

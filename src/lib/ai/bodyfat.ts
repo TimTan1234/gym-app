@@ -1,5 +1,5 @@
 import "server-only";
-import { zodTextFormat } from "openai/helpers/zod";
+import { textFormat } from "./format";
 import type { ResponseInputContent } from "openai/resources/responses/responses";
 import { isAiMock, models, openai } from "./client";
 import { BODY_FAT_SYSTEM_PROMPT, languageInstruction } from "./prompts";
@@ -41,7 +41,7 @@ export async function estimateBodyFat(input: BodyFatInput): Promise<BodyFatEstim
     model: models.fast(),
     instructions: BODY_FAT_SYSTEM_PROMPT + languageInstruction(input.locale ?? "en"),
     input: [{ role: "user", content }],
-    text: { format: zodTextFormat(BodyFatEstimateSchema, "body_fat_estimate") },
+    text: { format: textFormat(BodyFatEstimateSchema, "body_fat_estimate") },
   });
 
   const parsed = response.output_parsed;

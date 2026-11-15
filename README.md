@@ -34,13 +34,13 @@ cp .env.example .env             # then fill in the values below
 2. `BETTER_AUTH_SECRET`: run `openssl rand -base64 32`.
 3. **AI provider**: any provider with an OpenAI-compatible **Responses API** (structured outputs + function tools) works. Without a key (or with `AI_MOCK="1"`), the app returns realistic fixture responses so you can try every flow offline. Set `AI_MOCK="0"` to use the real provider.
 
-   | Setting | OpenAI | DeepSeek (tested) |
-   |---|---|---|
-   | `OPENAI_BASE_URL` | *(empty)* | `https://api.deepseek.com` |
-   | `OPENAI_MODEL`: meals (needs image input) | `gpt-5.4-mini` | `deepseek-flash` |
-   | `OPENAI_SMART_MODEL`: coach | `gpt-5.5` | `deepseek-v4-pro` |
-   | `OPENAI_PLAN_MODEL`: plan generation | *(empty = smart)* | `deepseek-flash` |
-   | `OPENAI_REASONING_EFFORT` | *(optional)* | `low` |
+   | Setting | OpenAI | DeepSeek (tested) | Coarena (tested) |
+   |---|---|---|---|
+   | `OPENAI_BASE_URL` | *(empty)* | `https://api.deepseek.com` | `https://coarena.ai/api/v1` |
+   | `OPENAI_MODEL`: meals (needs image input) | `gpt-5.4-mini` | `deepseek-flash` | `gemini-4-argon` |
+   | `OPENAI_SMART_MODEL`: coach | `gpt-5.5` | `deepseek-v4-pro` | `gemini-4-argon` |
+   | `OPENAI_PLAN_MODEL`: plan generation | *(empty = smart)* | `deepseek-flash` | *(empty = smart)* |
+   | `OPENAI_REASONING_EFFORT` | *(optional)* | `low` | *(optional)* |
 
    With DeepSeek, `deepseek-v4-pro` cannot read images, and it took ~100 s to generate a plan, versus ~10–30 s for `deepseek-flash`.
 4. **Email** (optional): set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` to let people reset a forgotten password by email. Port 465 uses TLS from the start; other ports upgrade with STARTTLS. Without `SMTP_HOST`, sign-in has no "Forgot password?" link.
